@@ -52,36 +52,30 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                 `$${Number(product.price).toFixed(2)}`
               )
             ) : (
-              t["product.priceOnRequest"]
+              <span className="text-neutral-500">{t["product.priceOnRequest"]}</span>
             )}
           </p>
           {product.description && (
             <p className="mt-6 whitespace-pre-line text-sm leading-relaxed text-neutral-700">{product.description}</p>
           )}
 
-          {hasPrice && (
-            <ProductActions
-              productId={product.id}
-              name={product.name}
-              price={finalPrice!}
-              image={product.images[0]?.url ?? null}
-              stock={product.stock ?? null}
-              variants={product.variants ?? []}
-              t={t}
-            />
-          )}
+          <ProductActions
+            productId={product.id}
+            name={product.name}
+            price={hasPrice ? finalPrice! : null}
+            image={product.images[0]?.url ?? null}
+            stock={product.stock ?? null}
+            variants={product.variants ?? []}
+            t={t}
+          />
 
           <a
             href={settings.whatsapp_number ? whatsappLink(settings.whatsapp_number, orderMessage) : "/contact"}
             target="_blank"
             rel="noopener noreferrer"
-            className={`block w-full border py-3 text-center text-sm uppercase tracking-widest transition-colors ${
-              hasPrice
-                ? "mt-3 border-neutral-300 text-neutral-700 hover:border-brand-black"
-                : "mt-8 border-green-600 bg-green-600 text-white hover:opacity-90"
-            }`}
+            className="mt-3 block w-full border border-neutral-300 py-3 text-center text-sm uppercase tracking-widest text-neutral-700 transition-colors hover:border-brand-black"
           >
-            {hasPrice ? t["product.askWhatsapp"] : t["product.orderWhatsapp"]}
+            {t["product.askWhatsapp"]}
           </a>
         </div>
       </div>
