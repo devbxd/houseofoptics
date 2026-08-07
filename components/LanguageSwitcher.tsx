@@ -17,12 +17,12 @@ export function LanguageSwitcher() {
   }
 
   return (
-    <div className="flex items-center gap-1 text-xs">
+    <div className="flex items-center gap-0.5 text-[11px] md:gap-1 md:text-xs">
       {LOCALES.map((l) => (
         <button
           key={l}
           onClick={() => switchTo(l)}
-          className={`px-1.5 py-0.5 uppercase tracking-wide transition-colors ${
+          className={`px-1 py-0.5 uppercase tracking-wide transition-colors md:px-1.5 ${
             l === locale ? "text-brand-red" : "text-neutral-400 hover:text-brand-black"
           }`}
         >

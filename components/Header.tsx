@@ -25,7 +25,7 @@ export function Header({ brandName, categories, t, whatsappNumber, facebookUrl, 
         {t["nav.announcement"]}
       </div>
       <div className="border-b border-neutral-200">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 md:px-6 md:py-5">
           <HamburgerMenu
             categories={categories}
             whatsappUrl={whatsappNumber ? whatsappLink(whatsappNumber) : ""}
@@ -34,21 +34,21 @@ export function Header({ brandName, categories, t, whatsappNumber, facebookUrl, 
             t={t}
           />
 
-          <Link href="/" className="flex shrink-0 items-center gap-2.5">
+          <Link href="/" className="flex min-w-0 shrink items-center gap-1.5 md:gap-2.5">
             <Image
               src="/logo-mark.png"
               alt=""
               width={55}
               height={66}
-              className="h-8 w-auto object-contain invert md:h-9"
+              className="h-6 w-auto shrink-0 object-contain invert md:h-9"
               priority
             />
-            <span className="font-serif text-xl tracking-[0.15em] text-brand-black md:text-2xl">
+            <span className="truncate font-serif text-base tracking-[0.1em] text-brand-black md:text-2xl md:tracking-[0.15em]">
               {brandName.toUpperCase()}
             </span>
           </Link>
 
-          <div className="flex items-center gap-6">
+          <div className="flex shrink-0 items-center gap-2 md:gap-6">
             <nav className="hidden items-center gap-10 text-xs uppercase tracking-[0.15em] md:flex">
               <Link href="/" className="transition-colors hover:text-brand-red">
                 {t["nav.home"]}
