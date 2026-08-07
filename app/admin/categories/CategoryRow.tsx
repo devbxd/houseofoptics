@@ -12,21 +12,23 @@ export function CategoryRow({ category, productCount }: { category: Category; pr
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <tr className="border-b border-neutral-100">
-      <td className="py-3 pr-4">
+    <div className="flex flex-col gap-3 border-b border-neutral-100 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
         {editing ? (
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="border border-neutral-300 px-2 py-1 text-sm"
+            className="w-full border border-neutral-300 px-2 py-1.5 text-sm sm:w-56"
           />
         ) : (
-          <span>{category.name}</span>
+          <p className="truncate text-sm font-medium">{category.name}</p>
         )}
-      </td>
-      <td className="py-3 pr-4 text-sm text-neutral-500">{category.slug}</td>
-      <td className="py-3 pr-4 text-sm text-neutral-500">{productCount}</td>
-      <td className="space-x-3 py-3 text-right text-sm">
+        <p className="mt-0.5 text-xs text-neutral-500">
+          {category.slug} · {productCount} product{productCount === 1 ? "" : "s"}
+        </p>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-4 text-sm">
         {editing ? (
           <button
             className="text-brand-red"
@@ -60,8 +62,8 @@ export function CategoryRow({ category, productCount }: { category: Category; pr
         >
           {deleting ? "..." : "Delete"}
         </button>
-        {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
-      </td>
-    </tr>
+      </div>
+      {error && <p className="text-xs text-red-600 sm:basis-full">{error}</p>}
+    </div>
   );
 }

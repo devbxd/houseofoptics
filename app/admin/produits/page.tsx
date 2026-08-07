@@ -34,21 +34,24 @@ export default async function AdminProductsPage({
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-serif text-2xl">Products {count != null && <span className="text-sm font-normal text-neutral-400">({count})</span>}</h1>
-        <div className="flex items-center gap-3">
-          <form>
-            <input
-              name="q"
-              defaultValue={search}
-              placeholder="Search by name..."
-              className="border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
-            />
-          </form>
-          <Link href="/admin/produits/nouveau" className="bg-brand-black px-5 py-2 text-sm uppercase tracking-wide text-white hover:opacity-90">
+      <div className="mb-6 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="font-serif text-2xl">Products {count != null && <span className="text-sm font-normal text-neutral-400">({count})</span>}</h1>
+          <Link
+            href="/admin/produits/nouveau"
+            className="shrink-0 bg-brand-black px-4 py-2 text-xs uppercase tracking-wide text-white hover:opacity-90 sm:px-5 sm:text-sm"
+          >
             New product
           </Link>
         </div>
+        <form>
+          <input
+            name="q"
+            defaultValue={search}
+            placeholder="Search by name..."
+            className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none sm:max-w-xs"
+          />
+        </form>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

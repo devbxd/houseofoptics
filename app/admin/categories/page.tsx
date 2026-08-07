@@ -39,21 +39,11 @@ export default async function AdminCategoriesPage() {
         </SubmitButton>
       </form>
 
-      <table className="w-full max-w-2xl text-left">
-        <thead>
-          <tr className="border-b border-neutral-200 text-sm text-neutral-500">
-            <th className="pb-2 font-normal">Name</th>
-            <th className="pb-2 font-normal">Slug</th>
-            <th className="pb-2 font-normal">Products</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {(categories ?? []).map((c) => (
-            <CategoryRow key={c.id} category={c} productCount={counts.get(c.id) ?? 0} />
-          ))}
-        </tbody>
-      </table>
+      <div className="max-w-2xl border-t border-neutral-100">
+        {(categories ?? []).map((c) => (
+          <CategoryRow key={c.id} category={c} productCount={counts.get(c.id) ?? 0} />
+        ))}
+      </div>
     </div>
   );
 }
