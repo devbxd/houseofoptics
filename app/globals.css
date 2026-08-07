@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  padding-bottom: 4.5rem; /* space for the fixed bottom nav, always visible */
+}
