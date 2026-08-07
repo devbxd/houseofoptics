@@ -8,6 +8,7 @@ const config: Config = {
         brand: {
           black: "#111111",
           red: "#c8102e",
+          beige: "#F1E9DC",
         },
       },
       fontFamily: {

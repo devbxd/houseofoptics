@@ -11,17 +11,20 @@ export default function CartPage() {
 
   if (items.length === 0) {
     return (
-      <main className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <h1 className="font-serif text-2xl">{t["cart.empty"]}</h1>
-        <Link href="/produits" className="mt-6 inline-block border border-brand-black px-8 py-3 text-xs uppercase tracking-widest hover:bg-brand-black hover:text-white">
-          {t["cart.viewCollection"]}
-        </Link>
+      <main className="bg-brand-beige px-4 py-16 text-center">
+        <div className="mx-auto max-w-2xl">
+          <h1 className="font-serif text-2xl">{t["cart.empty"]}</h1>
+          <Link href="/produits" className="mt-6 inline-block border border-brand-black px-8 py-3 text-xs uppercase tracking-widest hover:bg-brand-black hover:text-white">
+            {t["cart.viewCollection"]}
+          </Link>
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-12">
+    <main className="bg-brand-beige px-4 py-12">
+      <div className="mx-auto max-w-3xl">
       <h1 className="mb-8 font-serif text-2xl">{t["cart.title"]}</h1>
 
       <div className="divide-y divide-neutral-200 border-y border-neutral-200">
@@ -59,6 +62,7 @@ export default function CartPage() {
       >
         {t["cart.checkout"]}
       </Link>
+      </div>
     </main>
   );
 }

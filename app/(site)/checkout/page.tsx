@@ -112,7 +112,8 @@ export default function CheckoutPage() {
 
   if (confirmedOrderId) {
     return (
-      <main className="mx-auto max-w-lg px-4 py-20 text-center">
+      <main className="bg-brand-beige px-4 py-20 text-center">
+        <div className="mx-auto max-w-lg">
         <h1 className="font-serif text-2xl">{t["checkout.orderConfirmedTitle"]}</h1>
         <p className="mt-4 text-sm text-neutral-600">
           {t["checkout.reference"]} : <span className="font-mono">{confirmedOrderId.slice(0, 8)}</span>
@@ -137,12 +138,14 @@ export default function CheckoutPage() {
             Send it via WhatsApp too
           </a>
         )}
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-12">
+    <main className="bg-brand-beige px-4 py-12">
+      <div className="mx-auto max-w-2xl">
       <h1 className="mb-8 font-serif text-2xl">{t["checkout.title"]}</h1>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -302,6 +305,7 @@ export default function CheckoutPage() {
           <p className="text-center text-xs text-neutral-400">{t["checkout.securePayment"]}</p>
         )}
       </form>
+      </div>
     </main>
   );
 }
