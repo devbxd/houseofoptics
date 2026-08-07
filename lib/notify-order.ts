@@ -3,12 +3,10 @@
 // .env.example). If not configured, this silently no-ops — checkout must
 // never fail because a notification couldn't be sent.
 //
-// WhatsApp alert to the owner via CallMeBot (callmebot.com) — a free
-// third-party service for *personal* WhatsApp notifications, not the
-// official WhatsApp Business API. It works by messaging their bot number
-// once from the owner's own phone to get a personal API key, then a simple
-// HTTP request triggers a WhatsApp message to that same number. Requires
-// CALLMEBOT_PHONE + CALLMEBOT_APIKEY env vars — see README for setup.
+// Note: automatic WhatsApp alerts to the owner aren't handled here — the
+// customer taps "Send it via WhatsApp too" on the order confirmation screen
+// instead, which opens WhatsApp from their own phone with the order
+// pre-filled (see app/(site)/checkout/page.tsx).
 
 type OrderNotification = {
   orderId: string;
@@ -33,28 +31,13 @@ async function sendEmail(apiKey: string, to: string, subject: string, html: stri
   });
 }
 
-async function sendWhatsAppOwnerAlert(order: OrderNotification) {
-  const phone = process.env.CALLMEBOT_PHONE;
-  const apikey = process.env.CALLMEBOT_APIKEY;
-  if (!phone || !apikey) return;
-
-  const summary = order.items.map((i) => `${i.quantity}x ${i.name}${i.variant ? ` (${i.variant})` : ""}`).join(", ");
-  const text = `New order! ${order.name} (${order.phone})\n${summary}\nTotal: $${order.total.toFixed(2)} - ${order.paymentMethod === "cod" ? "Cash on delivery" : "Card"}\n${order.address}, ${order.city}`;
-
-  await fetch(
-    `https://api.callmebot.com/whatsapp.php?phone=${encodeURIComponent(phone)}&text=${encodeURIComponent(text)}&apikey=${encodeURIComponent(apikey)}`
-  ).catch(() => {});
-}
-
 export async function notifyNewOrder(order: OrderNotification) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return;
+
   const itemsHtml = order.items
     .map((i) => `<li>${i.quantity} × ${i.name}${i.variant ? ` (${i.variant})` : ""} — $${i.price.toFixed(2)}</li>`)
     .join("");
-
-  await sendWhatsAppOwnerAlert(order);
-
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return;
 
   const ownerEmail = process.env.OWNER_NOTIFICATION_EMAIL;
   if (ownerEmail) {
