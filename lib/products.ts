@@ -22,10 +22,17 @@ export async function listProducts(
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
+  // A plain embedded filter (categories.slug=eq...) only shapes the nested
+  // object, it does NOT restrict which product rows come back — Supabase
+  // needs an explicit inner join for that. But forcing !inner always would
+  // wrongly exclude every product that has no category at all, so only use
+  // it when we're actually filtering by a category.
+  const categoryRelation = categorySlug ? "categories!inner" : "categories";
+
   let query = supabase
     .from("products")
     .select(
-      "id, name, slug, price, discount_percent, stock, category:categories(name, slug), images:product_images(url, sort_order)",
+      `id, name, slug, price, discount_percent, stock, category:${categoryRelation}(name, slug), images:product_images(url, sort_order)`,
       { count: "exact" }
     )
     .eq("is_active", true)
