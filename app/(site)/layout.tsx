@@ -24,6 +24,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         whatsappNumber={settings.whatsapp_number}
         facebookUrl={settings.facebook_url}
         instagramHandle={settings.instagram_handle}
+        contactEmail={settings.contact_email}
       />
       {children}
       <CartFab />

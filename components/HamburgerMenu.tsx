@@ -10,12 +10,14 @@ export function HamburgerMenu({
   whatsappUrl,
   facebookUrl,
   instagramUrl,
+  mailUrl,
   t,
 }: {
   categories: Category[];
   whatsappUrl: string;
   facebookUrl: string;
   instagramUrl: string;
+  mailUrl: string;
   t: Record<string, string>;
 }) {
   const [open, setOpen] = useState(false);
@@ -83,6 +85,14 @@ export function HamburgerMenu({
           </nav>
 
           <div className="flex items-center justify-center gap-6 border-t border-neutral-200 px-5 py-6">
+            {mailUrl && (
+              <a href={mailUrl} aria-label="Email">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-6 w-6 text-neutral-700 hover:text-brand-black">
+                  <path d="M3 6h18v12H3z" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="m3 7 9 6 9-6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </a>
+            )}
             {whatsappUrl && (
               <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
                 <svg viewBox="0 0 32 32" className="h-7 w-7">

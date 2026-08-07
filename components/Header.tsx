@@ -16,9 +16,10 @@ type Props = {
   whatsappNumber: string;
   facebookUrl: string;
   instagramHandle: string;
+  contactEmail: string;
 };
 
-export function Header({ brandName, categories, t, whatsappNumber, facebookUrl, instagramHandle }: Props) {
+export function Header({ brandName, categories, t, whatsappNumber, facebookUrl, instagramHandle, contactEmail }: Props) {
   return (
     <header className="sticky top-0 z-40 bg-white">
       <div className="border-b border-brand-black bg-brand-black py-2 text-center text-[11px] uppercase tracking-[0.2em] text-white">
@@ -31,6 +32,7 @@ export function Header({ brandName, categories, t, whatsappNumber, facebookUrl, 
             whatsappUrl={whatsappNumber ? whatsappLink(whatsappNumber) : ""}
             facebookUrl={facebookUrl}
             instagramUrl={instagramHandle ? `https://instagram.com/${instagramHandle}` : ""}
+            mailUrl={contactEmail ? `mailto:${contactEmail}` : ""}
             t={t}
           />
 
