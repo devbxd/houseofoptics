@@ -58,6 +58,26 @@ export async function listProducts(
   return { products, total: count ?? 0, pageSize };
 }
 
+export async function getRelatedProducts(
+  product: { id: string; category: { slug: string } | null; brand: { slug: string } | null },
+  limit = 8
+): Promise<ProductCard[]> {
+  // Prefer same category, fall back to same brand, then just recent products
+  // — most products don't have a category assigned yet, and the section
+  // should still show something useful instead of disappearing.
+  const attempts: { categorySlug?: string; brandSlug?: string }[] = [];
+  if (product.category) attempts.push({ categorySlug: product.category.slug });
+  if (product.brand) attempts.push({ brandSlug: product.brand.slug });
+  attempts.push({});
+
+  for (const opts of attempts) {
+    const { products } = await listProducts(opts, 1, limit + 1);
+    const filtered = products.filter((p) => p.id !== product.id).slice(0, limit);
+    if (filtered.length > 0) return filtered;
+  }
+  return [];
+}
+
 export async function getProductBySlug(slug: string) {
   const supabase = await createClient();
   const { data } = await supabase

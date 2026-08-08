@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getProductBySlug, listProducts } from "@/lib/products";
+import { getProductBySlug, getRelatedProducts } from "@/lib/products";
 import { getSiteSettings } from "@/lib/settings";
 import { whatsappLink } from "@/lib/settings";
 import { ProductActions } from "@/components/ProductActions";
@@ -22,9 +22,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const finalPrice = hasDiscount ? Number(product.price) * (1 - product.discount_percent! / 100) : product.price;
   const outOfStock = product.stock != null && product.stock <= 0;
 
-  const related = product.category
-    ? (await listProducts({ categorySlug: product.category.slug }, 1, 9)).products.filter((p) => p.id !== product.id).slice(0, 8)
-    : [];
+  const related = await getRelatedProducts(product);
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">

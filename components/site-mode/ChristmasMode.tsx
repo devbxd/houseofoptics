@@ -1,14 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useMelody } from "./useMelody";
-
-// Opening motif of "Jingle Bells" (public domain) — recognizable, loops cleanly.
-const MELODY = [
-  659.25, 659.25, 659.25, null,
-  659.25, 659.25, 659.25, null,
-  659.25, 783.99, 523.25, 587.33, 659.25, null, null, null,
-];
+import { useEffect, useRef, useState } from "react";
 
 type Particle = { left: number; delay: number; duration: number; size: number; sway: number };
 
@@ -33,11 +25,40 @@ const ORNAMENTS = [
 export function ChristmasMode() {
   const [far, setFar] = useState<Particle[] | null>(null);
   const [near, setNear] = useState<Particle[] | null>(null);
-  const { playing, toggle } = useMelody(MELODY, 260, "triangle");
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     setFar(makeParticles(26, [4, 8]));
     setNear(makeParticles(16, [9, 16]));
+  }, []);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    // Browsers block audio with sound until the visitor has interacted with
+    // the page at least once — there's no way around that from JS. Try to
+    // play immediately, and if it's blocked, start on the first tap/click/key
+    // anywhere on the page instead (so no dedicated "play music" button is
+    // needed — any normal interaction with the site starts it).
+    const start = () => {
+      audio.play().catch(() => {});
+      document.removeEventListener("click", start);
+      document.removeEventListener("touchstart", start);
+      document.removeEventListener("keydown", start);
+    };
+
+    audio.play().catch(() => {
+      document.addEventListener("click", start);
+      document.addEventListener("touchstart", start);
+      document.addEventListener("keydown", start);
+    });
+
+    return () => {
+      document.removeEventListener("click", start);
+      document.removeEventListener("touchstart", start);
+      document.removeEventListener("keydown", start);
+    };
   }, []);
 
   return (
@@ -114,14 +135,7 @@ export function ChristmasMode() {
         ))}
       </div>
 
-      <button
-        onClick={toggle}
-        className="fixed bottom-24 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full text-xl text-white shadow-[0_6px_20px_rgba(0,0,0,0.35)] transition-transform hover:scale-105"
-        style={{ background: "radial-gradient(circle at 35% 30%, #e0324a, #8f0d20)" }}
-        aria-label="Musique de Noël"
-      >
-        {playing ? "🔊" : "🎵"}
-      </button>
+      <audio ref={audioRef} src="/audio/jingle-bells.wav" loop preload="auto" />
     </>
   );
 }

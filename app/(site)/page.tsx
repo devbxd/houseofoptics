@@ -88,35 +88,63 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {topCategories.length > 0 && (
+      {topCategories[0] && (
+        <section className="relative flex h-[70vh] min-h-[420px] items-end overflow-hidden bg-neutral-900 text-white">
+          {categoryImageById.get(topCategories[0].id) ? (
+            <Image
+              src={categoryImageById.get(topCategories[0].id)!}
+              alt=""
+              fill
+              quality={90}
+              sizes="100vw"
+              className="object-cover"
+            />
+          ) : null}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-black/0" />
+          <div className="relative z-10 w-full px-6 pb-14 md:px-16 md:pb-20">
+            <h2 className="font-serif text-3xl tracking-wide md:text-5xl">{topCategories[0].name}</h2>
+            <Link
+              href={`/categorie/${topCategories[0].slug}`}
+              className="mt-6 inline-block border border-white px-8 py-3 text-xs uppercase tracking-[0.25em] transition-colors hover:bg-white hover:text-brand-black"
+            >
+              {t["home.shopCollection"]}
+            </Link>
+          </div>
+        </section>
+      )}
+
+      {topCategories.length > 1 && (
         <section className="mx-auto max-w-6xl px-6 py-16">
           <h2 className="mb-10 text-center font-serif text-2xl tracking-wide">{t["home.categories"]}</h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:gap-5 lg:grid-cols-4">
-            {topCategories.map((c) => {
+          <div className="grid gap-8 sm:grid-cols-3">
+            {topCategories.slice(1).map((c) => {
               const img = categoryImageById.get(c.id);
               return (
-                <Link
-                  key={c.id}
-                  href={`/categorie/${c.slug}`}
-                  className="group relative aspect-[4/5] overflow-hidden rounded-sm bg-neutral-100"
-                >
-                  {img ? (
-                    <Image
-                      src={img}
-                      alt=""
-                      fill
-                      quality={90}
-                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                      className="object-cover transition-transform duration-700 ease-out group-hover:scale-110"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 bg-neutral-200" />
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 transition-opacity group-hover:from-black/70" />
-                  <span className="absolute bottom-0 left-0 right-0 p-4 text-center font-serif text-lg tracking-wide text-white md:text-xl">
-                    {c.name}
-                  </span>
-                </Link>
+                <div key={c.id}>
+                  <Link href={`/categorie/${c.slug}`} className="group relative block aspect-[4/5] overflow-hidden bg-neutral-100">
+                    {img ? (
+                      <Image
+                        src={img}
+                        alt=""
+                        fill
+                        quality={90}
+                        sizes="(max-width: 640px) 100vw, 33vw"
+                        className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-neutral-200" />
+                    )}
+                  </Link>
+                  <div className="mt-4 text-center">
+                    <p className="font-serif text-lg tracking-wide">{c.name}</p>
+                    <Link
+                      href={`/categorie/${c.slug}`}
+                      className="mt-2 inline-block text-xs uppercase tracking-[0.2em] text-neutral-500 transition-colors hover:text-brand-black"
+                    >
+                      {t["home.shopCollection"]}
+                    </Link>
+                  </div>
+                </div>
               );
             })}
           </div>
