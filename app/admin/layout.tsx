@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { signOut } from "./login/actions";
 import { BackButton } from "./BackButton";
+import { MobileNav } from "./MobileNav";
 
 const NAV = [
   { href: "/admin", label: "Overview" },
@@ -37,19 +38,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </aside>
 
       <div className="flex-1">
-        <header className="flex items-center justify-between border-b border-neutral-200 bg-white px-4 py-3 md:hidden">
-          <p className="font-serif">Dashboard</p>
-          <form action={signOut}>
-            <button className="text-sm text-neutral-600">Log out</button>
-          </form>
-        </header>
-        <nav className="flex gap-1 overflow-x-auto border-b border-neutral-200 bg-white px-4 py-2 text-sm md:hidden">
-          {NAV.map((item) => (
-            <Link key={item.href} href={item.href} className="whitespace-nowrap rounded px-3 py-1.5 hover:bg-neutral-100">
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        <MobileNav nav={NAV} signOut={signOut} />
         <main className="p-4 md:p-8">
           <BackButton />
           {children}
