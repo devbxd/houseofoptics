@@ -28,20 +28,36 @@ export async function sendBroadcast(formData: FormData) {
   });
 
   let sent = 0;
+  let failed = 0;
   for (const email of emails) {
-    await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: "House of Optics <orders@resend.dev>",
-        to: [email],
-        subject,
-        html,
-      }),
-    });
-    sent += 1;
+    // One bad recipient (typo'd address, transient Resend error) must not
+    // stop the rest of the list from getting the email.
+    try {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: "House of Optics <orders@resend.dev>",
+          to: [email],
+          subject,
+          html,
+        }),
+      });
+      if (res.ok) {
+        sent += 1;
+      } else {
+        failed += 1;
+        console.error(`Broadcast to ${email} failed (${res.status}): ${await res.text()}`);
+      }
+    } catch (err) {
+      failed += 1;
+      console.error(`Broadcast to ${email} threw:`, err);
+    }
     await sleep(550); // stay comfortably under Resend's free-tier rate limit
   }
 
-  return { sent, error: null };
+  return {
+    sent,
+    error: failed > 0 ? `${failed} email${failed === 1 ? "" : "s"} failed to send — check the server logs` : null,
+  };
 }

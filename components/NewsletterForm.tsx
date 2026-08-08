@@ -10,8 +10,14 @@ export function NewsletterForm({ t }: { t: Record<string, string> }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus("loading");
-    const { error } = await subscribeToNewsletter(email);
-    setStatus(error ? "error" : "done");
+    try {
+      const { error } = await subscribeToNewsletter(email);
+      setStatus(error ? "error" : "done");
+    } catch {
+      // Never leave the button stuck on "loading" — an unexpected error
+      // still needs to resolve to a state the visitor can act on.
+      setStatus("error");
+    }
   }
 
   if (status === "done") {
@@ -35,6 +41,9 @@ export function NewsletterForm({ t }: { t: Record<string, string> }) {
       >
         {t["newsletter.subscribe"]}
       </button>
+      {status === "error" && (
+        <p className="basis-full text-sm text-brand-red">{t["checkout.genericError"]}</p>
+      )}
     </form>
   );
 }

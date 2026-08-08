@@ -14,6 +14,11 @@ export async function subscribeToNewsletter(email: string) {
     return { error: error.message };
   }
 
-  await sendWelcomeEmail(trimmed);
+  try {
+    await sendWelcomeEmail(trimmed);
+  } catch {
+    // the subscription itself succeeded — a welcome-email hiccup must never
+    // make the signup form look like it failed
+  }
   return { error: null };
 }

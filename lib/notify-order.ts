@@ -26,12 +26,23 @@ type OrderNotification = {
 
 const FROM = "House of Optics <orders@resend.dev>";
 
+// Never throws — a hiccup sending one email (network blip, Resend rate
+// limit, etc.) must never take down the checkout/newsletter form that
+// triggered it. Failures are logged so they're visible in the server logs
+// instead of silently vanishing.
 async function sendEmail(apiKey: string, to: string, subject: string, html: string) {
-  await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: FROM, to: [to], subject, html }),
-  });
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: FROM, to: [to], subject, html }),
+    });
+    if (!res.ok) {
+      console.error(`Resend email to ${to} failed (${res.status}): ${await res.text()}`);
+    }
+  } catch (err) {
+    console.error(`Resend email to ${to} threw:`, err);
+  }
 }
 
 function itemsList(items: OrderNotification["items"]) {

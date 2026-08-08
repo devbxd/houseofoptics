@@ -30,8 +30,8 @@ export function BroadcastForm({ subscriberCount }: { subscriberCount: number }) 
       >
         {pending ? "Sending..." : "Send to all subscribers"}
       </button>
+      {state.sent > 0 && <p className="text-sm text-green-700">Sent to {state.sent} subscriber{state.sent === 1 ? "" : "s"}.</p>}
       {state.error && <p className="text-sm text-red-600">{state.error}</p>}
-      {!state.error && state.sent > 0 && <p className="text-sm text-green-700">Sent to {state.sent} subscribers.</p>}
     </form>
   );
 }
