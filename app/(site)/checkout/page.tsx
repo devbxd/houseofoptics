@@ -10,6 +10,47 @@ import { createOrder } from "./actions";
 const SHIPPING_COST = { beirut: 4, outside_beirut: 6 } as const;
 const EXPRESS_WHATSAPP_NUMBER = "96181701556";
 
+type ConfirmedOrder = {
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+  city: string;
+  coords: { lat: number; lng: number } | null;
+  paymentMethod: "card" | "cod";
+  shippingZone: "beirut" | "outside_beirut";
+  shippingCost: number;
+  items: { name: string; variant: string | null; quantity: number; price: number }[];
+  subtotal: number;
+  total: number;
+};
+
+function buildWhatsAppOrderMessage(orderId: string, o: ConfirmedOrder) {
+  const itemsText = o.items
+    .map((i) => `${i.quantity}x ${i.name}${i.variant ? ` (${i.variant})` : ""} — $${(i.price * i.quantity).toFixed(2)}`)
+    .join("\n");
+  const mapsLink = o.coords ? `https://www.google.com/maps?q=${o.coords.lat},${o.coords.lng}` : null;
+
+  const lines = [
+    `Hi! I just placed an order (#${orderId.slice(0, 8)}) on the website:`,
+    "",
+    `Name: ${o.name}`,
+    `Phone: ${o.phone}`,
+    `Email: ${o.email}`,
+    `Address: ${o.address}, ${o.city}`,
+    mapsLink ? `GPS location: ${mapsLink}` : null,
+    "",
+    itemsText,
+    "",
+    `Subtotal: $${o.subtotal.toFixed(2)}`,
+    `Shipping (${o.shippingZone === "beirut" ? "Beirut" : "Outside Beirut"}): $${o.shippingCost.toFixed(2)}`,
+    `Total: $${o.total.toFixed(2)}`,
+    `Payment: ${o.paymentMethod === "cod" ? "Cash on delivery" : "Card"}`,
+  ];
+
+  return lines.filter((l) => l !== null).join("\n");
+}
+
 export default function CheckoutPage() {
   const { items, subtotal, clear } = useCart();
   const router = useRouter();
@@ -23,10 +64,7 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmedOrderId, setConfirmedOrderId] = useState<string | null>(null);
-  const [confirmedSnapshot, setConfirmedSnapshot] = useState<{
-    items: { name: string; quantity: number }[];
-    total: number;
-  } | null>(null);
+  const [confirmedSnapshot, setConfirmedSnapshot] = useState<ConfirmedOrder | null>(null);
   const [ownerWhatsapp, setOwnerWhatsapp] = useState<string | null>(null);
 
   useEffect(() => {
@@ -94,7 +132,17 @@ export default function CheckoutPage() {
       });
       setConfirmedOrderId(orderId);
       setConfirmedSnapshot({
-        items: items.map((i) => ({ name: i.name, quantity: i.quantity })),
+        name: form.name,
+        phone: form.phone,
+        email: form.email,
+        address: form.address,
+        city: form.city,
+        coords,
+        paymentMethod,
+        shippingZone,
+        shippingCost,
+        items: items.map((i) => ({ name: i.name, variant: i.variant, quantity: i.quantity, price: i.price })),
+        subtotal,
         total,
       });
       clear();
@@ -127,9 +175,7 @@ export default function CheckoutPage() {
         {ownerWhatsapp && confirmedSnapshot && (
           <a
             href={`https://wa.me/${ownerWhatsapp.replace(/[^\d]/g, "")}?text=${encodeURIComponent(
-              `Hi! I just placed an order (#${confirmedOrderId.slice(0, 8)}) on the website:\n${confirmedSnapshot.items
-                .map((i) => `${i.quantity}x ${i.name}`)
-                .join(", ")}\nTotal: $${confirmedSnapshot.total.toFixed(2)}`
+              buildWhatsAppOrderMessage(confirmedOrderId, confirmedSnapshot)
             )}`}
             target="_blank"
             rel="noopener noreferrer"
@@ -186,7 +232,7 @@ export default function CheckoutPage() {
             type="button"
             onClick={useMyLocation}
             disabled={locating}
-            className="text-xs uppercase tracking-wide text-brand-red hover:underline disabled:opacity-50"
+            className="text-sm font-bold uppercase tracking-wide text-brand-black underline underline-offset-2 hover:text-brand-red disabled:opacity-50"
           >
             {locating ? t["checkout.locating"] : t["checkout.useMyLocation"]}
           </button>
