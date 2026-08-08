@@ -11,8 +11,14 @@ export default async function AdminCategoriesPage() {
     .order("sort_order", { ascending: true });
 
   const all = categories ?? [];
-  const topLevel = all.filter((c) => !c.parent_id);
-  const childrenOf = (id: string) => all.filter((c) => c.parent_id === id);
+  const childrenOf = (id: string | null) => all.filter((c) => c.parent_id === id);
+
+  // Flatten the tree (any depth) into an ordered, depth-tagged list so both
+  // the parent picker and the nested listing below can just map over it.
+  function flatten(parentId: string | null, depth: number): { category: (typeof all)[number]; depth: number }[] {
+    return childrenOf(parentId).flatMap((c) => [{ category: c, depth }, ...flatten(c.id, depth + 1)]);
+  }
+  const flatTree = flatten(null, 0);
 
   // One lightweight head-count per category instead of pulling every
   // product row just to count them client-side.
@@ -45,9 +51,9 @@ export default async function AdminCategoriesPage() {
             className="flex-1 border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
           >
             <option value="">No parent (top-level category)</option>
-            {topLevel.map((c) => (
+            {flatTree.map(({ category: c, depth }) => (
               <option key={c.id} value={c.id}>
-                Sub-category of: {c.name}
+                {"    ".repeat(depth)}Sub-category of: {c.name}
               </option>
             ))}
           </select>
@@ -55,17 +61,16 @@ export default async function AdminCategoriesPage() {
             Add
           </SubmitButton>
         </div>
+        <p className="text-xs text-neutral-500">
+          Pick any existing category as the parent — sub-categories can have their own sub-categories, nested as
+          deep as you need.
+        </p>
       </form>
 
       <div className="max-w-2xl border-t border-neutral-100">
-        {topLevel.map((c) => (
-          <div key={c.id}>
+        {flatTree.map(({ category: c, depth }) => (
+          <div key={c.id} style={{ paddingLeft: `${depth * 1.5}rem` }}>
             <CategoryRow category={c} productCount={counts.get(c.id) ?? 0} />
-            {childrenOf(c.id).map((sub) => (
-              <div key={sub.id} className="pl-6">
-                <CategoryRow category={sub} productCount={counts.get(sub.id) ?? 0} />
-              </div>
-            ))}
           </div>
         ))}
       </div>

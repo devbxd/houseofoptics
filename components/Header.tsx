@@ -3,10 +3,9 @@ import Image from "next/image";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { HamburgerMenu } from "./HamburgerMenu";
 import { SocialIcons } from "./SocialIcons";
+import { CategoryLinks, type Category } from "./CategoryLinks";
 import { whatsappLink } from "@/lib/settings";
 import type { Locale } from "@/lib/i18n";
-
-type Category = { id: string; name: string; slug: string; parent_id: string | null };
 
 type Props = {
   brandName: string;
@@ -75,29 +74,7 @@ export function Header({ brandName, categories, t, whatsappNumber, facebookUrl, 
                   <Link href="/produits" className="block px-5 py-2.5 normal-case tracking-normal hover:bg-neutral-50">
                     {t["nav.allProducts"]}
                   </Link>
-                  {categories
-                    .filter((c) => !c.parent_id)
-                    .map((c) => (
-                      <div key={c.id}>
-                        <Link
-                          href={`/categorie/${c.slug}`}
-                          className="block px-5 py-2.5 normal-case tracking-normal hover:bg-neutral-50"
-                        >
-                          {c.name}
-                        </Link>
-                        {categories
-                          .filter((sub) => sub.parent_id === c.id)
-                          .map((sub) => (
-                            <Link
-                              key={sub.id}
-                              href={`/categorie/${sub.slug}`}
-                              className="block py-2 pl-8 pr-5 text-xs normal-case tracking-normal text-neutral-500 hover:bg-neutral-50"
-                            >
-                              {sub.name}
-                            </Link>
-                          ))}
-                      </div>
-                    ))}
+                  <CategoryLinks categories={categories} parentId={null} variant="desktop" />
                 </div>
               </div>
 

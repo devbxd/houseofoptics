@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-
-type Category = { id: string; name: string; slug: string; parent_id: string | null };
+import { CategoryLinks, type Category } from "./CategoryLinks";
 
 export function HamburgerMenu({
   categories,
@@ -63,31 +62,12 @@ export function HamburgerMenu({
             </Link>
             {categories.length > 0 && (
               <div className="mt-2 border-t border-neutral-100 pt-2">
-                {categories
-                  .filter((c) => !c.parent_id)
-                  .map((c) => (
-                    <div key={c.id}>
-                      <Link
-                        href={`/categorie/${c.slug}`}
-                        onClick={() => setOpen(false)}
-                        className="block py-2 pl-3 text-neutral-600"
-                      >
-                        {c.name}
-                      </Link>
-                      {categories
-                        .filter((sub) => sub.parent_id === c.id)
-                        .map((sub) => (
-                          <Link
-                            key={sub.id}
-                            href={`/categorie/${sub.slug}`}
-                            onClick={() => setOpen(false)}
-                            className="block py-1.5 pl-7 text-xs text-neutral-500"
-                          >
-                            {sub.name}
-                          </Link>
-                        ))}
-                    </div>
-                  ))}
+                <CategoryLinks
+                  categories={categories}
+                  parentId={null}
+                  variant="mobile"
+                  onNavigate={() => setOpen(false)}
+                />
               </div>
             )}
             <Link
