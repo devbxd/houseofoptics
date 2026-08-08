@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { DEFAULT_HEADING_FONT, DEFAULT_BODY_FONT } from "@/lib/fonts";
 
 export type SiteMode = "noel" | "halloween" | "nouvel_an" | null;
 
@@ -12,6 +13,8 @@ export type SiteSettings = {
   accent_color: string;
   dark_color: string;
   active_mode: SiteMode;
+  heading_font: string;
+  body_font: string;
 };
 
 const DEFAULT_SETTINGS: SiteSettings = {
@@ -24,6 +27,8 @@ const DEFAULT_SETTINGS: SiteSettings = {
   accent_color: "#c8102e",
   dark_color: "#111111",
   active_mode: null,
+  heading_font: DEFAULT_HEADING_FONT,
+  body_font: DEFAULT_BODY_FONT,
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {

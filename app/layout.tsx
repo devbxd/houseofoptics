@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
-import { Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
 import { getLocale } from "@/lib/locale-server";
 import { isRtl } from "@/lib/i18n";
 import { getSiteSettings } from "@/lib/settings";
 import { SITE_URL } from "@/lib/site";
-
-const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-serif", display: "swap" });
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
+import { googleFontsHref } from "@/lib/fonts";
 
 const DESCRIPTION = "Lunettes et montures sélectionnées par House of Optics.";
 
@@ -33,9 +30,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const [locale, settings] = await Promise.all([getLocale(), getSiteSettings()]);
 
   return (
-    <html lang={locale} dir={isRtl(locale) ? "rtl" : "ltr"} className={`${playfair.variable} ${inter.variable}`}>
+    <html lang={locale} dir={isRtl(locale) ? "rtl" : "ltr"}>
       <head>
-        <style>{`:root{--color-accent:${settings.accent_color};--color-dark:${settings.dark_color};}`}</style>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="stylesheet" href={googleFontsHref(settings.heading_font, settings.body_font)} />
+        <style>{`:root{--color-accent:${settings.accent_color};--color-dark:${settings.dark_color};--font-serif:'${settings.heading_font}',Georgia,serif;--font-sans:'${settings.body_font}',system-ui,sans-serif;}`}</style>
       </head>
       <body className="min-h-screen bg-white font-sans text-brand-black antialiased">{children}</body>
     </html>
