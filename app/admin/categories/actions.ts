@@ -39,26 +39,31 @@ export async function deleteCategory(id: string) {
   revalidatePath("/", "layout");
 }
 
-export async function moveCategory(id: string, direction: "up" | "down") {
+// Recomputes sort_order for every sibling from scratch instead of swapping
+// two values — a swap can misbehave when categories share a sort_order
+// (e.g. several created in the same batch), which is what made the old
+// up/down arrows unreliable. A full recompute is deterministic no matter
+// what the starting values look like.
+export async function setCategoryPosition(id: string, newIndex: number) {
   const supabase = createServiceClient();
-  const { data: current } = await supabase.from("categories").select("id, parent_id, sort_order").eq("id", id).single();
+  const { data: current } = await supabase.from("categories").select("id, parent_id").eq("id", id).single();
   if (!current) return;
 
-  let siblingsQuery = supabase.from("categories").select("id, sort_order").order("sort_order", { ascending: true });
+  let siblingsQuery = supabase
+    .from("categories")
+    .select("id")
+    .order("sort_order", { ascending: true })
+    .order("id", { ascending: true });
   siblingsQuery =
     current.parent_id === null ? siblingsQuery.is("parent_id", null) : siblingsQuery.eq("parent_id", current.parent_id);
   const { data: siblings } = await siblingsQuery;
   if (!siblings) return;
 
-  const index = siblings.findIndex((s) => s.id === id);
-  const swapIndex = direction === "up" ? index - 1 : index + 1;
-  if (index === -1 || swapIndex < 0 || swapIndex >= siblings.length) return;
+  const ordered = siblings.map((s) => s.id).filter((sid) => sid !== id);
+  const clampedIndex = Math.max(0, Math.min(newIndex, ordered.length));
+  ordered.splice(clampedIndex, 0, id);
 
-  const other = siblings[swapIndex];
-  await Promise.all([
-    supabase.from("categories").update({ sort_order: other.sort_order }).eq("id", id),
-    supabase.from("categories").update({ sort_order: current.sort_order }).eq("id", other.id),
-  ]);
+  await Promise.all(ordered.map((sid, i) => supabase.from("categories").update({ sort_order: i }).eq("id", sid)));
 
   revalidatePath("/admin/categories");
   revalidatePath("/", "layout");

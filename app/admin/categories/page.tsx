@@ -75,8 +75,8 @@ export default async function AdminCategoriesPage() {
             <CategoryRow
               category={c}
               productCount={counts.get(c.id) ?? 0}
-              canMoveUp={siblingIndex(c) > 0}
-              canMoveDown={siblingIndex(c) < siblingCount(c) - 1}
+              position={siblingIndex(c)}
+              siblingCount={siblingCount(c)}
             />
           </div>
         ))}

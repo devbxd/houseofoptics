@@ -26,16 +26,14 @@ export function ProductActions({
 }) {
   const { addItem } = useCart();
   const router = useRouter();
-  // No auto-selection — the customer has to actually tap a color so the
-  // click gives visible feedback and the cart line reflects a deliberate
-  // choice, even when there's only one color to pick from.
+  // Color is optional — nothing pre-selected, and tapping a color again
+  // deselects it so the base item can still be ordered without one.
   const [selected, setSelected] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
 
-  const activeStock = variants.length > 0 ? variants.find((v) => v.label === selected)?.stock ?? null : stock;
+  const activeStock = selected ? variants.find((v) => v.label === selected)?.stock ?? null : stock;
   const outOfStock = activeStock != null && activeStock <= 0;
-  const needsSelection = variants.length > 0 && !selected;
   const noPrice = price == null;
 
   function handleAdd() {
@@ -46,7 +44,7 @@ export function ProductActions({
   }
 
   function handleBuyNow() {
-    if (price == null || needsSelection || outOfStock) return;
+    if (price == null || outOfStock) return;
     setBuyNowItem({
       productId,
       variant: selected,
@@ -70,15 +68,13 @@ export function ProductActions({
     <div>
       {variants.length > 0 && (
         <div className="mt-4">
-          <p className="mb-2 text-sm text-neutral-600">
-            Color {needsSelection && <span className="text-brand-red">— please choose one</span>}
-          </p>
+          <p className="mb-2 text-sm text-neutral-600">Color (optional — tap again to remove)</p>
           <div className="flex flex-wrap gap-2">
             {variants.map((v) => (
               <button
                 key={v.label}
                 type="button"
-                onClick={() => setSelected(v.label)}
+                onClick={() => setSelected((sel) => (sel === v.label ? null : v.label))}
                 disabled={v.stock != null && v.stock <= 0}
                 className={`border px-4 py-1.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                   selected === v.label ? "border-brand-black bg-brand-black text-white" : "border-neutral-300 hover:border-brand-black"
@@ -118,7 +114,7 @@ export function ProductActions({
 
         <button
           onClick={handleAdd}
-          disabled={needsSelection || outOfStock || noPrice}
+          disabled={outOfStock || noPrice}
           className="flex-1 bg-brand-black py-3 text-center text-sm uppercase tracking-widest text-white transition-opacity hover:opacity-90 active:opacity-80 disabled:cursor-not-allowed disabled:bg-neutral-300 disabled:opacity-100"
         >
           {label}
@@ -128,7 +124,7 @@ export function ProductActions({
       {!noPrice && (
         <button
           onClick={handleBuyNow}
-          disabled={needsSelection || outOfStock}
+          disabled={outOfStock}
           className="mt-3 block w-full border border-brand-black py-3 text-center text-sm uppercase tracking-widest text-brand-black transition-colors hover:bg-brand-black hover:text-white disabled:cursor-not-allowed disabled:border-neutral-300 disabled:text-neutral-300"
         >
           {t["product.buyNow"]}

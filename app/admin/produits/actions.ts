@@ -151,3 +151,28 @@ export async function deleteProductImage(imageId: string) {
   await supabase.from("product_images").delete().eq("id", imageId);
   revalidatePath("/admin/produits");
 }
+
+// Same full-recompute approach as category reordering — deterministic
+// regardless of any pre-existing tied sort_order values.
+export async function setProductImagePosition(productId: string, imageId: string, newIndex: number) {
+  const supabase = createServiceClient();
+  const { data: images } = await supabase
+    .from("product_images")
+    .select("id")
+    .eq("product_id", productId)
+    .order("sort_order", { ascending: true })
+    .order("id", { ascending: true });
+  if (!images) return;
+
+  const ordered = images.map((img) => img.id).filter((iid) => iid !== imageId);
+  const clampedIndex = Math.max(0, Math.min(newIndex, ordered.length));
+  ordered.splice(clampedIndex, 0, imageId);
+
+  await Promise.all(
+    ordered.map((iid, i) => supabase.from("product_images").update({ sort_order: i }).eq("id", iid))
+  );
+
+  revalidatePath(`/admin/produits/${productId}`);
+  revalidatePath("/admin/produits");
+  revalidatePath("/", "layout");
+}
