@@ -1,10 +1,22 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { listProducts } from "@/lib/products";
 import { getCategories } from "@/lib/settings";
 import { ProductGrid } from "@/components/ProductGrid";
 import { Pagination } from "@/components/Pagination";
 import { getServerDict } from "@/lib/locale-server";
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const categories = await getCategories();
+  const category = categories.find((c) => c.slug === slug);
+  if (!category) return {};
+  return {
+    title: category.name,
+    description: `Découvrez notre sélection ${category.name} chez House of Optics.`,
+  };
+}
 
 export default async function CategoryPage({
   params,

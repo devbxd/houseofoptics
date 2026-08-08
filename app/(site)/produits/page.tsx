@@ -1,9 +1,15 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { listProducts } from "@/lib/products";
 import { ProductGrid } from "@/components/ProductGrid";
 import { Pagination } from "@/components/Pagination";
 import { getServerDict } from "@/lib/locale-server";
 import { createClient } from "@/lib/supabase/server";
+
+export const metadata: Metadata = {
+  title: "Boutique",
+  description: "Toute la collection de lunettes et montures House of Optics.",
+};
 
 export default async function ProductsPage({
   searchParams,

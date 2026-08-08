@@ -7,6 +7,7 @@ export async function createTestimonial(formData: FormData) {
   const authorName = String(formData.get("author_name") ?? "").trim();
   const quote = String(formData.get("quote") ?? "").trim();
   const ratingRaw = String(formData.get("rating") ?? "").trim();
+  const productId = String(formData.get("product_id") ?? "").trim() || null;
   if (!authorName || !quote) return;
 
   const supabase = createServiceClient();
@@ -14,6 +15,7 @@ export async function createTestimonial(formData: FormData) {
     author_name: authorName,
     quote,
     rating: ratingRaw ? Number(ratingRaw) : null,
+    product_id: productId,
   });
 
   revalidatePath("/admin/testimonials");

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getProductBySlug, getRelatedProducts } from "@/lib/products";
 import { getSiteSettings } from "@/lib/settings";
@@ -9,7 +10,27 @@ import { WishlistButton } from "@/components/WishlistButton";
 import { ShareButtons } from "@/components/ShareButtons";
 import { Accordion } from "@/components/Accordion";
 import { ProductGrid } from "@/components/ProductGrid";
+import { ProductReviews } from "@/components/ProductReviews";
 import { getServerDict } from "@/lib/locale-server";
+import { createClient } from "@/lib/supabase/server";
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const product = await getProductBySlug(slug);
+  if (!product) return {};
+
+  const description = product.description?.trim()
+    ? product.description.slice(0, 155)
+    : `Découvrez ${product.name}${product.brand ? ` par ${product.brand.name}` : ""} chez House of Optics.`;
+  const image = product.images[0]?.url;
+
+  return {
+    title: product.name,
+    description,
+    openGraph: { title: product.name, description, images: image ? [image] : undefined },
+    twitter: { title: product.name, description, images: image ? [image] : undefined },
+  };
+}
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -23,6 +44,14 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const outOfStock = product.stock != null && product.stock <= 0;
 
   const related = await getRelatedProducts(product);
+
+  const supabase = await createClient();
+  const { data: reviews } = await supabase
+    .from("testimonials")
+    .select("id, author_name, quote, rating")
+    .eq("product_id", product.id)
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
@@ -136,6 +165,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           </div>
         </div>
       </div>
+
+      <ProductReviews reviews={reviews ?? []} title={t["product.reviews"]} />
 
       {related.length > 0 && (
         <section className="mt-16 border-t border-neutral-200 pt-10">

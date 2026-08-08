@@ -1,5 +1,11 @@
+import type { Metadata } from "next";
 import { getSiteSettings, whatsappLink } from "@/lib/settings";
 import { getServerDict } from "@/lib/locale-server";
+
+export const metadata: Metadata = {
+  title: "Contact",
+  description: "Contactez House of Optics — WhatsApp, email et Instagram.",
+};
 
 function MailIcon() {
   return (

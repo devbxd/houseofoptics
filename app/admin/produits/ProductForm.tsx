@@ -1,8 +1,16 @@
 import { SubmitButton } from "@/components/SubmitButton";
 import { VariantsEditor } from "./VariantsEditor";
 
-type Category = { id: string; name: string };
+type Category = { id: string; name: string; parent_id?: string | null };
 type Brand = { id: string; name: string };
+
+function flattenCategories(categories: Category[]) {
+  const childrenOf = (id: string | null) => categories.filter((c) => (c.parent_id ?? null) === id);
+  function flatten(parentId: string | null, depth: number): { category: Category; depth: number }[] {
+    return childrenOf(parentId).flatMap((c) => [{ category: c, depth }, ...flatten(c.id, depth + 1)]);
+  }
+  return flatten(null, 0);
+}
 
 type Product = {
   id?: string;
@@ -31,6 +39,8 @@ export function ProductForm({
   product?: Product;
   submitLabel: string;
 }) {
+  const flatCategories = flattenCategories(categories);
+
   return (
     <form action={action} className="max-w-lg space-y-4">
       <div>
@@ -52,8 +62,9 @@ export function ProductForm({
             className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
           >
             <option value="">No category</option>
-            {categories.map((c) => (
+            {flatCategories.map(({ category: c, depth }) => (
               <option key={c.id} value={c.id}>
+                {"—  ".repeat(depth)}
                 {c.name}
               </option>
             ))}
