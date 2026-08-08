@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useCart } from "./CartProvider";
+import { setBuyNowItem } from "@/lib/buy-now";
 
 type Variant = { label: string; stock: number | null };
 
@@ -23,6 +25,7 @@ export function ProductActions({
   t: Record<string, string>;
 }) {
   const { addItem } = useCart();
+  const router = useRouter();
   // No auto-selection — the customer has to actually tap a color so the
   // click gives visible feedback and the cart line reflects a deliberate
   // choice, even when there's only one color to pick from.
@@ -40,6 +43,19 @@ export function ProductActions({
     addItem({ productId, variant: selected, name: selected ? `${name} — ${selected}` : name, price, image }, quantity);
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);
+  }
+
+  function handleBuyNow() {
+    if (price == null || needsSelection || outOfStock) return;
+    setBuyNowItem({
+      productId,
+      variant: selected,
+      name: selected ? `${name} — ${selected}` : name,
+      price,
+      image,
+      quantity,
+    });
+    router.push("/checkout?buyNow=1");
   }
 
   const label = added
@@ -108,6 +124,16 @@ export function ProductActions({
           {label}
         </button>
       </div>
+
+      {!noPrice && (
+        <button
+          onClick={handleBuyNow}
+          disabled={needsSelection || outOfStock}
+          className="mt-3 block w-full border border-brand-black py-3 text-center text-sm uppercase tracking-widest text-brand-black transition-colors hover:bg-brand-black hover:text-white disabled:cursor-not-allowed disabled:border-neutral-300 disabled:text-neutral-300"
+        >
+          {t["product.buyNow"]}
+        </button>
+      )}
     </div>
   );
 }

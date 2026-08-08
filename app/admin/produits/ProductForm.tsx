@@ -1,3 +1,6 @@
+"use client";
+
+import { useActionState } from "react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { VariantsEditor } from "./VariantsEditor";
 
@@ -33,16 +36,22 @@ export function ProductForm({
   product,
   submitLabel,
 }: {
-  action: (formData: FormData) => void;
+  action: (formData: FormData) => Promise<unknown>;
   categories: Category[];
   brands: Brand[];
   product?: Product;
   submitLabel: string;
 }) {
   const flatCategories = flattenCategories(categories);
+  // create() still redirects on success, so this only ever resolves to true
+  // for update() — which now stays on the page instead of navigating away.
+  const [saved, dispatch] = useActionState(async (_prev: boolean, formData: FormData) => {
+    await action(formData);
+    return true;
+  }, false);
 
   return (
-    <form action={action} className="max-w-lg space-y-4">
+    <form action={dispatch} className="max-w-lg space-y-4">
       <div>
         <label className="mb-1 block text-sm text-neutral-600">Product name</label>
         <input
@@ -64,7 +73,7 @@ export function ProductForm({
             <option value="">No category</option>
             {flatCategories.map(({ category: c, depth }) => (
               <option key={c.id} value={c.id}>
-                {"—  ".repeat(depth)}
+                {"—  ".repeat(depth)}
                 {c.name}
               </option>
             ))}
@@ -161,9 +170,12 @@ export function ProductForm({
         </label>
       )}
 
-      <SubmitButton className="bg-brand-black px-6 py-2.5 text-sm uppercase tracking-wide text-white hover:opacity-90">
-        {submitLabel}
-      </SubmitButton>
+      <div className="flex items-center gap-3">
+        <SubmitButton className="bg-brand-black px-6 py-2.5 text-sm uppercase tracking-wide text-white hover:opacity-90">
+          {submitLabel}
+        </SubmitButton>
+        {saved && <span className="text-sm text-emerald-700">Saved ✓</span>}
+      </div>
     </form>
   );
 }

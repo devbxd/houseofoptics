@@ -6,6 +6,7 @@ import { useCart } from "@/components/CartProvider";
 import { useLocale } from "@/lib/locale-client";
 import { createClient } from "@/lib/supabase/client";
 import { createOrder } from "./actions";
+import { getBuyNowItem, clearBuyNowItem, type BuyNowItem } from "@/lib/buy-now";
 
 const SHIPPING_COST = { beirut: 4, outside_beirut: 6 } as const;
 const EXPRESS_WHATSAPP_NUMBER = "96181701556";
@@ -52,9 +53,23 @@ function buildWhatsAppOrderMessage(orderId: string, o: ConfirmedOrder) {
 }
 
 export default function CheckoutPage() {
-  const { items, subtotal, clear } = useCart();
+  const cart = useCart();
   const router = useRouter();
   const { t } = useLocale();
+
+  const [buyNowItem, setBuyNowItemState] = useState<BuyNowItem | null>(null);
+  const [buyNowChecked, setBuyNowChecked] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("buyNow") === "1") {
+      setBuyNowItemState(getBuyNowItem());
+    }
+    setBuyNowChecked(true);
+  }, []);
+
+  const items = buyNowItem ? [buyNowItem] : cart.items;
+  const subtotal = buyNowItem ? buyNowItem.price * buyNowItem.quantity : cart.subtotal;
 
   const [form, setForm] = useState({ name: "", email: "", phone: "", address: "", city: "" });
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -145,7 +160,11 @@ export default function CheckoutPage() {
         subtotal,
         total,
       });
-      clear();
+      if (buyNowItem) {
+        clearBuyNowItem();
+      } else {
+        cart.clear();
+      }
     } catch {
       setError(t["checkout.genericError"]);
     } finally {
@@ -153,7 +172,7 @@ export default function CheckoutPage() {
     }
   }
 
-  if (items.length === 0 && !confirmedOrderId) {
+  if (buyNowChecked && items.length === 0 && !confirmedOrderId) {
     router.replace("/panier");
     return null;
   }

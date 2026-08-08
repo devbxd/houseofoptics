@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { signOut } from "./login/actions";
+import { BackButton } from "./BackButton";
 
 const NAV = [
   { href: "/admin", label: "Overview" },
@@ -49,7 +50,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </Link>
           ))}
         </nav>
-        <main className="p-4 md:p-8">{children}</main>
+        <main className="p-4 md:p-8">
+          <BackButton />
+          {children}
+        </main>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { ImageLightbox } from "./ImageLightbox";
 
@@ -15,12 +15,21 @@ export function ProductGallery({
 }) {
   const [active, setActive] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const hasMultiple = images.length > 1;
+
+  // Auto-advance through the product's other photos, pausing while the
+  // lightbox is open so it doesn't jump around mid-zoom.
+  useEffect(() => {
+    if (!hasMultiple || lightboxOpen) return;
+    const interval = setInterval(() => {
+      setActive((i) => (i + 1) % images.length);
+    }, 3500);
+    return () => clearInterval(interval);
+  }, [hasMultiple, lightboxOpen, images.length]);
 
   if (images.length === 0) {
     return <div className="aspect-square rounded-md bg-neutral-100" />;
   }
-
-  const hasMultiple = images.length > 1;
 
   return (
     <div>

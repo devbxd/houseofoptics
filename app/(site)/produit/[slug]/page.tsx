@@ -2,8 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getProductBySlug, getRelatedProducts } from "@/lib/products";
-import { getSiteSettings } from "@/lib/settings";
-import { whatsappLink } from "@/lib/settings";
+import { getSiteSettings, whatsappLink, phoneLink } from "@/lib/settings";
 import { ProductActions } from "@/components/ProductActions";
 import { ProductGallery } from "@/components/ProductGallery";
 import { WishlistButton } from "@/components/WishlistButton";
@@ -123,14 +122,32 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             t={t}
           />
 
-          <a
-            href={settings.whatsapp_number ? whatsappLink(settings.whatsapp_number, orderMessage) : "/contact"}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-3 block w-full border border-neutral-300 py-3 text-center text-sm uppercase tracking-widest text-neutral-700 transition-colors hover:border-brand-black"
-          >
-            {t["product.askWhatsapp"]}
-          </a>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <a
+              href={settings.whatsapp_number ? whatsappLink(settings.whatsapp_number, orderMessage) : "/contact"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 border border-neutral-300 py-3 text-center text-xs uppercase tracking-widest text-neutral-700 transition-colors hover:border-brand-black"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4 shrink-0">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {t["product.askWhatsapp"]}
+            </a>
+            <a
+              href={settings.whatsapp_number ? phoneLink(settings.whatsapp_number) : "/contact"}
+              className="flex items-center justify-center gap-2 border border-neutral-300 py-3 text-center text-xs uppercase tracking-widest text-neutral-700 transition-colors hover:border-brand-black"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4 shrink-0">
+                <path
+                  d="M6.6 10.8c1.4 2.8 3.8 5.2 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.9 21 3 13.1 3 3.9c0-.6.4-1 1-1h3.4c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.4 0 .8-.2 1L6.6 10.8Z"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              {t["product.callNow"]}
+            </a>
+          </div>
 
           <WishlistButton
             item={{ productId: product.id, slug: product.slug, name: product.name, price: hasPrice ? finalPrice! : null, image: product.images[0]?.url ?? null }}
@@ -142,7 +159,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
           <div className="mt-4 flex items-center gap-3">
             <span className="text-xs uppercase tracking-wide text-neutral-500">{t["product.share"]}</span>
-            <ShareButtons title={product.name} />
+            <ShareButtons title={product.name} instagramHandle={settings.instagram_handle} />
           </div>
 
           <div className="mt-6 border-t border-neutral-200">
