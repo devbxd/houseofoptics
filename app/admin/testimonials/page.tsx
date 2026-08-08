@@ -17,9 +17,10 @@ export default async function AdminTestimonialsPage() {
     <div>
       <h1 className="mb-2 font-serif text-2xl">Testimonials</h1>
       <p className="mb-6 max-w-lg text-sm text-neutral-500">
-        General reviews (no product picked) show as a scrolling carousel on the homepage. Reviews linked to a
-        product also show on that product's page. Only add real customer reviews — no placeholder or made-up
-        content.
+        Customers can submit their own review from the "We would love to have your feedback" button on the
+        homepage — those land here as pending and won't show on the site until you hit Approve. General reviews
+        (no product picked) show as a scrolling carousel on the homepage; reviews linked to a product also show
+        on that product's page.
       </p>
 
       <form action={createTestimonial} className="mb-8 max-w-md space-y-3 rounded-md border border-neutral-200 bg-white p-4">
@@ -71,6 +72,11 @@ export default async function AdminTestimonialsPage() {
               <div>
                 <p className="text-sm font-medium">
                   {r.author_name} {r.rating && <span className="text-neutral-400">· {"★".repeat(r.rating)}</span>}
+                  {!r.is_active && (
+                    <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-normal uppercase tracking-wide text-amber-700">
+                      Pending approval
+                    </span>
+                  )}
                 </p>
                 <p className="mt-1 text-sm text-neutral-600">{r.quote}</p>
                 <p className="mt-1 text-xs text-neutral-400">
@@ -80,7 +86,9 @@ export default async function AdminTestimonialsPage() {
             </div>
             <div className="flex shrink-0 gap-3 text-sm">
               <form action={toggleTestimonial.bind(null, r.id, !r.is_active)}>
-                <button className="text-neutral-600 hover:text-brand-black">{r.is_active ? "Hide" : "Show"}</button>
+                <button className={r.is_active ? "text-neutral-600 hover:text-brand-black" : "font-medium text-emerald-700 hover:underline"}>
+                  {r.is_active ? "Hide" : "Approve"}
+                </button>
               </form>
               <form action={deleteTestimonial.bind(null, r.id)}>
                 <button className="text-neutral-600 hover:text-red-600">Delete</button>

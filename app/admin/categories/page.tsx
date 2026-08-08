@@ -12,6 +12,8 @@ export default async function AdminCategoriesPage() {
 
   const all = categories ?? [];
   const childrenOf = (id: string | null) => all.filter((c) => c.parent_id === id);
+  const siblingIndex = (c: (typeof all)[number]) => childrenOf(c.parent_id).findIndex((s) => s.id === c.id);
+  const siblingCount = (c: (typeof all)[number]) => childrenOf(c.parent_id).length;
 
   // Flatten the tree (any depth) into an ordered, depth-tagged list so both
   // the parent picker and the nested listing below can just map over it.
@@ -70,7 +72,12 @@ export default async function AdminCategoriesPage() {
       <div className="max-w-2xl border-t border-neutral-100">
         {flatTree.map(({ category: c, depth }) => (
           <div key={c.id} style={{ paddingLeft: `${depth * 1.5}rem` }}>
-            <CategoryRow category={c} productCount={counts.get(c.id) ?? 0} />
+            <CategoryRow
+              category={c}
+              productCount={counts.get(c.id) ?? 0}
+              canMoveUp={siblingIndex(c) > 0}
+              canMoveDown={siblingIndex(c) < siblingCount(c) - 1}
+            />
           </div>
         ))}
       </div>

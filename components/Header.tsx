@@ -4,7 +4,7 @@ import { LanguageSwitcher } from "./LanguageSwitcher";
 import { HamburgerMenu } from "./HamburgerMenu";
 import { SocialIcons } from "./SocialIcons";
 import { CategoryLinks, type Category } from "./CategoryLinks";
-import { whatsappLink } from "@/lib/settings";
+import { whatsappLink, phoneLink } from "@/lib/settings";
 import type { Locale } from "@/lib/i18n";
 
 type Props = {
@@ -29,6 +29,7 @@ export function Header({ brandName, categories, t, whatsappNumber, facebookUrl, 
           <div className="flex shrink-0 items-center gap-2.5">
             <HamburgerMenu
               categories={categories}
+              phoneUrl={whatsappNumber ? phoneLink(whatsappNumber) : ""}
               whatsappUrl={whatsappNumber ? whatsappLink(whatsappNumber) : ""}
               facebookUrl={facebookUrl}
               instagramUrl={instagramHandle ? `https://instagram.com/${instagramHandle}` : ""}
@@ -85,6 +86,7 @@ export function Header({ brandName, categories, t, whatsappNumber, facebookUrl, 
 
             <SocialIcons
               className="hidden items-center gap-4 border-l border-neutral-200 pl-6 md:flex"
+              phoneUrl={whatsappNumber ? phoneLink(whatsappNumber) : ""}
               whatsappUrl={whatsappNumber ? whatsappLink(whatsappNumber) : ""}
               facebookUrl={facebookUrl}
               instagramUrl={instagramHandle ? `https://instagram.com/${instagramHandle}` : ""}

@@ -46,3 +46,7 @@ export function whatsappLink(number: string, message?: string) {
   const base = `https://wa.me/${digits}`;
   return message ? `${base}?text=${encodeURIComponent(message)}` : base;
 }
+
+export function phoneLink(number: string) {
+  return `tel:+${number.replace(/[^\d]/g, "")}`;
+}

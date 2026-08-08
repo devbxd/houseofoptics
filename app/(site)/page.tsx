@@ -4,6 +4,7 @@ import { listProducts } from "@/lib/products";
 import { getCategories } from "@/lib/settings";
 import { NewsletterForm } from "@/components/NewsletterForm";
 import { TestimonialsCarousel } from "@/components/TestimonialsCarousel";
+import { FeedbackForm } from "@/components/FeedbackForm";
 import { HeroCarousel } from "@/components/HeroCarousel";
 import { BrandStrip } from "@/components/BrandStrip";
 import { getServerDict } from "@/lib/locale-server";
@@ -138,7 +139,9 @@ export default async function HomePage() {
         </Link>
       </section>
 
-      <TestimonialsCarousel testimonials={testimonials ?? []} />
+      <TestimonialsCarousel testimonials={testimonials ?? []}>
+        <FeedbackForm t={t} />
+      </TestimonialsCarousel>
 
       <section className="bg-neutral-100 px-6 py-20 text-center">
         <h2 className="font-serif text-2xl tracking-wide">{t["home.stayInTouch"]}</h2>

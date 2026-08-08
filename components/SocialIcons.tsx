@@ -1,18 +1,31 @@
 export function SocialIcons({
+  phoneUrl,
   whatsappUrl,
   facebookUrl,
   instagramUrl,
   className,
 }: {
+  phoneUrl?: string;
   whatsappUrl: string;
   facebookUrl: string;
   instagramUrl: string;
   className?: string;
 }) {
-  if (!whatsappUrl && !facebookUrl && !instagramUrl) return null;
+  if (!phoneUrl && !whatsappUrl && !facebookUrl && !instagramUrl) return null;
 
   return (
     <div className={className ?? "flex items-center gap-4"}>
+      {phoneUrl && (
+        <a href={phoneUrl} aria-label="Call">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-5 w-5 text-neutral-600 transition-colors hover:text-brand-black">
+            <path
+              d="M6.6 10.8c1.4 2.8 3.8 5.2 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.9 21 3 13.1 3 3.9c0-.6.4-1 1-1h3.4c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.4 0 .8-.2 1L6.6 10.8Z"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </a>
+      )}
       {whatsappUrl && (
         <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
           <svg viewBox="0 0 32 32" className="h-6 w-6">
