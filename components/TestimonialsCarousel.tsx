@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Image from "next/image";
 
-type Testimonial = { id: string; author_name: string; quote: string; rating: number | null };
+type Testimonial = { id: string; author_name: string; quote: string; rating: number | null; photo_url?: string | null };
 
 export function TestimonialsCarousel({ testimonials }: { testimonials: Testimonial[] }) {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -38,7 +39,18 @@ export function TestimonialsCarousel({ testimonials }: { testimonials: Testimoni
               <p className="mb-2 text-brand-red">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</p>
             )}
             <p className="text-neutral-700">&ldquo;{r.quote}&rdquo;</p>
-            <p className="mt-4 text-xs uppercase tracking-wide text-neutral-400">{r.author_name}</p>
+            <div className="mt-4 flex items-center gap-2.5">
+              {r.photo_url ? (
+                <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-neutral-100">
+                  <Image src={r.photo_url} alt="" fill sizes="32px" className="object-cover" />
+                </div>
+              ) : (
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-xs text-neutral-400">
+                  {r.author_name.slice(0, 1).toUpperCase()}
+                </div>
+              )}
+              <p className="text-xs uppercase tracking-wide text-neutral-400">{r.author_name}</p>
+            </div>
           </div>
         ))}
       </div>

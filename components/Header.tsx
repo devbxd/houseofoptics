@@ -4,7 +4,6 @@ import { LanguageSwitcher } from "./LanguageSwitcher";
 import { HamburgerMenu } from "./HamburgerMenu";
 import { SocialIcons } from "./SocialIcons";
 import { CategoryLinks, type Category } from "./CategoryLinks";
-import { WishlistHeaderLink } from "./WishlistHeaderLink";
 import { whatsappLink } from "@/lib/settings";
 import type { Locale } from "@/lib/i18n";
 
@@ -27,7 +26,7 @@ export function Header({ brandName, categories, t, whatsappNumber, facebookUrl, 
       </div>
       <div className="border-b border-neutral-200">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 md:px-6 md:py-5">
-          <div className="flex shrink-0 items-center gap-3">
+          <div className="flex shrink-0 items-center gap-2.5">
             <HamburgerMenu
               categories={categories}
               whatsappUrl={whatsappNumber ? whatsappLink(whatsappNumber) : ""}
@@ -42,7 +41,6 @@ export function Header({ brandName, categories, t, whatsappNumber, facebookUrl, 
                 <path d="m21 21-4.3-4.3" strokeLinecap="round" />
               </svg>
             </Link>
-            <WishlistHeaderLink />
           </div>
 
           <Link href="/" className="flex min-w-0 shrink items-center gap-1.5 md:gap-2.5">

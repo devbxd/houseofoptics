@@ -18,7 +18,7 @@ export default async function HomePage() {
     getServerDict(),
     supabase
       .from("testimonials")
-      .select("id, author_name, quote, rating")
+      .select("id, author_name, quote, rating, photo_url")
       .eq("is_active", true)
       .order("sort_order", { ascending: true }),
   ]);

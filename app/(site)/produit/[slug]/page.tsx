@@ -48,7 +48,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const supabase = await createClient();
   const { data: reviews } = await supabase
     .from("testimonials")
-    .select("id, author_name, quote, rating")
+    .select("id, author_name, quote, rating, photo_url")
     .eq("product_id", product.id)
     .eq("is_active", true)
     .order("sort_order", { ascending: true });

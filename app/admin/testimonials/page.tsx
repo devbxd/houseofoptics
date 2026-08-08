@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { createServiceClient } from "@/lib/supabase/server";
 import { createTestimonial, deleteTestimonial, toggleTestimonial } from "./actions";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -7,7 +8,7 @@ export default async function AdminTestimonialsPage() {
   const [{ data: testimonials }, { data: products }] = await Promise.all([
     supabase
       .from("testimonials")
-      .select("id, author_name, quote, rating, is_active, product_id, product:products(name)")
+      .select("id, author_name, quote, rating, is_active, photo_url, product_id, product:products(name)")
       .order("sort_order", { ascending: true }),
     supabase.from("products").select("id, name").order("name", { ascending: true }),
   ]);
@@ -45,6 +46,10 @@ export default async function AdminTestimonialsPage() {
             ))}
           </select>
         </div>
+        <div>
+          <label className="mb-1 block text-sm text-neutral-600">Customer photo (optional)</label>
+          <input name="photo" type="file" accept="image/*" className="w-full text-sm" />
+        </div>
         <SubmitButton className="bg-brand-black px-5 py-2 text-sm uppercase tracking-wide text-white hover:opacity-90">
           Add testimonial
         </SubmitButton>
@@ -53,14 +58,25 @@ export default async function AdminTestimonialsPage() {
       <div className="space-y-3">
         {(testimonials ?? []).map((r: any) => (
           <div key={r.id} className="flex items-start justify-between gap-4 rounded-md border border-neutral-200 bg-white p-4">
-            <div>
-              <p className="text-sm font-medium">
-                {r.author_name} {r.rating && <span className="text-neutral-400">· {"★".repeat(r.rating)}</span>}
-              </p>
-              <p className="mt-1 text-sm text-neutral-600">{r.quote}</p>
-              <p className="mt-1 text-xs text-neutral-400">
-                {r.product ? `On product: ${Array.isArray(r.product) ? r.product[0]?.name : r.product.name}` : "General (homepage)"}
-              </p>
+            <div className="flex items-start gap-3">
+              {r.photo_url ? (
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-neutral-100">
+                  <Image src={r.photo_url} alt="" fill sizes="40px" className="object-cover" />
+                </div>
+              ) : (
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-xs text-neutral-400">
+                  {r.author_name.slice(0, 1).toUpperCase()}
+                </div>
+              )}
+              <div>
+                <p className="text-sm font-medium">
+                  {r.author_name} {r.rating && <span className="text-neutral-400">· {"★".repeat(r.rating)}</span>}
+                </p>
+                <p className="mt-1 text-sm text-neutral-600">{r.quote}</p>
+                <p className="mt-1 text-xs text-neutral-400">
+                  {r.product ? `On product: ${Array.isArray(r.product) ? r.product[0]?.name : r.product.name}` : "General (homepage)"}
+                </p>
+              </div>
             </div>
             <div className="flex shrink-0 gap-3 text-sm">
               <form action={toggleTestimonial.bind(null, r.id, !r.is_active)}>
