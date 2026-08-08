@@ -9,3 +9,49 @@ html {
 body {
   padding-bottom: 4.5rem; /* space for the fixed bottom nav, always visible */
 }
+
+@keyframes event-fall {
+  0% {
+    transform: translateY(-10vh) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(110vh) rotate(360deg);
+    opacity: 0.9;
+  }
+}
+
+@keyframes event-fly {
+  0% {
+    transform: translate(-10vw, 0) scale(1);
+  }
+  50% {
+    transform: translate(55vw, -6vh) scale(1.15);
+  }
+  100% {
+    transform: translate(120vw, 4vh) scale(1);
+  }
+}
+
+@keyframes event-twinkle {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes event-pulse-glow {
+  0%,
+  100% {
+    text-shadow: 0 0 20px rgba(245, 215, 110, 0.6);
+  }
+  50% {
+    text-shadow: 0 0 40px rgba(245, 215, 110, 1);
+  }
+}

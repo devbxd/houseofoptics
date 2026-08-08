@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { listProducts } from "@/lib/products";
 import { getCategories } from "@/lib/settings";
 import { NewsletterForm } from "@/components/NewsletterForm";
@@ -21,6 +22,30 @@ export default async function HomePage() {
       .order("sort_order", { ascending: true }),
   ]);
 
+  const topCategories = categories.filter((c) => !c.parent_id && c.slug !== "events");
+
+  // One representative photo per category tile, best quality first per
+  // category so the tile isn't stuck with whatever product was added last.
+  const { data: categoryPhotoRows } = topCategories.length
+    ? await supabase
+        .from("products")
+        .select("category_id, images:product_images(url, sort_order)")
+        .eq("is_active", true)
+        .in(
+          "category_id",
+          topCategories.map((c) => c.id)
+        )
+        .order("image_bytes", { ascending: false, nullsFirst: false })
+    : { data: [] as any[] };
+
+  const categoryImageById = new Map<string, string>();
+  for (const row of categoryPhotoRows ?? []) {
+    const r = row as any;
+    if (!r.category_id || categoryImageById.has(r.category_id)) continue;
+    const img = (r.images ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order)[0];
+    if (img) categoryImageById.set(r.category_id, img.url);
+  }
+
   // Manually curated hero images take priority; if the client hasn't picked
   // any yet, fall back to the sharpest recent product photos.
   const { data: manualHero } = await supabase
@@ -40,8 +65,6 @@ export default async function HomePage() {
           .filter((p) => p.images[0])
           .slice(0, 6)
           .map((p) => ({ id: p.id, name: p.name, url: p.images[0].url }));
-
-  const topCategories = categories.filter((c) => !c.parent_id);
 
   return (
     <main>
@@ -67,29 +90,47 @@ export default async function HomePage() {
       {topCategories.length > 0 && (
         <section className="mx-auto max-w-6xl px-6 py-16">
           <h2 className="mb-10 text-center font-serif text-2xl tracking-wide">{t["home.categories"]}</h2>
-          <div className="flex flex-wrap justify-center gap-3">
-            {topCategories.map((c) => (
-              <Link
-                key={c.id}
-                href={`/categorie/${c.slug}`}
-                className="rounded-full border border-neutral-300 px-6 py-2.5 text-xs uppercase tracking-wide transition-colors hover:border-brand-black hover:bg-brand-black hover:text-white"
-              >
-                {c.name}
-              </Link>
-            ))}
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:gap-5 lg:grid-cols-4">
+            {topCategories.map((c) => {
+              const img = categoryImageById.get(c.id);
+              return (
+                <Link
+                  key={c.id}
+                  href={`/categorie/${c.slug}`}
+                  className="group relative aspect-[4/5] overflow-hidden rounded-sm bg-neutral-100"
+                >
+                  {img ? (
+                    <Image
+                      src={img}
+                      alt=""
+                      fill
+                      quality={90}
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      className="object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-neutral-200" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 transition-opacity group-hover:from-black/70" />
+                  <span className="absolute bottom-0 left-0 right-0 p-4 text-center font-serif text-lg tracking-wide text-white md:text-xl">
+                    {c.name}
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         </section>
       )}
 
       {brands && brands.length > 0 && (
-        <section className="mx-auto max-w-6xl px-6 pb-16">
-          <h2 className="mb-10 text-center font-serif text-2xl tracking-wide">Shop by Brand</h2>
-          <div className="flex flex-wrap justify-center gap-3">
+        <section className="border-y border-neutral-200 bg-neutral-50 py-14">
+          <h2 className="mb-8 text-center text-xs uppercase tracking-[0.35em] text-neutral-500">Shop by Brand</h2>
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-12 gap-y-6 px-6">
             {brands.map((b) => (
               <Link
                 key={b.id}
                 href={`/marque/${b.slug}`}
-                className="border border-neutral-300 px-6 py-2.5 text-xs uppercase tracking-wide transition-colors hover:border-brand-black hover:bg-brand-black hover:text-white"
+                className="font-serif text-2xl italic tracking-wide text-neutral-500 transition-colors hover:text-brand-black md:text-3xl"
               >
                 {b.name}
               </Link>
