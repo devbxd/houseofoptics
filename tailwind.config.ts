@@ -6,8 +6,8 @@ const config: Config = {
     extend: {
       colors: {
         brand: {
-          black: "#111111",
-          red: "#c8102e",
+          black: "var(--color-dark, #111111)",
+          red: "var(--color-accent, #c8102e)",
           beige: "#F1E9DC",
         },
       },

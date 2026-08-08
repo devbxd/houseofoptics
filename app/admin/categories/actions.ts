@@ -6,6 +6,7 @@ import { slugify } from "@/lib/slugify";
 
 export async function createCategory(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
+  const parentId = String(formData.get("parent_id") ?? "") || null;
   if (!name) return;
 
   const supabase = createServiceClient();
@@ -15,6 +16,7 @@ export async function createCategory(formData: FormData) {
     name,
     slug: slugify(name),
     sort_order: count ?? 0,
+    parent_id: parentId,
   });
 
   revalidatePath("/admin/categories");

@@ -2,6 +2,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { VariantsEditor } from "./VariantsEditor";
 
 type Category = { id: string; name: string };
+type Brand = { id: string; name: string };
 
 type Product = {
   id?: string;
@@ -11,6 +12,7 @@ type Product = {
   discount_percent?: number | null;
   stock?: number | null;
   category_id: string | null;
+  brand_id?: string | null;
   is_active?: boolean;
   variants?: { label: string; stock: number | null }[];
 };
@@ -18,11 +20,13 @@ type Product = {
 export function ProductForm({
   action,
   categories,
+  brands,
   product,
   submitLabel,
 }: {
   action: (formData: FormData) => void;
   categories: Category[];
+  brands: Brand[];
   product?: Product;
   submitLabel: string;
 }) {
@@ -38,20 +42,37 @@ export function ProductForm({
         />
       </div>
 
-      <div>
-        <label className="mb-1 block text-sm text-neutral-600">Category</label>
-        <select
-          name="category_id"
-          defaultValue={product?.category_id ?? ""}
-          className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
-        >
-          <option value="">No category</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="mb-1 block text-sm text-neutral-600">Category</label>
+          <select
+            name="category_id"
+            defaultValue={product?.category_id ?? ""}
+            className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+          >
+            <option value="">No category</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm text-neutral-600">Brand</label>
+          <select
+            name="brand_id"
+            defaultValue={product?.brand_id ?? ""}
+            className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+          >
+            <option value="">No brand</option>
+            {brands.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">

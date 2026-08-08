@@ -7,14 +7,18 @@ export default async function AdminCategoriesPage() {
   const supabase = await createClient();
   const { data: categories } = await supabase
     .from("categories")
-    .select("id, name, slug")
+    .select("id, name, slug, parent_id")
     .order("sort_order", { ascending: true });
+
+  const all = categories ?? [];
+  const topLevel = all.filter((c) => !c.parent_id);
+  const childrenOf = (id: string) => all.filter((c) => c.parent_id === id);
 
   // One lightweight head-count per category instead of pulling every
   // product row just to count them client-side.
   const counts = new Map<string, number>();
   await Promise.all(
-    (categories ?? []).map(async (c) => {
+    all.map(async (c) => {
       const { count } = await supabase
         .from("products")
         .select("*", { count: "exact", head: true })
@@ -27,21 +31,42 @@ export default async function AdminCategoriesPage() {
     <div>
       <h1 className="mb-6 font-serif text-2xl">Categories</h1>
 
-      <form action={createCategory} className="mb-8 flex max-w-md gap-2">
+      <form action={createCategory} className="mb-8 max-w-md space-y-2">
         <input
           name="name"
           required
           placeholder="New category (e.g. Aviator, Round...)"
-          className="flex-1 border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+          className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
         />
-        <SubmitButton className="bg-brand-black px-5 py-2 text-sm uppercase tracking-wide text-white hover:opacity-90">
-          Add
-        </SubmitButton>
+        <div className="flex gap-2">
+          <select
+            name="parent_id"
+            defaultValue=""
+            className="flex-1 border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+          >
+            <option value="">No parent (top-level category)</option>
+            {topLevel.map((c) => (
+              <option key={c.id} value={c.id}>
+                Sub-category of: {c.name}
+              </option>
+            ))}
+          </select>
+          <SubmitButton className="shrink-0 bg-brand-black px-5 py-2 text-sm uppercase tracking-wide text-white hover:opacity-90">
+            Add
+          </SubmitButton>
+        </div>
       </form>
 
       <div className="max-w-2xl border-t border-neutral-100">
-        {(categories ?? []).map((c) => (
-          <CategoryRow key={c.id} category={c} productCount={counts.get(c.id) ?? 0} />
+        {topLevel.map((c) => (
+          <div key={c.id}>
+            <CategoryRow category={c} productCount={counts.get(c.id) ?? 0} />
+            {childrenOf(c.id).map((sub) => (
+              <div key={sub.id} className="pl-6">
+                <CategoryRow category={sub} productCount={counts.get(sub.id) ?? 0} />
+              </div>
+            ))}
+          </div>
         ))}
       </div>
     </div>

@@ -7,6 +7,8 @@ export type SiteSettings = {
   instagram_handle: string;
   facebook_url: string;
   logo_url: string | null;
+  accent_color: string;
+  dark_color: string;
 };
 
 const DEFAULT_SETTINGS: SiteSettings = {
@@ -16,6 +18,8 @@ const DEFAULT_SETTINGS: SiteSettings = {
   instagram_handle: "house.of.optics",
   facebook_url: "",
   logo_url: null,
+  accent_color: "#c8102e",
+  dark_color: "#111111",
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {
@@ -28,7 +32,7 @@ export async function getCategories() {
   const supabase = await createClient();
   const { data } = await supabase
     .from("categories")
-    .select("id, name, slug")
+    .select("id, name, slug, parent_id")
     .order("sort_order", { ascending: true });
   return data ?? [];
 }

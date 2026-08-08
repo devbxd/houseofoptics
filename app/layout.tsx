@@ -3,6 +3,7 @@ import { Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
 import { getLocale } from "@/lib/locale-server";
 import { isRtl } from "@/lib/i18n";
+import { getSiteSettings } from "@/lib/settings";
 
 const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-serif", display: "swap" });
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
@@ -13,10 +14,13 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const locale = await getLocale();
+  const [locale, settings] = await Promise.all([getLocale(), getSiteSettings()]);
 
   return (
     <html lang={locale} dir={isRtl(locale) ? "rtl" : "ltr"} className={`${playfair.variable} ${inter.variable}`}>
+      <head>
+        <style>{`:root{--color-accent:${settings.accent_color};--color-dark:${settings.dark_color};}`}</style>
+      </head>
       <body className="min-h-screen bg-white font-sans text-brand-black antialiased">{children}</body>
     </html>
   );

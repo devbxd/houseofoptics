@@ -45,6 +45,7 @@ async function uploadImages(supabase: ReturnType<typeof createServiceClient>, pr
 export async function createProduct(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const categoryId = String(formData.get("category_id") ?? "") || null;
+  const brandId = String(formData.get("brand_id") ?? "") || null;
   const description = String(formData.get("description") ?? "").trim();
   const priceRaw = String(formData.get("price") ?? "").trim();
   const price = priceRaw ? Number(priceRaw) : null;
@@ -61,7 +62,7 @@ export async function createProduct(formData: FormData) {
 
   const { data: product, error } = await supabase
     .from("products")
-    .insert({ name, slug, category_id: categoryId, description, price, discount_percent: discountPercent, stock })
+    .insert({ name, slug, category_id: categoryId, brand_id: brandId, description, price, discount_percent: discountPercent, stock })
     .select("id, slug")
     .single();
 
@@ -84,6 +85,7 @@ export async function createProduct(formData: FormData) {
 export async function updateProduct(productId: string, formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const categoryId = String(formData.get("category_id") ?? "") || null;
+  const brandId = String(formData.get("brand_id") ?? "") || null;
   const description = String(formData.get("description") ?? "").trim();
   const priceRaw = String(formData.get("price") ?? "").trim();
   const price = priceRaw ? Number(priceRaw) : null;
@@ -102,7 +104,7 @@ export async function updateProduct(productId: string, formData: FormData) {
 
   await supabase
     .from("products")
-    .update({ name, category_id: categoryId, description, price, discount_percent: discountPercent, stock, is_active: isActive })
+    .update({ name, category_id: categoryId, brand_id: brandId, description, price, discount_percent: discountPercent, stock, is_active: isActive })
     .eq("id", productId);
 
   await saveVariants(supabase, productId, formData);
