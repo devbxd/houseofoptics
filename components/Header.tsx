@@ -36,15 +36,18 @@ export function Header({ brandName, categories, t, whatsappNumber, facebookUrl, 
             t={t}
           />
 
-          <Link href="/" aria-label={brandName} className="shrink-0">
+          <Link href="/" className="flex min-w-0 shrink items-center gap-1.5 md:gap-2.5">
             <Image
-              src="/logo-black.png"
-              alt={brandName}
+              src="/logo-full.png"
+              alt=""
               width={82}
               height={100}
-              className="h-14 w-auto object-contain md:h-16"
+              className="h-8 w-auto shrink-0 object-contain invert md:h-9"
               priority
             />
+            <span className="truncate font-serif text-base tracking-[0.1em] text-brand-black md:text-2xl md:tracking-[0.15em]">
+              {brandName.toUpperCase()}
+            </span>
           </Link>
 
           <div className="flex shrink-0 items-center gap-2 md:gap-6">
