@@ -1,8 +1,8 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { BroadcastForm } from "./BroadcastForm";
 
 export default async function SubscribersPage() {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const { data: subscribers, count } = await supabase
     .from("newsletter_subscribers")
     .select("email, created_at", { count: "exact" })

@@ -1,8 +1,8 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { getSiteSettings, whatsappLink } from "@/lib/settings";
 
 export default async function AdminOrdersPage() {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const [{ data: orders }, settings] = await Promise.all([
     supabase
       .from("orders")

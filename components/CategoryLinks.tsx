@@ -33,8 +33,8 @@ export function CategoryLinks({
               ? "block px-5 py-2.5 normal-case tracking-normal hover:bg-neutral-50"
               : "block py-2 pr-5 text-xs normal-case tracking-normal text-neutral-500 hover:bg-neutral-50"
             : isTop
-              ? "block py-2 pl-3 text-neutral-600"
-              : "block py-1.5 pr-3 text-xs text-neutral-500";
+              ? "block py-2 pl-3 uppercase tracking-wide text-neutral-600"
+              : "block py-1.5 pr-3 text-xs uppercase tracking-wide text-neutral-500";
         const indent = variant === "desktop" ? 20 + depth * 16 : 12 + depth * 16;
         const hasChildren = categories.some((sub) => sub.parent_id === c.id);
 
@@ -90,7 +90,7 @@ function MobileCategoryBranch({
         <Link
           href={`/categorie/${category.slug}`}
           onClick={onNavigate}
-          className={`flex-1 ${isTop ? "py-2 pl-3 text-neutral-600" : "py-1.5 pr-3 text-xs text-neutral-500"}`}
+          className={`flex-1 uppercase tracking-wide ${isTop ? "py-2 pl-3 text-neutral-600" : "py-1.5 pr-3 text-xs text-neutral-500"}`}
           style={!isTop ? { paddingLeft: indent } : undefined}
         >
           {category.name}

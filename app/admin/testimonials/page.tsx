@@ -1,9 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { createTestimonial, deleteTestimonial, toggleTestimonial } from "./actions";
 import { SubmitButton } from "@/components/SubmitButton";
 
 export default async function AdminTestimonialsPage() {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const { data: testimonials } = await supabase
     .from("testimonials")
     .select("id, author_name, quote, rating, is_active")

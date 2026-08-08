@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { Pagination } from "@/components/Pagination";
 import { DiscountRow } from "./DiscountRow";
 
@@ -13,7 +13,7 @@ export default async function DiscountsPage({
   const page = Math.max(1, Number(pageParam) || 1);
   const search = (q ?? "").trim();
 
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
 
