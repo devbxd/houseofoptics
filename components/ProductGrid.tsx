@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ProductCard } from "@/lib/products";
+import { WishlistButton } from "./WishlistButton";
+import { ScrollReveal } from "./ScrollReveal";
 
 export function ProductGrid({ products, t }: { products: ProductCard[]; t: Record<string, string> }) {
   if (products.length === 0) {
@@ -8,13 +10,19 @@ export function ProductGrid({ products, t }: { products: ProductCard[]; t: Recor
   }
 
   return (
-    <div className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 lg:grid-cols-4">
-      {products.map((p) => {
+    <ScrollReveal className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 lg:grid-cols-4">
+      {products.map((p, i) => {
         const hasDiscount = !!p.discount_percent && p.discount_percent > 0 && p.price != null;
         const discountedPrice = hasDiscount ? Number(p.price) * (1 - p.discount_percent! / 100) : null;
 
         return (
-          <Link key={p.id} href={`/produit/${p.slug}`} className="group">
+          <Link
+            key={p.id}
+            href={`/produit/${p.slug}`}
+            className="group"
+            data-reveal
+            style={{ transitionDelay: `${(i % 8) * 60}ms` }}
+          >
             <div className="relative aspect-square overflow-hidden bg-neutral-100">
               {p.images[0] && (
                 <Image
@@ -36,6 +44,11 @@ export function ProductGrid({ products, t }: { products: ProductCard[]; t: Recor
                   -{p.discount_percent}%
                 </span>
               )}
+              <WishlistButton
+                item={{ productId: p.id, slug: p.slug, name: p.name, price: p.price, image: p.images[0]?.url ?? null }}
+                className="absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-neutral-700 shadow transition-colors hover:text-brand-red"
+                iconClassName="h-4 w-4"
+              />
             </div>
             <div className="mt-3 text-center">
               <p className="text-sm text-neutral-800 group-hover:text-brand-red">{p.name}</p>
@@ -53,6 +66,6 @@ export function ProductGrid({ products, t }: { products: ProductCard[]; t: Recor
           </Link>
         );
       })}
-    </div>
+    </ScrollReveal>
   );
 }

@@ -24,6 +24,7 @@ export function ProductActions({
 }) {
   const { addItem } = useCart();
   const [selected, setSelected] = useState<string | null>(variants[0]?.label ?? null);
+  const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
 
   const activeStock = variants.length > 0 ? variants.find((v) => v.label === selected)?.stock ?? null : stock;
@@ -33,7 +34,7 @@ export function ProductActions({
 
   function handleAdd() {
     if (price == null) return;
-    addItem({ productId, variant: selected, name: selected ? `${name} — ${selected}` : name, price, image });
+    addItem({ productId, variant: selected, name: selected ? `${name} — ${selected}` : name, price, image }, quantity);
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);
   }
@@ -43,7 +44,7 @@ export function ProductActions({
     : noPrice
       ? t["product.priceOnRequest"]
       : outOfStock
-        ? "Out of stock"
+        ? t["product.outOfStock"]
         : t["product.addToCart"];
 
   return (
@@ -72,15 +73,36 @@ export function ProductActions({
       {!noPrice && activeStock != null && activeStock > 0 && activeStock <= 5 && (
         <p className="mt-3 text-sm font-medium text-brand-red">Only {activeStock} left — order soon</p>
       )}
-      {!noPrice && outOfStock && <p className="mt-3 text-sm font-medium text-neutral-500">Out of stock</p>}
 
-      <button
-        onClick={handleAdd}
-        disabled={needsSelection || outOfStock || noPrice}
-        className="mt-4 block w-full bg-brand-black py-3 text-center text-sm uppercase tracking-widest text-white transition-opacity hover:opacity-90 active:opacity-80 disabled:cursor-not-allowed disabled:bg-neutral-300 disabled:opacity-100"
-      >
-        {label}
-      </button>
+      <div className="mt-4 flex gap-3">
+        <div className="flex items-center border border-neutral-300">
+          <button
+            type="button"
+            onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+            className="flex h-12 w-10 items-center justify-center text-lg text-neutral-600 hover:text-brand-black"
+            aria-label="Decrease quantity"
+          >
+            −
+          </button>
+          <span className="w-8 text-center text-sm">{quantity}</span>
+          <button
+            type="button"
+            onClick={() => setQuantity((q) => q + 1)}
+            className="flex h-12 w-10 items-center justify-center text-lg text-neutral-600 hover:text-brand-black"
+            aria-label="Increase quantity"
+          >
+            +
+          </button>
+        </div>
+
+        <button
+          onClick={handleAdd}
+          disabled={needsSelection || outOfStock || noPrice}
+          className="flex-1 bg-brand-black py-3 text-center text-sm uppercase tracking-widest text-white transition-opacity hover:opacity-90 active:opacity-80 disabled:cursor-not-allowed disabled:bg-neutral-300 disabled:opacity-100"
+        >
+          {label}
+        </button>
+      </div>
     </div>
   );
 }

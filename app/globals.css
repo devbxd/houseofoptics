@@ -10,6 +10,25 @@ body {
   padding-bottom: 4.5rem; /* space for the fixed bottom nav, always visible */
 }
 
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+[data-reveal].is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] {
+    transition: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* Site-mode ambience (dashboard-controlled seasonal skin) — layered,
    depth-cued motion instead of flat falling glyphs. */
 

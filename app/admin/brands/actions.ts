@@ -32,3 +32,23 @@ export async function deleteBrand(id: string) {
   revalidatePath("/admin/brands");
   revalidatePath("/", "layout");
 }
+
+export async function uploadBrandLogo(id: string, formData: FormData) {
+  const file = formData.get("logo") as File | null;
+  if (!file || file.size === 0) return;
+
+  const supabase = createServiceClient();
+  const ext = file.name.split(".").pop() || "png";
+  const path = `brands/${id}-${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from("products").upload(path, file, {
+    contentType: file.type || "image/png",
+    upsert: false,
+  });
+  if (error) throw new Error(error.message);
+
+  const { data: pub } = supabase.storage.from("products").getPublicUrl(path);
+  await supabase.from("brands").update({ logo_url: pub.publicUrl }).eq("id", id);
+
+  revalidatePath("/admin/brands");
+  revalidatePath("/", "layout");
+}

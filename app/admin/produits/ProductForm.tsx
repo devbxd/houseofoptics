@@ -13,6 +13,7 @@ type Product = {
   stock?: number | null;
   category_id: string | null;
   brand_id?: string | null;
+  sku?: string | null;
   is_active?: boolean;
   variants?: { label: string; stock: number | null }[];
 };
@@ -110,6 +111,15 @@ export function ProductForm({
           min={0}
           defaultValue={product?.stock ?? ""}
           placeholder="Leave empty for unlimited"
+          className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+        />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm text-neutral-600">SKU (optional, shown on the product page)</label>
+        <input
+          name="sku"
+          defaultValue={product?.sku ?? ""}
           className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
         />
       </div>

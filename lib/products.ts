@@ -63,7 +63,7 @@ export async function getProductBySlug(slug: string) {
   const { data } = await supabase
     .from("products")
     .select(
-      "id, name, slug, description, price, discount_percent, stock, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order), variants:product_variants(id, label, stock, sort_order)"
+      "id, name, slug, description, price, discount_percent, stock, sku, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order), variants:product_variants(id, label, stock, sort_order)"
     )
     .eq("slug", slug)
     .eq("is_active", true)

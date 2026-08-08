@@ -53,6 +53,7 @@ export async function createProduct(formData: FormData) {
   const discountPercent = discountRaw ? Number(discountRaw) : null;
   const stockRaw = String(formData.get("stock") ?? "").trim();
   const stock = stockRaw ? Number(stockRaw) : null;
+  const sku = String(formData.get("sku") ?? "").trim() || null;
   const files = (formData.getAll("images") as File[]).filter((f) => f.size > 0);
 
   if (!name) return;
@@ -62,7 +63,7 @@ export async function createProduct(formData: FormData) {
 
   const { data: product, error } = await supabase
     .from("products")
-    .insert({ name, slug, category_id: categoryId, brand_id: brandId, description, price, discount_percent: discountPercent, stock })
+    .insert({ name, slug, category_id: categoryId, brand_id: brandId, description, price, discount_percent: discountPercent, stock, sku })
     .select("id, slug")
     .single();
 
@@ -93,6 +94,7 @@ export async function updateProduct(productId: string, formData: FormData) {
   const discountPercent = discountRaw ? Number(discountRaw) : null;
   const stockRaw = String(formData.get("stock") ?? "").trim();
   const stock = stockRaw ? Number(stockRaw) : null;
+  const sku = String(formData.get("sku") ?? "").trim() || null;
   const isActive = formData.get("is_active") === "on";
   const files = (formData.getAll("images") as File[]).filter((f) => f.size > 0);
 
@@ -104,7 +106,7 @@ export async function updateProduct(productId: string, formData: FormData) {
 
   await supabase
     .from("products")
-    .update({ name, category_id: categoryId, brand_id: brandId, description, price, discount_percent: discountPercent, stock, is_active: isActive })
+    .update({ name, category_id: categoryId, brand_id: brandId, description, price, discount_percent: discountPercent, stock, sku, is_active: isActive })
     .eq("id", productId);
 
   await saveVariants(supabase, productId, formData);

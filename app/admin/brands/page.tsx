@@ -5,7 +5,10 @@ import { SubmitButton } from "@/components/SubmitButton";
 
 export default async function AdminBrandsPage() {
   const supabase = await createClient();
-  const { data: brands } = await supabase.from("brands").select("id, name, slug").order("sort_order", { ascending: true });
+  const { data: brands } = await supabase
+    .from("brands")
+    .select("id, name, slug, logo_url")
+    .order("sort_order", { ascending: true });
 
   const counts = new Map<string, number>();
   await Promise.all(
@@ -20,7 +23,7 @@ export default async function AdminBrandsPage() {
       <h1 className="mb-2 font-serif text-2xl">Brands</h1>
       <p className="mb-6 max-w-lg text-sm text-neutral-500">
         Ray-Ban, Gucci, Prada... Create brands here, then assign each product to one when editing it.
-        The Shop page groups products by brand.
+        Click the logo square next to a brand name to upload its logo — it shows up on the shop and homepage.
       </p>
 
       <form action={createBrand} className="mb-8 flex max-w-md gap-2">

@@ -5,6 +5,7 @@ import { getCategories } from "@/lib/settings";
 import { NewsletterForm } from "@/components/NewsletterForm";
 import { TestimonialsCarousel } from "@/components/TestimonialsCarousel";
 import { HeroCarousel } from "@/components/HeroCarousel";
+import { BrandStrip } from "@/components/BrandStrip";
 import { getServerDict } from "@/lib/locale-server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -13,7 +14,7 @@ export default async function HomePage() {
   const [heroPool, categories, { data: brands }, { t }, { data: testimonials }] = await Promise.all([
     listProducts({}, 1, 12),
     getCategories(),
-    supabase.from("brands").select("id, name, slug").order("sort_order", { ascending: true }),
+    supabase.from("brands").select("id, name, slug, logo_url").order("sort_order", { ascending: true }),
     getServerDict(),
     supabase
       .from("testimonials")
@@ -122,22 +123,7 @@ export default async function HomePage() {
         </section>
       )}
 
-      {brands && brands.length > 0 && (
-        <section className="border-y border-neutral-200 bg-neutral-50 py-14">
-          <h2 className="mb-8 text-center text-xs uppercase tracking-[0.35em] text-neutral-500">Shop by Brand</h2>
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-12 gap-y-6 px-6">
-            {brands.map((b) => (
-              <Link
-                key={b.id}
-                href={`/marque/${b.slug}`}
-                className="font-serif text-2xl italic tracking-wide text-neutral-500 transition-colors hover:text-brand-black md:text-3xl"
-              >
-                {b.name}
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
+      <BrandStrip brands={brands ?? []} title="Shop by Brand" />
 
       <section className="bg-brand-black px-6 py-16 text-center text-white">
         <h2 className="font-serif text-2xl tracking-wide">{t["home.newArrivals"]}</h2>

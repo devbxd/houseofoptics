@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 
 export type Category = { id: string; name: string; slug: string; parent_id: string | null };
@@ -35,6 +36,14 @@ export function CategoryLinks({
               ? "block py-2 pl-3 text-neutral-600"
               : "block py-1.5 pr-3 text-xs text-neutral-500";
         const indent = variant === "desktop" ? 20 + depth * 16 : 12 + depth * 16;
+        const hasChildren = categories.some((sub) => sub.parent_id === c.id);
+
+        // Mobile: collapse sub-levels behind a tap-to-expand chevron, like a
+        // typical WooCommerce off-canvas menu, instead of always showing
+        // everything at once.
+        if (variant === "mobile" && hasChildren) {
+          return <MobileCategoryBranch key={c.id} category={c} categories={categories} depth={depth} onNavigate={onNavigate} />;
+        }
 
         return (
           <div key={c.id}>
@@ -57,5 +66,49 @@ export function CategoryLinks({
         );
       })}
     </>
+  );
+}
+
+function MobileCategoryBranch({
+  category,
+  categories,
+  depth,
+  onNavigate,
+}: {
+  category: Category;
+  categories: Category[];
+  depth: number;
+  onNavigate?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const isTop = depth === 0;
+  const indent = 12 + depth * 16;
+
+  return (
+    <div>
+      <div className={`flex items-center ${isTop ? "" : ""}`}>
+        <Link
+          href={`/categorie/${category.slug}`}
+          onClick={onNavigate}
+          className={`flex-1 ${isTop ? "py-2 pl-3 text-neutral-600" : "py-1.5 pr-3 text-xs text-neutral-500"}`}
+          style={!isTop ? { paddingLeft: indent } : undefined}
+        >
+          {category.name}
+        </Link>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-label={open ? "Collapse" : "Expand"}
+          className="flex h-8 w-8 shrink-0 items-center justify-center text-neutral-400"
+        >
+          <svg viewBox="0 0 20 20" fill="currentColor" className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`}>
+            <path d="M5 7l5 5 5-5H5z" />
+          </svg>
+        </button>
+      </div>
+      {open && (
+        <CategoryLinks categories={categories} parentId={category.id} depth={depth + 1} variant="mobile" onNavigate={onNavigate} />
+      )}
+    </div>
   );
 }
