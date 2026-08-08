@@ -8,6 +8,9 @@
 // instead, which opens WhatsApp from their own phone with the order
 // pre-filled (see app/(site)/checkout/page.tsx).
 
+import { renderEmail } from "./email-template";
+import { SITE_URL } from "./site";
+
 type OrderNotification = {
   orderId: string;
   name: string;
@@ -31,13 +34,24 @@ async function sendEmail(apiKey: string, to: string, subject: string, html: stri
   });
 }
 
+function itemsList(items: OrderNotification["items"]) {
+  const rows = items
+    .map(
+      (i) =>
+        `<tr>
+          <td style="padding:6px 0;border-bottom:1px solid #f0f0f0;">${i.quantity} × ${i.name}${i.variant ? ` (${i.variant})` : ""}</td>
+          <td style="padding:6px 0;border-bottom:1px solid #f0f0f0;text-align:right;">$${i.price.toFixed(2)}</td>
+        </tr>`
+    )
+    .join("");
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;margin:16px 0;">${rows}</table>`;
+}
+
 export async function notifyNewOrder(order: OrderNotification) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return;
 
-  const itemsHtml = order.items
-    .map((i) => `<li>${i.quantity} × ${i.name}${i.variant ? ` (${i.variant})` : ""} — $${i.price.toFixed(2)}</li>`)
-    .join("");
+  const paymentLabel = order.paymentMethod === "cod" ? "Cash on delivery" : "Card";
 
   const ownerEmail = process.env.OWNER_NOTIFICATION_EMAIL;
   if (ownerEmail) {
@@ -45,15 +59,19 @@ export async function notifyNewOrder(order: OrderNotification) {
       apiKey,
       ownerEmail,
       `New order — $${order.total.toFixed(2)}`,
-      `
-        <h2>New order</h2>
-        <p><strong>${order.name}</strong> — ${order.phone} — ${order.email}</p>
-        <p>${order.address}, ${order.city} (${order.shippingZone})</p>
-        <p>Payment: ${order.paymentMethod === "cod" ? "Cash on delivery" : "Card"}</p>
-        <ul>${itemsHtml}</ul>
-        <p><strong>Total: $${order.total.toFixed(2)}</strong></p>
-        <p>Order ref: ${order.orderId.slice(0, 8)}</p>
-      `
+      renderEmail({
+        heading: "New order received",
+        bodyHtml: `
+          <p style="margin:0 0 4px;"><strong>${order.name}</strong> — ${order.phone} — ${order.email}</p>
+          <p style="margin:0 0 4px;">${order.address}, ${order.city} (${order.shippingZone})</p>
+          <p style="margin:0;">Payment: ${paymentLabel}</p>
+          ${itemsList(order.items)}
+          <p style="margin:0;font-size:16px;"><strong>Total: $${order.total.toFixed(2)}</strong></p>
+          <p style="margin:8px 0 0;font-size:12px;color:#999;">Order ref: ${order.orderId.slice(0, 8)}</p>
+        `,
+        ctaLabel: "Open dashboard",
+        ctaUrl: `${SITE_URL}/admin/orders`,
+      })
     );
   }
 
@@ -61,15 +79,19 @@ export async function notifyNewOrder(order: OrderNotification) {
     apiKey,
     order.email,
     `Order confirmed — thank you, ${order.name}!`,
-    `
-      <h2>Thanks for your order, ${order.name}!</h2>
-      <p>We've received it and will be in touch shortly to confirm.</p>
-      <ul>${itemsHtml}</ul>
-      <p><strong>Total: $${order.total.toFixed(2)}</strong></p>
-      <p>Shipping to: ${order.address}, ${order.city}</p>
-      <p>Payment: ${order.paymentMethod === "cod" ? "Cash on delivery" : "Card"}</p>
-      <p>Order ref: ${order.orderId.slice(0, 8)}</p>
-    `
+    renderEmail({
+      heading: `Thank you, ${order.name}!`,
+      bodyHtml: `
+        <p>We've received your order and will be in touch shortly to confirm.</p>
+        ${itemsList(order.items)}
+        <p style="margin:0;font-size:16px;"><strong>Total: $${order.total.toFixed(2)}</strong></p>
+        <p style="margin:16px 0 0;">Shipping to: ${order.address}, ${order.city}</p>
+        <p style="margin:4px 0 0;">Payment: ${paymentLabel}</p>
+        <p style="margin:12px 0 0;font-size:12px;color:#999;">Order ref: ${order.orderId.slice(0, 8)}</p>
+      `,
+      ctaLabel: "Continue shopping",
+      ctaUrl: `${SITE_URL}/produits`,
+    })
   );
 }
 
@@ -81,10 +103,15 @@ export async function sendWelcomeEmail(email: string) {
     apiKey,
     email,
     "Welcome to House of Optics!",
-    `
-      <h2>Thanks for subscribing!</h2>
-      <p>You're on the list — you'll be the first to hear about new arrivals, exclusive discounts, and updates from House of Optics.</p>
-      <p>Talk soon,<br/>House of Optics</p>
-    `
+    renderEmail({
+      heading: "Thanks for subscribing!",
+      bodyHtml: `
+        <p>You're on the list — you'll be the first to hear about new arrivals, exclusive discounts, and
+        updates from House of Optics.</p>
+        <p style="margin-top:16px;">Talk soon,<br/>House of Optics</p>
+      `,
+      ctaLabel: "Discover the collection",
+      ctaUrl: `${SITE_URL}/produits`,
+    })
   );
 }

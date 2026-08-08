@@ -1,6 +1,8 @@
 "use server";
 
 import { createServiceClient } from "@/lib/supabase/server";
+import { renderEmail, textToHtml } from "@/lib/email-template";
+import { SITE_URL } from "@/lib/site";
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
@@ -18,6 +20,13 @@ export async function sendBroadcast(formData: FormData) {
   const { data: subscribers } = await supabase.from("newsletter_subscribers").select("email");
   const emails = (subscribers ?? []).map((s: any) => s.email as string);
 
+  const html = renderEmail({
+    heading: subject,
+    bodyHtml: textToHtml(message),
+    ctaLabel: "Découvrir la collection",
+    ctaUrl: `${SITE_URL}/produits`,
+  });
+
   let sent = 0;
   for (const email of emails) {
     await fetch("https://api.resend.com/emails", {
@@ -27,7 +36,7 @@ export async function sendBroadcast(formData: FormData) {
         from: "House of Optics <orders@resend.dev>",
         to: [email],
         subject,
-        html: `<div style="white-space:pre-line">${message}</div>`,
+        html,
       }),
     });
     sent += 1;
