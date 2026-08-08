@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { ImageLightbox } from "./ImageLightbox";
 
 export function ProductGallery({
   images,
@@ -13,6 +14,7 @@ export function ProductGallery({
   discountPercent?: number | null;
 }) {
   const [active, setActive] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   if (images.length === 0) {
     return <div className="aspect-square rounded-md bg-neutral-100" />;
@@ -29,8 +31,9 @@ export function ProductGallery({
           fill
           quality={95}
           sizes="50vw"
-          className="object-cover"
+          className="cursor-zoom-in object-cover"
           priority
+          onClick={() => setLightboxOpen(true)}
         />
 
         {!!discountPercent && discountPercent > 0 && (
@@ -80,6 +83,15 @@ export function ProductGallery({
             </button>
           ))}
         </div>
+      )}
+
+      {lightboxOpen && (
+        <ImageLightbox
+          images={images}
+          index={active}
+          onIndexChange={setActive}
+          onClose={() => setLightboxOpen(false)}
+        />
       )}
     </div>
   );
