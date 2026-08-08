@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 
+export type SiteMode = "noel" | "halloween" | "nouvel_an" | null;
+
 export type SiteSettings = {
   brand_name: string;
   whatsapp_number: string;
@@ -9,6 +11,7 @@ export type SiteSettings = {
   logo_url: string | null;
   accent_color: string;
   dark_color: string;
+  active_mode: SiteMode;
 };
 
 const DEFAULT_SETTINGS: SiteSettings = {
@@ -20,6 +23,7 @@ const DEFAULT_SETTINGS: SiteSettings = {
   logo_url: null,
   accent_color: "#c8102e",
   dark_color: "#111111",
+  active_mode: null,
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {

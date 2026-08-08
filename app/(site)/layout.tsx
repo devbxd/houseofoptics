@@ -3,6 +3,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { CartProvider } from "@/components/CartProvider";
 import { CartFab } from "@/components/CartFab";
 import { PageViewTracker } from "@/components/PageViewTracker";
+import { SiteModeOverlay } from "@/components/site-mode/SiteModeOverlay";
 import { getSiteSettings, getCategories } from "@/lib/settings";
 import { getServerDict } from "@/lib/locale-server";
 
@@ -26,6 +27,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         instagramHandle={settings.instagram_handle}
         contactEmail={settings.contact_email}
       />
+      {settings.active_mode && <SiteModeOverlay mode={settings.active_mode} />}
       {children}
       <CartFab />
       <BottomNav whatsappNumber={settings.whatsapp_number} contactEmail={settings.contact_email} t={t} />

@@ -10,48 +10,174 @@ body {
   padding-bottom: 4.5rem; /* space for the fixed bottom nav, always visible */
 }
 
-@keyframes event-fall {
+/* Site-mode ambience (dashboard-controlled seasonal skin) — layered,
+   depth-cued motion instead of flat falling glyphs. */
+
+@keyframes mode-drift-far {
   0% {
-    transform: translateY(-10vh) rotate(0deg);
+    transform: translate3d(0, -12vh, 0) translateX(0);
     opacity: 0;
   }
-  10% {
-    opacity: 1;
+  8% {
+    opacity: var(--particle-opacity, 0.5);
+  }
+  50% {
+    transform: translate3d(0, 50vh, 0) translateX(var(--sway, 12px));
+  }
+  92% {
+    opacity: var(--particle-opacity, 0.5);
   }
   100% {
-    transform: translateY(110vh) rotate(360deg);
+    transform: translate3d(0, 112vh, 0) translateX(0);
+    opacity: 0;
+  }
+}
+
+@keyframes mode-drift-near {
+  0% {
+    transform: translate3d(0, -12vh, 0) translateX(0) scale(1);
+    opacity: 0;
+  }
+  8% {
+    opacity: var(--particle-opacity, 0.85);
+  }
+  50% {
+    transform: translate3d(0, 50vh, 0) translateX(var(--sway, -18px)) scale(1.06);
+  }
+  92% {
+    opacity: var(--particle-opacity, 0.85);
+  }
+  100% {
+    transform: translate3d(0, 112vh, 0) translateX(0) scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes mode-swing {
+  0%,
+  100% {
+    transform: rotate(-6deg);
+  }
+  50% {
+    transform: rotate(6deg);
+  }
+}
+
+@keyframes mode-twinkle {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes mode-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes mode-fog-drift {
+  0% {
+    transform: translateX(-8%);
+  }
+  50% {
+    transform: translateX(6%);
+  }
+  100% {
+    transform: translateX(-8%);
+  }
+}
+
+@keyframes mode-flicker {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  45% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  75% {
+    opacity: 0.75;
+  }
+}
+
+@keyframes mode-fly {
+  0% {
+    transform: translate(-10vw, 0);
+  }
+  50% {
+    transform: translate(55vw, -6vh);
+  }
+  100% {
+    transform: translate(120vw, 4vh);
+  }
+}
+
+@keyframes mode-wing {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.35);
+  }
+}
+
+@keyframes mode-flip-fall {
+  0% {
+    transform: translate3d(0, -12vh, 0) rotateX(0deg) rotateY(0deg);
+    opacity: 0;
+  }
+  8% {
+    opacity: 0.95;
+  }
+  100% {
+    transform: translate3d(var(--sway, 0px), 112vh, 0) rotateX(720deg) rotateY(360deg);
     opacity: 0.9;
   }
 }
 
-@keyframes event-fly {
+@keyframes mode-rise {
   0% {
-    transform: translate(-10vw, 0) scale(1);
+    transform: translate3d(0, 8vh, 0) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: var(--particle-opacity, 0.8);
   }
   50% {
-    transform: translate(55vw, -6vh) scale(1.15);
+    transform: translate3d(var(--sway, 10px), -45vh, 0) translateX(var(--sway, 10px));
+  }
+  90% {
+    opacity: var(--particle-opacity, 0.8);
   }
   100% {
-    transform: translate(120vw, 4vh) scale(1);
+    transform: translate3d(0, -100vh, 0);
+    opacity: 0;
   }
 }
 
-@keyframes event-twinkle {
-  0%,
-  100% {
-    opacity: 0.35;
-  }
-  50% {
+@keyframes mode-spark {
+  0% {
+    transform: translate(0, 0) scale(0);
     opacity: 1;
   }
-}
-
-@keyframes event-pulse-glow {
-  0%,
-  100% {
-    text-shadow: 0 0 20px rgba(245, 215, 110, 0.6);
+  70% {
+    opacity: 1;
   }
-  50% {
-    text-shadow: 0 0 40px rgba(245, 215, 110, 1);
+  100% {
+    transform: translate(var(--dx), var(--dy)) scale(1);
+    opacity: 0;
   }
 }
