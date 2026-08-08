@@ -23,7 +23,10 @@ export function ProductActions({
   t: Record<string, string>;
 }) {
   const { addItem } = useCart();
-  const [selected, setSelected] = useState<string | null>(variants[0]?.label ?? null);
+  // No auto-selection — the customer has to actually tap a color so the
+  // click gives visible feedback and the cart line reflects a deliberate
+  // choice, even when there's only one color to pick from.
+  const [selected, setSelected] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
 
@@ -51,7 +54,9 @@ export function ProductActions({
     <div>
       {variants.length > 0 && (
         <div className="mt-4">
-          <p className="mb-2 text-sm text-neutral-600">Color</p>
+          <p className="mb-2 text-sm text-neutral-600">
+            Color {needsSelection && <span className="text-brand-red">— please choose one</span>}
+          </p>
           <div className="flex flex-wrap gap-2">
             {variants.map((v) => (
               <button
