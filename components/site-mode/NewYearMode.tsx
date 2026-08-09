@@ -6,6 +6,14 @@ import { useMelody } from "./useMelody";
 const MELODY = [523.25, 659.25, 783.99, 1046.5, 783.99, 659.25, 523.25, null];
 const SPARK_COLORS = ["#f5d76e", "#ffffff", "#9dd7ff", "#ff9ecb"];
 const CONFETTI_COLORS = ["#f5d76e", "#e6c65c", "#ffffff", "#c9a227"];
+const SPARKLE_SPOTS = [
+  { left: "6%", top: "12%" },
+  { left: "92%", top: "18%" },
+  { left: "14%", top: "78%" },
+  { left: "86%", top: "72%" },
+  { left: "50%", top: "4%" },
+  { left: "50%", top: "92%" },
+];
 
 type Star = { left: number; top: number; delay: number; size: number };
 type Confetti = { left: number; delay: number; duration: number; color: string; sway: number };
@@ -125,18 +133,33 @@ export function NewYearMode() {
         ))}
       </div>
 
-      {/* Glassmorphic banner */}
-      <div className="relative z-20 flex justify-center pt-10">
-        <div className="rounded-full border border-white/20 bg-white/10 px-8 py-3 backdrop-blur-md">
+      {/* Glassmorphic banner — big, glowing, genuinely sparkling */}
+      <div className="relative z-20 flex justify-center px-4 pt-8 md:pt-12">
+        <div className="relative rounded-2xl border border-white/20 bg-white/10 px-8 py-6 backdrop-blur-md sm:rounded-full sm:px-14 sm:py-7">
+          {SPARKLE_SPOTS.map((s, i) => (
+            <span
+              key={i}
+              className="absolute text-base sm:text-2xl"
+              style={{
+                left: s.left,
+                top: s.top,
+                color: SPARK_COLORS[i % SPARK_COLORS.length],
+                textShadow: "0 0 8px currentColor",
+                animation: `mode-twinkle ${1.6 + (i % 3) * 0.4}s ease-in-out ${i * 0.3}s infinite`,
+              }}
+            >
+              ✦
+            </span>
+          ))}
           <p
-            className="bg-clip-text text-center font-serif text-2xl tracking-wide text-transparent md:text-4xl"
+            className="relative bg-clip-text text-center font-serif text-4xl font-medium leading-tight tracking-wide text-transparent sm:text-6xl md:text-7xl"
             style={{
-              backgroundImage: "linear-gradient(90deg, #f5d76e, #fff6d8, #c9a227, #f5d76e)",
+              backgroundImage: "linear-gradient(90deg, #f5d76e, #fff6d8, #c9a227, #fff6d8, #f5d76e)",
               backgroundSize: "200% auto",
-              animation: "mode-shimmer 4s linear infinite",
+              animation: "mode-shimmer 3s linear infinite, mode-glow-pulse 2.2s ease-in-out infinite",
             }}
           >
-            Happy New Year {year}
+            Bonne Année {year}
           </p>
         </div>
       </div>
