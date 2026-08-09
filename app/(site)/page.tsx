@@ -9,12 +9,10 @@ import { HeroCarousel } from "@/components/HeroCarousel";
 import { BrandStrip } from "@/components/BrandStrip";
 import { getServerDict } from "@/lib/locale-server";
 import { createClient } from "@/lib/supabase/server";
-import { getActivePopup } from "@/lib/popups";
-import { PromoPopup } from "@/components/PromoPopup";
 
 export default async function HomePage() {
   const supabase = await createClient();
-  const [heroPool, categories, { data: brands }, { t }, { data: testimonials }, { data: feedbackProducts }, activePopup] =
+  const [heroPool, categories, { data: brands }, { t }, { data: testimonials }, { data: feedbackProducts }] =
     await Promise.all([
       listProducts({}, 1, 12),
       getCategories(),
@@ -26,7 +24,6 @@ export default async function HomePage() {
         .eq("is_active", true)
         .order("sort_order", { ascending: true }),
       supabase.from("products").select("id, name").eq("is_active", true).order("name", { ascending: true }),
-      getActivePopup(),
     ]);
 
   const topCategories = categories.filter((c) => !c.parent_id && c.slug !== "events");
@@ -83,7 +80,6 @@ export default async function HomePage() {
 
   return (
     <main>
-      {activePopup && <PromoPopup popup={activePopup} />}
       <section className="relative flex h-[85vh] min-h-[560px] items-end overflow-hidden bg-brand-black text-white">
         <HeroCarousel slides={heroImages} />
         <div className="relative z-10 w-full px-6 pb-16 md:px-16 md:pb-24">

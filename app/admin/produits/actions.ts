@@ -24,23 +24,25 @@ export async function getCategoryImages(categoryId: string | null): Promise<stri
   return Array.from(urls);
 }
 
-function parseVariantRows(formData: FormData, prefix: string) {
-  const labels = formData.getAll(`${prefix}_label`) as string[];
-  const stocks = formData.getAll(`${prefix}_stock`) as string[];
-  const prices = formData.getAll(`${prefix}_price`) as string[];
-  const descriptions = formData.getAll(`${prefix}_description`) as string[];
-  const existingImages = formData.getAll(`${prefix}_existing_image`) as string[];
-  const images = formData.getAll(`${prefix}_image`) as File[];
-  return labels
-    .map((label, i) => ({
-      label: label.trim(),
+function parseVariantRows(formData: FormData) {
+  const colors = formData.getAll("variant_color") as string[];
+  const sizes = formData.getAll("variant_size") as string[];
+  const stocks = formData.getAll("variant_stock") as string[];
+  const prices = formData.getAll("variant_price") as string[];
+  const descriptions = formData.getAll("variant_description") as string[];
+  const existingImages = formData.getAll("variant_existing_image") as string[];
+  const images = formData.getAll("variant_image") as File[];
+  return colors
+    .map((color, i) => ({
+      colorLabel: color.trim() || null,
+      sizeLabel: sizes[i]?.trim() || null,
       stock: stocks[i]?.trim() ? Number(stocks[i]) : null,
       price: prices[i]?.trim() ? Number(prices[i]) : null,
       description: descriptions[i]?.trim() || null,
       existingImageUrl: existingImages[i]?.trim() || null,
       imageFile: images[i] && images[i].size > 0 ? images[i] : null,
     }))
-    .filter((v) => v.label.length > 0);
+    .filter((v) => v.colorLabel || v.sizeLabel);
 }
 
 async function uploadVariantImage(
@@ -65,28 +67,40 @@ async function saveVariants(
   productSlug: string,
   formData: FormData
 ) {
-  const colorRows = parseVariantRows(formData, "variant_color");
-  const sizeRows = parseVariantRows(formData, "variant_size");
-  const rows = [
-    ...colorRows.map((v) => ({ ...v, kind: "color" as const })),
-    ...sizeRows.map((v) => ({ ...v, kind: "size" as const })),
-  ];
+  const rows = parseVariantRows(formData);
 
   const resolved = await Promise.all(
     rows.map(async (v) => ({
       product_id: productId,
-      label: v.label,
+      color_label: v.colorLabel,
+      size_label: v.sizeLabel,
       stock: v.stock,
       price: v.price,
       description: v.description,
-      kind: v.kind,
       image_url: v.imageFile ? await uploadVariantImage(supabase, productSlug, v.imageFile) : v.existingImageUrl,
     }))
   );
 
   await supabase.from("product_variants").delete().eq("product_id", productId);
-  if (resolved.length > 0) {
-    await supabase.from("product_variants").insert(resolved.map((v, i) => ({ ...v, sort_order: i })));
+  if (resolved.length === 0) return;
+
+  const fields = resolved.map((v, i) => ({ ...v, sort_order: i }));
+  const { error } = await supabase.from("product_variants").insert(fields);
+  if (error) {
+    // color_label/size_label come from a migration that may not have run
+    // yet — retry against the older label/kind columns so saving still
+    // works either way.
+    const fallback = fields.map((v) => ({
+      product_id: v.product_id,
+      label: v.color_label || v.size_label || "",
+      kind: v.color_label ? "color" : "size",
+      stock: v.stock,
+      price: v.price,
+      description: v.description,
+      image_url: v.image_url,
+      sort_order: v.sort_order,
+    }));
+    await supabase.from("product_variants").insert(fallback);
   }
 }
 

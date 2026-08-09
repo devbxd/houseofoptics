@@ -5,14 +5,17 @@ import { WishlistProvider } from "@/components/WishlistProvider";
 import { CartFab } from "@/components/CartFab";
 import { PageViewTracker } from "@/components/PageViewTracker";
 import { SiteModeOverlay } from "@/components/site-mode/SiteModeOverlay";
+import { PromoPopup } from "@/components/PromoPopup";
 import { getSiteSettings, getCategories } from "@/lib/settings";
 import { getServerDict } from "@/lib/locale-server";
+import { getActivePopup } from "@/lib/popups";
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
-  const [settings, categories, { locale, t }] = await Promise.all([
+  const [settings, categories, { locale, t }, activePopup] = await Promise.all([
     getSiteSettings(),
     getCategories(),
     getServerDict(),
+    getActivePopup(),
   ]);
 
   return (
@@ -34,6 +37,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         />
         {settings.active_mode && <SiteModeOverlay mode={settings.active_mode} t={t} />}
         {children}
+        {activePopup && <PromoPopup popup={activePopup} />}
         <CartFab />
         <BottomNav whatsappNumber={settings.whatsapp_number} contactEmail={settings.contact_email} t={t} />
       </CartProvider>

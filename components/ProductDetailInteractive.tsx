@@ -11,12 +11,18 @@ import { ShareButtons } from "./ShareButtons";
 import { Accordion } from "./Accordion";
 
 type VariantDetail = {
-  label: string;
+  color_label: string | null;
+  size_label: string | null;
   stock: number | null;
   price: number | null;
   description: string | null;
   image_url: string | null;
 };
+
+function variantLabel(v: { color_label: string | null; size_label: string | null }) {
+  if (v.color_label && v.size_label) return `${v.color_label} — ${v.size_label}`;
+  return v.color_label || v.size_label || "";
+}
 
 export function ProductDetailInteractive({
   productId,
@@ -30,8 +36,7 @@ export function ProductDetailInteractive({
   sku,
   additionalInfo,
   shippingInfo,
-  colorVariants,
-  sizeVariants,
+  variants,
   brand,
   category,
   waHref,
@@ -50,8 +55,7 @@ export function ProductDetailInteractive({
   sku: string | null;
   additionalInfo: string | null;
   shippingInfo: string | null;
-  colorVariants: VariantDetail[];
-  sizeVariants: VariantDetail[];
+  variants: VariantDetail[];
   brand: { name: string; slug: string } | null;
   category: { name: string; slug: string } | null;
   waHref: string;
@@ -62,55 +66,41 @@ export function ProductDetailInteractive({
   const { addItem } = useCart();
   const router = useRouter();
 
-  // Color and size are two independent, optional selectors — tapping either
-  // again deselects it. Whichever was tapped most recently "wins" when both
-  // carry their own photo/price/description, so the last thing the visitor
-  // interacted with is what they see reflected.
-  const [selectedColor, setSelectedColor] = useState<string | null>(null);
-  const [selectedSize, setSelectedSize] = useState<string | null>(null);
-  const [lastKind, setLastKind] = useState<"color" | "size" | null>(null);
+  // Each entry in `variants` is a full version of the product (its own
+  // color/size combo, photo, price, stock) — selecting one is optional and
+  // tapping it again deselects it, falling back to the base product.
+  const [selected, setSelected] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
 
-  function pickColor(v: string) {
-    setSelectedColor((sel) => (sel === v ? null : v));
-    setLastKind("color");
-  }
-  function pickSize(v: string) {
-    setSelectedSize((sel) => (sel === v ? null : v));
-    setLastKind("size");
+  function pickVariant(label: string) {
+    setSelected((sel) => (sel === label ? null : label));
   }
 
-  const activeColor = selectedColor ? colorVariants.find((v) => v.label === selectedColor) ?? null : null;
-  const activeSize = selectedSize ? sizeVariants.find((v) => v.label === selectedSize) ?? null : null;
-  const primary = lastKind === "size" ? activeSize : activeColor;
-  const secondary = lastKind === "size" ? activeColor : activeSize;
+  const active = selected ? variants.find((v) => variantLabel(v) === selected) ?? null : null;
 
-  const displayImageUrl = primary?.image_url ?? secondary?.image_url ?? null;
-  const displayImages = displayImageUrl ? [{ url: displayImageUrl }] : images;
+  const displayImages = active?.image_url ? [{ url: active.image_url }] : images;
 
-  const variantPrice = primary?.price ?? secondary?.price ?? null;
-  const hasVariantPrice = variantPrice != null;
-  const effectivePrice = hasVariantPrice ? variantPrice : price;
+  const hasVariantPrice = active?.price != null;
+  const effectivePrice = hasVariantPrice ? active!.price : price;
   const hasPrice = effectivePrice != null;
   // A variant's own price is a flat override — the base product's discount
   // only makes sense against the base price.
   const hasDiscount = !hasVariantPrice && hasPrice && !!discountPercent && discountPercent > 0;
   const finalPrice = hasDiscount ? effectivePrice! * (1 - discountPercent! / 100) : effectivePrice;
 
-  const displayDescription = primary?.description ?? secondary?.description ?? description;
+  const displayDescription = active?.description ?? description;
 
-  const activeStock = primary?.stock ?? secondary?.stock ?? stock;
+  const activeStock = active?.stock ?? stock;
   const outOfStock = activeStock != null && activeStock <= 0;
   const noPrice = finalPrice == null;
 
-  const variantLabel = [selectedColor, selectedSize].filter(Boolean).join(" / ") || null;
-  const cartImage = displayImageUrl ?? images[0]?.url ?? null;
+  const cartImage = active?.image_url ?? images[0]?.url ?? null;
 
   function handleAdd() {
     if (finalPrice == null) return;
     addItem(
-      { productId, variant: variantLabel, name: variantLabel ? `${name} — ${variantLabel}` : name, price: finalPrice, image: cartImage },
+      { productId, variant: selected, name: selected ? `${name} — ${selected}` : name, price: finalPrice, image: cartImage },
       quantity
     );
     setAdded(true);
@@ -121,8 +111,8 @@ export function ProductDetailInteractive({
     if (finalPrice == null || outOfStock) return;
     setBuyNowItem({
       productId,
-      variant: variantLabel,
-      name: variantLabel ? `${name} — ${variantLabel}` : name,
+      variant: selected,
+      name: selected ? `${name} — ${selected}` : name,
       price: finalPrice,
       image: cartImage,
       quantity,
@@ -194,44 +184,26 @@ export function ProductDetailInteractive({
           {outOfStock ? t["product.outOfStock"] : t["product.available"]}
         </p>
 
-        {colorVariants.length > 0 && (
+        {variants.length > 0 && (
           <div className="mt-4">
-            <p className="mb-2 text-sm text-neutral-600">{t["product.colorOptional"]}</p>
+            <p className="mb-2 text-sm text-neutral-600">{t["product.variantOptional"]}</p>
             <div className="flex flex-wrap gap-2">
-              {colorVariants.map((v) => (
-                <button
-                  key={v.label}
-                  type="button"
-                  onClick={() => pickColor(v.label)}
-                  disabled={v.stock != null && v.stock <= 0}
-                  className={`border px-4 py-1.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                    selectedColor === v.label ? "border-brand-black bg-brand-black text-white" : "border-neutral-300 hover:border-brand-black"
-                  }`}
-                >
-                  {v.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {sizeVariants.length > 0 && (
-          <div className="mt-4">
-            <p className="mb-2 text-sm text-neutral-600">{t["product.sizeOptional"]}</p>
-            <div className="flex flex-wrap gap-2">
-              {sizeVariants.map((v) => (
-                <button
-                  key={v.label}
-                  type="button"
-                  onClick={() => pickSize(v.label)}
-                  disabled={v.stock != null && v.stock <= 0}
-                  className={`border px-4 py-1.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                    selectedSize === v.label ? "border-brand-black bg-brand-black text-white" : "border-neutral-300 hover:border-brand-black"
-                  }`}
-                >
-                  {v.label}
-                </button>
-              ))}
+              {variants.map((v) => {
+                const l = variantLabel(v);
+                return (
+                  <button
+                    key={l}
+                    type="button"
+                    onClick={() => pickVariant(l)}
+                    disabled={v.stock != null && v.stock <= 0}
+                    className={`border px-4 py-1.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                      selected === l ? "border-brand-black bg-brand-black text-white" : "border-neutral-300 hover:border-brand-black"
+                    }`}
+                  >
+                    {l}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -335,8 +307,7 @@ export function ProductDetailInteractive({
               <ul className="space-y-1">
                 {brand && <li>Brand: {brand.name}</li>}
                 {category && <li>Category: {category.name}</li>}
-                {colorVariants.length > 0 && <li>Colors: {colorVariants.map((v) => v.label).join(", ")}</li>}
-                {sizeVariants.length > 0 && <li>Sizes: {sizeVariants.map((v) => v.label).join(", ")}</li>}
+                {variants.length > 0 && <li>Available in: {variants.map((v) => variantLabel(v)).join(", ")}</li>}
               </ul>
             )}
           </Accordion>

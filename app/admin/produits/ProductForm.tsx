@@ -28,8 +28,14 @@ type Product = {
   additional_info?: string | null;
   shipping_info?: string | null;
   is_active?: boolean;
-  colorVariants?: { label: string; stock: number | null; price: number | null; description: string | null; image_url: string | null }[];
-  sizeVariants?: { label: string; stock: number | null; price: number | null; description: string | null; image_url: string | null }[];
+  variants?: {
+    color_label: string | null;
+    size_label: string | null;
+    stock: number | null;
+    price: number | null;
+    description: string | null;
+    image_url: string | null;
+  }[];
 };
 
 export function ProductForm({
@@ -149,8 +155,7 @@ export function ProductForm({
         />
       </div>
 
-      <VariantsEditor kind="color" initial={product?.colorVariants ?? []} categoryId={categoryId} />
-      <VariantsEditor kind="size" initial={product?.sizeVariants ?? []} categoryId={categoryId} />
+      <VariantsEditor initial={product?.variants ?? []} categoryId={categoryId} />
 
       <div>
         <label className="mb-1 block text-sm text-neutral-600">Description</label>

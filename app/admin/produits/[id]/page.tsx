@@ -21,9 +21,16 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
   if (!product) notFound();
 
   const images = (product.images ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order);
-  const variants = (product.variants ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order);
-  const colorVariants = variants.filter((v: any) => v.kind !== "size");
-  const sizeVariants = variants.filter((v: any) => v.kind === "size");
+  // Falls back to the older label/kind columns for rows saved before the
+  // color_label/size_label migration ran, so nothing already entered is lost.
+  const variants = (product.variants ?? [])
+    .map((v: any) => ({
+      ...v,
+      color_label: v.color_label ?? (v.kind === "color" ? v.label : null),
+      size_label: v.size_label ?? (v.kind === "size" ? v.label : null),
+    }))
+    .filter((v: any) => v.color_label || v.size_label)
+    .sort((a: any, b: any) => a.sort_order - b.sort_order);
   const updateWithId = updateProduct.bind(null, id);
 
   return (
@@ -36,7 +43,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
         action={updateWithId}
         categories={categories ?? []}
         brands={brands ?? []}
-        product={{ ...product, colorVariants, sizeVariants }}
+        product={{ ...product, variants }}
         submitLabel="Save"
       />
     </div>

@@ -91,14 +91,21 @@ export async function getProductBySlug(slug: string) {
 
   if (!data) return null;
   const p = data as any;
-  const variants = (p.variants ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order);
+  // Falls back to the older label/kind columns for rows saved before the
+  // color_label/size_label migration ran, so nothing already entered is lost.
+  const variants = (p.variants ?? [])
+    .map((v: any) => ({
+      ...v,
+      color_label: v.color_label ?? (v.kind === "color" ? v.label : null),
+      size_label: v.size_label ?? (v.kind === "size" ? v.label : null),
+    }))
+    .filter((v: any) => v.color_label || v.size_label)
+    .sort((a: any, b: any) => a.sort_order - b.sort_order);
   return {
     ...p,
     category: Array.isArray(p.category) ? p.category[0] ?? null : p.category,
     brand: Array.isArray(p.brand) ? p.brand[0] ?? null : p.brand,
     images: (p.images ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order),
     variants,
-    colorVariants: variants.filter((v: any) => v.kind !== "size"),
-    sizeVariants: variants.filter((v: any) => v.kind === "size"),
   };
 }

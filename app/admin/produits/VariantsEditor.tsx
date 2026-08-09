@@ -5,7 +5,8 @@ import { getCategoryImages } from "./actions";
 
 type VariantRow = {
   key: string;
-  label: string;
+  color: string;
+  size: string;
   stock: string;
   price: string;
   description: string;
@@ -14,7 +15,8 @@ type VariantRow = {
 };
 
 type VariantData = {
-  label: string;
+  color_label?: string | null;
+  size_label?: string | null;
   stock: number | null;
   price?: number | null;
   description?: string | null;
@@ -24,7 +26,8 @@ type VariantData = {
 function emptyRow(): VariantRow {
   return {
     key: crypto.randomUUID(),
-    label: "",
+    color: "",
+    size: "",
     stock: "",
     price: "",
     description: "",
@@ -33,21 +36,13 @@ function emptyRow(): VariantRow {
   };
 }
 
-export function VariantsEditor({
-  kind,
-  initial,
-  categoryId,
-}: {
-  kind: "color" | "size";
-  initial: VariantData[];
-  categoryId: string;
-}) {
-  const prefix = kind === "color" ? "variant_color" : "variant_size";
+export function VariantsEditor({ initial, categoryId }: { initial: VariantData[]; categoryId: string }) {
   const [rows, setRows] = useState<VariantRow[]>(
     initial.length > 0
       ? initial.map((v) => ({
           key: crypto.randomUUID(),
-          label: v.label,
+          color: v.color_label ?? "",
+          size: v.size_label ?? "",
           stock: v.stock?.toString() ?? "",
           price: v.price?.toString() ?? "",
           description: v.description ?? "",
@@ -86,51 +81,43 @@ export function VariantsEditor({
     setGalleryRowKey(null);
   }
 
-  const label = kind === "color" ? "Color options" : "Size options";
-  const addLabel = kind === "color" ? "+ Add color" : "+ Add size";
-  const placeholder = kind === "color" ? "e.g. Black" : "e.g. 52mm";
-
   return (
     <div>
       <div className="mb-1 flex items-center justify-between">
-        <label className="block text-sm text-neutral-600">{label} (leave empty if this product has none)</label>
+        <label className="block text-sm text-neutral-600">
+          Other versions of this product (leave empty if this product has none)
+        </label>
         <button
           type="button"
           onClick={() => setRows((r) => [...r, emptyRow()])}
           className="text-xs uppercase tracking-wide text-brand-red hover:underline"
         >
-          {addLabel}
+          + Add version
         </button>
       </div>
+      <p className="mb-2 text-xs text-neutral-500">
+        Each entry below is a distinct version of this exact product — say a different color, a different size,
+        or both — with its own optional photo, price and description. Fill in whichever of Color / Size apply;
+        leave the other blank.
+      </p>
 
       <div className="space-y-3">
         {rows.map((row) => (
           <div key={row.key} className="space-y-2 border border-neutral-200 p-3">
             <div className="flex gap-2">
               <input
-                name={`${prefix}_label`}
-                value={row.label}
-                onChange={(e) => update(row.key, { label: e.target.value })}
-                placeholder={placeholder}
+                name="variant_color"
+                value={row.color}
+                onChange={(e) => update(row.key, { color: e.target.value })}
+                placeholder="Color (e.g. Black)"
                 className="flex-1 border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
               />
               <input
-                name={`${prefix}_stock`}
-                type="number"
-                min={0}
-                value={row.stock}
-                onChange={(e) => update(row.key, { stock: e.target.value })}
-                placeholder="Stock"
-                className="w-20 border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
-              />
-              <input
-                name={`${prefix}_price`}
-                type="number"
-                step="0.01"
-                value={row.price}
-                onChange={(e) => update(row.key, { price: e.target.value })}
-                placeholder="Price (optional)"
-                className="w-28 border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+                name="variant_size"
+                value={row.size}
+                onChange={(e) => update(row.key, { size: e.target.value })}
+                placeholder="Size (e.g. 52mm)"
+                className="flex-1 border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
               />
               <button
                 type="button"
@@ -142,8 +129,29 @@ export function VariantsEditor({
             </div>
 
             <div className="flex gap-2">
+              <input
+                name="variant_stock"
+                type="number"
+                min={0}
+                value={row.stock}
+                onChange={(e) => update(row.key, { stock: e.target.value })}
+                placeholder="Stock"
+                className="w-24 border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+              />
+              <input
+                name="variant_price"
+                type="number"
+                step="0.01"
+                value={row.price}
+                onChange={(e) => update(row.key, { price: e.target.value })}
+                placeholder="Price (optional)"
+                className="w-32 border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+              />
+            </div>
+
+            <div className="flex gap-2">
               <div className="shrink-0">
-                <input type="hidden" name={`${prefix}_existing_image`} value={row.existingImageUrl} />
+                <input type="hidden" name="variant_existing_image" value={row.existingImageUrl} />
                 <button
                   type="button"
                   onClick={() => setPickerRowKey(row.key)}
@@ -160,7 +168,7 @@ export function VariantsEditor({
                   ref={(el) => {
                     fileInputRefs.current[row.key] = el;
                   }}
-                  name={`${prefix}_image`}
+                  name="variant_image"
                   type="file"
                   accept="image/*"
                   className="hidden"
@@ -171,11 +179,11 @@ export function VariantsEditor({
                 />
               </div>
               <textarea
-                name={`${prefix}_description`}
+                name="variant_description"
                 value={row.description}
                 onChange={(e) => update(row.key, { description: e.target.value })}
                 rows={2}
-                placeholder="Description shown when this option is selected (optional)"
+                placeholder="Description shown when this version is selected (optional)"
                 className="flex-1 border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
               />
             </div>
