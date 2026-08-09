@@ -216,20 +216,19 @@ export function ChristmasMode({ t }: { t: Record<string, string> }) {
         ))}
       </div>
 
-      {/* Combined greeting banner */}
-      <div className="relative z-[45] flex justify-center px-4 pt-24 md:pt-28">
-        <div className="relative max-w-md rounded-2xl border border-white/25 bg-black/25 px-6 py-4 text-center backdrop-blur-md sm:max-w-xl sm:px-10 sm:py-5">
-          <p
-            className="bg-clip-text font-serif text-base font-medium leading-snug tracking-wide text-transparent sm:text-2xl"
-            style={{
-              backgroundImage: `linear-gradient(90deg, ${GOLD}, #fff6d8, ${GOLD_DEEP}, #fff6d8, ${GOLD})`,
-              backgroundSize: "200% auto",
-              animation: "mode-shimmer 4s linear infinite, mode-glow-pulse 2.6s ease-in-out infinite",
-            }}
-          >
-            {t["christmasNewYear.title"].replace("{year}", String(year))}
-          </p>
-        </div>
+      {/* Combined greeting — floats directly on the header image, no card/frame */}
+      <div className="pointer-events-none fixed inset-x-0 top-24 z-[45] flex justify-center px-6 md:top-28">
+        <p
+          className="max-w-2xl bg-clip-text text-center font-serif text-lg font-medium leading-snug tracking-wide text-transparent sm:text-3xl"
+          style={{
+            backgroundImage: `linear-gradient(90deg, ${GOLD}, #fff6d8, ${GOLD_DEEP}, #fff6d8, ${GOLD})`,
+            backgroundSize: "200% auto",
+            textShadow: "0 2px 10px rgba(0,0,0,0.65), 0 1px 4px rgba(0,0,0,0.85)",
+            animation: "mode-shimmer 4s linear infinite, mode-glow-pulse 2.6s ease-in-out infinite",
+          }}
+        >
+          {t["christmasNewYear.title"].replace("{year}", String(year))}
+        </p>
       </div>
 
       {/* Parallax snow — far (small, blurred, slow) then near (bigger, sharp, faster) */}
