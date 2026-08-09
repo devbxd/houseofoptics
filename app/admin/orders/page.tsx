@@ -1,21 +1,62 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { getSiteSettings, whatsappLink } from "@/lib/settings";
+import { OrderDeleteButton } from "./OrderDeleteButton";
 
-export default async function AdminOrdersPage() {
+export default async function AdminOrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string }>;
+}) {
+  const { from, to } = await searchParams;
   const supabase = createServiceClient();
-  const [{ data: orders }, settings] = await Promise.all([
-    supabase
-      .from("orders")
-      .select(
-        "id, customer_name, customer_phone, customer_email, address, city, payment_method, shipping_zone, shipping_cost, total, status, created_at, items:order_items(product_name, variant_label, quantity, unit_price)"
-      )
-      .order("created_at", { ascending: false }),
-    getSiteSettings(),
-  ]);
+
+  let query = supabase
+    .from("orders")
+    .select(
+      "id, customer_name, customer_phone, customer_email, address, city, payment_method, shipping_zone, shipping_cost, total, status, created_at, items:order_items(product_name, variant_label, quantity, unit_price)"
+    )
+    .order("created_at", { ascending: false });
+
+  if (from) query = query.gte("created_at", from);
+  if (to) query = query.lte("created_at", `${to}T23:59:59`);
+
+  const [{ data: orders }, settings] = await Promise.all([query, getSiteSettings()]);
 
   return (
     <div>
       <h1 className="mb-6 font-serif text-2xl">Orders</h1>
+
+      <form className="mb-6 flex flex-wrap items-end gap-3">
+        <div>
+          <label className="mb-1 block text-xs text-neutral-500">From</label>
+          <input
+            type="date"
+            name="from"
+            defaultValue={from}
+            className="border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-neutral-500">To</label>
+          <input
+            type="date"
+            name="to"
+            defaultValue={to}
+            className="border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+          />
+        </div>
+        <button
+          type="submit"
+          className="border border-brand-black px-4 py-2 text-xs uppercase tracking-wide hover:bg-brand-black hover:text-white"
+        >
+          Filter
+        </button>
+        {(from || to) && (
+          <a href="/admin/orders" className="text-xs text-neutral-400 hover:text-neutral-600">
+            Clear
+          </a>
+        )}
+      </form>
 
       {(!orders || orders.length === 0) && <p className="text-sm text-neutral-500">No orders yet.</p>}
 
@@ -34,10 +75,14 @@ export default async function AdminOrdersPage() {
                   <p className="text-xs text-neutral-500">
                     {o.customer_phone} · {o.customer_email} · {o.address}, {o.city}
                   </p>
+                  <p className="mt-0.5 text-xs text-neutral-400">{new Date(o.created_at).toLocaleString()}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm">${Number(o.total).toFixed(2)}</p>
                   <span className="rounded bg-neutral-100 px-2 py-0.5 text-xs uppercase text-neutral-600">{o.status}</span>
+                  <div className="mt-2">
+                    <OrderDeleteButton orderId={o.id} />
+                  </div>
                 </div>
               </div>
               <p className="mt-2 text-xs uppercase tracking-wide text-neutral-400">
