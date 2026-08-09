@@ -6,6 +6,7 @@ export async function submitTestimonial(formData: FormData) {
   const authorName = String(formData.get("author_name") ?? "").trim();
   const quote = String(formData.get("quote") ?? "").trim();
   const ratingRaw = String(formData.get("rating") ?? "").trim();
+  const productId = String(formData.get("product_id") ?? "").trim() || null;
   const photo = formData.get("photo") as File | null;
 
   if (!authorName || !quote) return { error: "Name and review are required" };
@@ -34,6 +35,7 @@ export async function submitTestimonial(formData: FormData) {
     quote,
     rating: ratingRaw ? Number(ratingRaw) : null,
     photo_url: photoUrl,
+    product_id: productId,
     is_active: false,
   });
 

@@ -15,6 +15,8 @@ export type SiteSettings = {
   active_mode: SiteMode;
   heading_font: string;
   body_font: string;
+  announcement_text: string;
+  banner_color: string;
 };
 
 const DEFAULT_SETTINGS: SiteSettings = {
@@ -29,12 +31,17 @@ const DEFAULT_SETTINGS: SiteSettings = {
   active_mode: null,
   heading_font: DEFAULT_HEADING_FONT,
   body_font: DEFAULT_BODY_FONT,
+  announcement_text: "Nouveautés ajoutées chaque semaine",
+  banner_color: "#111111",
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {
   const supabase = await createClient();
   const { data } = await supabase.from("site_settings").select("*").single();
-  return data ?? DEFAULT_SETTINGS;
+  // Merge over the defaults rather than replace — a column added by a
+  // migration the client hasn't run yet is simply absent from `data`,
+  // not `undefined`-valued, so this keeps the site correct either way.
+  return { ...DEFAULT_SETTINGS, ...data };
 }
 
 export async function getCategories() {

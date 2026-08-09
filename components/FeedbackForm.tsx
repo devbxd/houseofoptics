@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { submitTestimonial } from "@/app/(site)/testimonial-actions";
 
-export function FeedbackForm({ t }: { t: Record<string, string> }) {
+type Product = { id: string; name: string };
+
+export function FeedbackForm({ t, products = [] }: { t: Record<string, string>; products?: Product[] }) {
   const [open, setOpen] = useState(false);
   const [rating, setRating] = useState(0);
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
@@ -55,6 +57,24 @@ export function FeedbackForm({ t }: { t: Record<string, string> }) {
           className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
         />
       </div>
+
+      {products.length > 0 && (
+        <div>
+          <label className="mb-1 block text-sm text-neutral-600">{t["feedback.product"]}</label>
+          <select
+            name="product_id"
+            defaultValue=""
+            className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+          >
+            <option value="">{t["feedback.productGeneral"]}</option>
+            {products.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div>
         <label className="mb-1 block text-sm text-neutral-600">{t["feedback.rating"]}</label>

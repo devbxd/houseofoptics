@@ -12,17 +12,19 @@ import { createClient } from "@/lib/supabase/server";
 
 export default async function HomePage() {
   const supabase = await createClient();
-  const [heroPool, categories, { data: brands }, { t }, { data: testimonials }] = await Promise.all([
-    listProducts({}, 1, 12),
-    getCategories(),
-    supabase.from("brands").select("id, name, slug, logo_url").order("sort_order", { ascending: true }),
-    getServerDict(),
-    supabase
-      .from("testimonials")
-      .select("id, author_name, quote, rating, photo_url")
-      .eq("is_active", true)
-      .order("sort_order", { ascending: true }),
-  ]);
+  const [heroPool, categories, { data: brands }, { t }, { data: testimonials }, { data: feedbackProducts }] =
+    await Promise.all([
+      listProducts({}, 1, 12),
+      getCategories(),
+      supabase.from("brands").select("id, name, slug, logo_url").order("sort_order", { ascending: true }),
+      getServerDict(),
+      supabase
+        .from("testimonials")
+        .select("id, author_name, quote, rating, photo_url")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true }),
+      supabase.from("products").select("id, name").eq("is_active", true).order("name", { ascending: true }),
+    ]);
 
   const topCategories = categories.filter((c) => !c.parent_id && c.slug !== "events");
 
@@ -140,7 +142,7 @@ export default async function HomePage() {
       </section>
 
       <TestimonialsCarousel testimonials={testimonials ?? []}>
-        <FeedbackForm t={t} />
+        <FeedbackForm t={t} products={feedbackProducts ?? []} />
       </TestimonialsCarousel>
 
       <section className="bg-neutral-100 px-6 py-20 text-center">

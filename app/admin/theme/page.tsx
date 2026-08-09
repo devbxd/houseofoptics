@@ -7,7 +7,7 @@ export default async function ThemePage() {
   const supabase = await createClient();
   const { data: settings } = await supabase
     .from("site_settings")
-    .select("accent_color, dark_color, heading_font, body_font")
+    .select("accent_color, dark_color, banner_color, heading_font, body_font")
     .single();
 
   return (
@@ -41,6 +41,19 @@ export default async function ThemePage() {
               className="h-10 w-14 cursor-pointer border border-neutral-300"
             />
             <span className="text-sm text-neutral-500">{settings?.dark_color ?? "#111111"}</span>
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm text-neutral-600">Banner color (announcement bar at the very top)</label>
+          <div className="flex items-center gap-3">
+            <input
+              type="color"
+              name="banner_color"
+              defaultValue={settings?.banner_color ?? "#111111"}
+              className="h-10 w-14 cursor-pointer border border-neutral-300"
+            />
+            <span className="text-sm text-neutral-500">{settings?.banner_color ?? "#111111"}</span>
           </div>
         </div>
 

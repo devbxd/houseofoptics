@@ -42,11 +42,20 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const has = useCallback((productId: string) => items.some((i) => i.productId === productId), [items]);
 
   const toggle = useCallback((item: WishlistItem) => {
-    setItems((prev) =>
-      prev.some((i) => i.productId === item.productId)
-        ? prev.filter((i) => i.productId !== item.productId)
-        : [...prev, item]
-    );
+    setItems((prev) => {
+      const alreadyIn = prev.some((i) => i.productId === item.productId);
+      if (!alreadyIn) {
+        // Fire-and-forget: lets the owner see what's being wishlisted most
+        // without the wishlist itself needing an account or server round-trip.
+        fetch("/api/track-wishlist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productId: item.productId }),
+          keepalive: true,
+        }).catch(() => {});
+      }
+      return alreadyIn ? prev.filter((i) => i.productId !== item.productId) : [...prev, item];
+    });
   }, []);
 
   const remove = useCallback((productId: string) => {

@@ -28,6 +28,9 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           facebookUrl={settings.facebook_url}
           instagramHandle={settings.instagram_handle}
           contactEmail={settings.contact_email}
+          logoUrl={settings.logo_url}
+          announcementText={settings.announcement_text}
+          bannerColor={settings.banner_color}
         />
         {settings.active_mode && <SiteModeOverlay mode={settings.active_mode} />}
         {children}

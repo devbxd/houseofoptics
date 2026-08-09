@@ -16,13 +16,30 @@ type Props = {
   facebookUrl: string;
   instagramHandle: string;
   contactEmail: string;
+  logoUrl?: string | null;
+  announcementText?: string;
+  bannerColor?: string;
 };
 
-export function Header({ brandName, categories, t, whatsappNumber, facebookUrl, instagramHandle, contactEmail }: Props) {
+export function Header({
+  brandName,
+  categories,
+  t,
+  whatsappNumber,
+  facebookUrl,
+  instagramHandle,
+  contactEmail,
+  logoUrl,
+  announcementText,
+  bannerColor,
+}: Props) {
   return (
     <header className="sticky top-0 z-40 bg-white">
-      <div className="border-b border-brand-black bg-brand-black py-2 text-center text-[11px] uppercase tracking-[0.2em] text-white">
-        {t["nav.announcement"]}
+      <div
+        className="border-b border-brand-black bg-brand-black py-2 text-center text-[11px] uppercase tracking-[0.2em] text-white"
+        style={bannerColor ? { backgroundColor: bannerColor, borderColor: bannerColor } : undefined}
+      >
+        {announcementText || t["nav.announcement"]}
       </div>
       <div className="border-b border-neutral-200">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 md:px-6 md:py-5">
@@ -46,7 +63,7 @@ export function Header({ brandName, categories, t, whatsappNumber, facebookUrl, 
 
           <Link href="/" className="flex min-w-0 shrink items-center gap-1.5 md:gap-2.5">
             <Image
-              src="/logo-black.png"
+              src={logoUrl || "/logo-black.png"}
               alt=""
               width={82}
               height={100}

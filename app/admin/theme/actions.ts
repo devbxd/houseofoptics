@@ -7,6 +7,7 @@ import { HEADING_FONTS, BODY_FONTS, DEFAULT_HEADING_FONT, DEFAULT_BODY_FONT } fr
 export async function updateTheme(formData: FormData) {
   const accent = String(formData.get("accent_color") ?? "").trim();
   const dark = String(formData.get("dark_color") ?? "").trim();
+  const banner = String(formData.get("banner_color") ?? "").trim();
   if (!accent || !dark) return;
 
   const headingFontRaw = String(formData.get("heading_font") ?? "");
@@ -17,7 +18,13 @@ export async function updateTheme(formData: FormData) {
   const supabase = createServiceClient();
   await supabase
     .from("site_settings")
-    .update({ accent_color: accent, dark_color: dark, heading_font: headingFont, body_font: bodyFont })
+    .update({
+      accent_color: accent,
+      dark_color: dark,
+      banner_color: banner || dark,
+      heading_font: headingFont,
+      body_font: bodyFont,
+    })
     .eq("id", true);
 
   revalidatePath("/", "layout");

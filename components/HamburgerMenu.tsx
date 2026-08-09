@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { CategoryLinks, type Category } from "./CategoryLinks";
+import { useWishlist } from "./WishlistProvider";
 
 export function HamburgerMenu({
   categories,
@@ -22,6 +23,7 @@ export function HamburgerMenu({
   t: Record<string, string>;
 }) {
   const [open, setOpen] = useState(false);
+  const { count: wishlistCount } = useWishlist();
 
   return (
     <>
@@ -61,6 +63,25 @@ export function HamburgerMenu({
             </Link>
             <Link href="/produits" onClick={() => setOpen(false)} className="block py-2.5 uppercase tracking-wide">
               {t["nav.allProducts"]}
+            </Link>
+            <Link
+              href="/wishlist"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 py-2.5 uppercase tracking-wide"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
+                <path
+                  d="M12 20.5s-7.5-4.8-9.8-9.6C.7 7.4 2.3 4 5.7 3.3c2-.4 4 .5 5.3 2.4 1.3-1.9 3.3-2.8 5.3-2.4 3.4.7 5 4.1 3.5 7.6-2.3 4.8-9.8 9.6-9.8 9.6Z"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              {t["nav.wishlist"]}
+              {wishlistCount > 0 && (
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-red px-1 text-[10px] normal-case text-white">
+                  {wishlistCount}
+                </span>
+              )}
             </Link>
             {categories.length > 0 && (
               <div className="mt-2 border-t border-neutral-100 pt-2">
