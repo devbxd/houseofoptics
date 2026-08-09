@@ -61,7 +61,7 @@ function GarlandStrand({ g }: { g: Garland }) {
 function SantaSleigh() {
   return (
     <div
-      className="pointer-events-none fixed left-0 top-[6%] z-30 md:top-[9%]"
+      className="pointer-events-none fixed left-0 top-[6%] z-[45] md:top-[9%]"
       style={{ animation: "mode-sleigh-fly 34s ease-in-out infinite", filter: "drop-shadow(0 8px 10px rgba(0,0,0,0.4))" }}
     >
       <svg viewBox="0 0 340 140" className="h-[70px] w-[190px] md:h-[92px] md:w-[250px]">
@@ -207,7 +207,7 @@ export function ChristmasMode() {
     <>
       {/* Ambient wash */}
       <div
-        className="pointer-events-none fixed inset-0 z-10"
+        className="pointer-events-none fixed inset-0 z-[41]"
         style={{
           background:
             "radial-gradient(ellipse at 50% 0%, rgba(20,60,42,0.16) 0%, rgba(0,0,0,0) 55%), radial-gradient(ellipse at center, transparent 45%, rgba(6,20,14,0.32) 100%)",
@@ -215,7 +215,7 @@ export function ChristmasMode() {
       />
 
       {/* Hanging garland with 3D-shaded baubles */}
-      <div className="pointer-events-none fixed inset-x-0 top-0 z-30 h-16 overflow-hidden">
+      <div className="pointer-events-none fixed inset-x-0 top-0 z-[45] h-16 overflow-hidden">
         <div
           className="absolute inset-x-[4%] top-2 h-px opacity-40"
           style={{ background: "linear-gradient(90deg, transparent, #e8c766, transparent)" }}
@@ -241,7 +241,7 @@ export function ChristmasMode() {
       <SantaSleigh />
 
       {/* Parallax snow — far (small, blurred, slow) then near (bigger, sharp, faster) */}
-      <div className="pointer-events-none fixed inset-0 z-20 overflow-hidden">
+      <div className="pointer-events-none fixed inset-0 z-[42] overflow-hidden">
         {far?.map((p, i) => (
           <span
             key={`f${i}`}

@@ -13,7 +13,7 @@ export function BrandStrip({ brands, title }: { brands: Brand[]; title?: string 
   return (
     <section className="border-y border-neutral-200 bg-neutral-50 py-10">
       {title && <h2 className="mb-8 text-center text-xs uppercase tracking-[0.35em] text-neutral-500">{title}</h2>}
-      <div className="flex gap-x-10 gap-y-6 overflow-x-auto px-6 sm:flex-wrap sm:justify-center sm:overflow-visible">
+      <div className="flex flex-wrap justify-center gap-x-8 gap-y-6 px-6 sm:gap-x-10">
         {withLogo.map((b) => (
           <Link
             key={b.id}

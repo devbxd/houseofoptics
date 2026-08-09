@@ -142,7 +142,7 @@ export function HalloweenMode() {
     <>
       {/* Flickering candlelight vignette */}
       <div
-        className="pointer-events-none fixed inset-0 z-10"
+        className="pointer-events-none fixed inset-0 z-[41]"
         style={{
           background:
             "radial-gradient(ellipse at 50% 30%, rgba(255,138,61,0.10) 0%, rgba(0,0,0,0) 45%), radial-gradient(ellipse at center, transparent 40%, rgba(10,4,16,0.5) 100%)",
@@ -151,7 +151,7 @@ export function HalloweenMode() {
       />
 
       {/* Layered fog banks drifting at the bottom */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 h-64 overflow-hidden">
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[42] h-64 overflow-hidden">
         <div
           className="absolute -inset-x-1/4 bottom-0 h-40 opacity-60 blur-2xl"
           style={{
@@ -169,14 +169,14 @@ export function HalloweenMode() {
       </div>
 
       {/* Jack-o'-lanterns lined up just above the bottom nav, out of the products' way */}
-      <div className="pointer-events-none fixed inset-x-0 z-20" style={{ bottom: "4.5rem" }}>
+      <div className="pointer-events-none fixed inset-x-0 z-[45]" style={{ bottom: "4.5rem" }}>
         {PUMPKINS.map((p, i) => (
           <Pumpkin key={i} {...p} />
         ))}
       </div>
 
       {/* Bat silhouettes + witches on broomsticks */}
-      <div className="pointer-events-none fixed inset-0 z-20 overflow-hidden">
+      <div className="pointer-events-none fixed inset-0 z-[45] overflow-hidden">
         {witches?.map((w, i) => (
           <span
             key={`w${i}`}

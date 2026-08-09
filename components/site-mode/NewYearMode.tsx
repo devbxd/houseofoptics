@@ -72,13 +72,13 @@ export function NewYearMode({ t }: { t: Record<string, string> }) {
     <>
       {/* Night sky wash + stars */}
       <div
-        className="pointer-events-none fixed inset-0 z-10"
+        className="pointer-events-none fixed inset-0 z-[41]"
         style={{
           background:
             "radial-gradient(ellipse at 50% 0%, rgba(80,90,160,0.18) 0%, rgba(0,0,0,0) 55%), radial-gradient(ellipse at center, transparent 40%, rgba(4,4,16,0.4) 100%)",
         }}
       />
-      <div className="pointer-events-none fixed inset-0 z-10 overflow-hidden">
+      <div className="pointer-events-none fixed inset-0 z-[41] overflow-hidden">
         {stars?.map((s, i) => (
           <span
             key={i}
@@ -95,7 +95,7 @@ export function NewYearMode({ t }: { t: Record<string, string> }) {
       </div>
 
       {/* Fireworks */}
-      <div className="pointer-events-none fixed inset-0 z-20 overflow-hidden">
+      <div className="pointer-events-none fixed inset-0 z-[42] overflow-hidden">
         {bursts.map((b) => (
           <div key={b.id} className="absolute" style={{ left: `${b.left}%`, top: `${b.top}%` }}>
             {b.sparks.map((s, i) => (
