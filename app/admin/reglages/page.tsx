@@ -93,11 +93,34 @@ export default async function SettingsPage() {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm text-neutral-600">Location page description</label>
+          <label className="mb-1 block text-sm text-neutral-600">Location page description (French)</label>
           <textarea
             name="shop_description"
             rows={4}
             defaultValue={settings?.shop_description}
+            className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm text-neutral-600">Location page description (English)</label>
+          <textarea
+            name="shop_description_en"
+            rows={4}
+            defaultValue={settings?.shop_description_en}
+            placeholder="Leave blank to reuse the French text"
+            className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm text-neutral-600">Location page description (Arabic)</label>
+          <textarea
+            name="shop_description_ar"
+            rows={4}
+            dir="rtl"
+            defaultValue={settings?.shop_description_ar}
+            placeholder="اتركه فارغاً لاستخدام النص الفرنسي"
             className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
           />
         </div>

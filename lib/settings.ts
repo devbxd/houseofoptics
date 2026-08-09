@@ -19,6 +19,8 @@ export type SiteSettings = {
   banner_color: string;
   shop_address: string;
   shop_description: string;
+  shop_description_en: string;
+  shop_description_ar: string;
 };
 
 const DEFAULT_SETTINGS: SiteSettings = {
@@ -38,6 +40,10 @@ const DEFAULT_SETTINGS: SiteSettings = {
   shop_address: "Smoke N Black, Furn El Chebbak, Liban",
   shop_description:
     "Retrouvez la boutique House of Optics à Furn El Chebbak, juste à côté de Smoke N Black. Venez découvrir notre sélection de montures et lunettes de soleil en personne — notre équipe se fera un plaisir de vous conseiller.",
+  shop_description_en:
+    "Find House of Optics in Furn El Chebbak, right next to Smoke N Black. Come discover our selection of frames and sunglasses in person — our team will be happy to help you choose.",
+  shop_description_ar:
+    "تجدون متجر House of Optics في فرن الشباك، بجانب Smoke N Black مباشرة. تعالوا لاكتشاف تشكيلتنا من الإطارات والنظارات الشمسية عن قرب — سيسعد فريقنا بمساعدتكم في الاختيار.",
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {
@@ -74,4 +80,10 @@ export function mapEmbedUrl(address: string) {
 
 export function mapDirectionsUrl(address: string) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+}
+
+export function localizedShopDescription(settings: SiteSettings, locale: "fr" | "en" | "ar") {
+  if (locale === "en") return settings.shop_description_en || settings.shop_description;
+  if (locale === "ar") return settings.shop_description_ar || settings.shop_description;
+  return settings.shop_description;
 }

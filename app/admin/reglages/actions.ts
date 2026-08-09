@@ -15,6 +15,8 @@ export async function updateSettings(formData: FormData) {
     announcement_text: String(formData.get("announcement_text") ?? "").trim() || "Nouveautés ajoutées chaque semaine",
     shop_address: String(formData.get("shop_address") ?? "").trim() || "Smoke N Black, Furn El Chebbak, Liban",
     shop_description: String(formData.get("shop_description") ?? "").trim(),
+    shop_description_en: String(formData.get("shop_description_en") ?? "").trim(),
+    shop_description_ar: String(formData.get("shop_description_ar") ?? "").trim(),
   };
 
   const logo = formData.get("logo") as File | null;

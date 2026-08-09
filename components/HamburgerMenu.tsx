@@ -29,13 +29,13 @@ export function HamburgerMenu({
     <>
       <button
         onClick={() => setOpen(true)}
-        aria-label="Menu"
+        aria-label={t["nav.menu"]}
         className="flex items-center gap-2 text-xs uppercase tracking-[0.15em]"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-5 w-5">
           <path d="M3 6h18M3 12h18M3 18h18" strokeLinecap="round" />
         </svg>
-        Menu
+        {t["nav.menu"]}
       </button>
 
       <div className={`fixed inset-0 z-[60] ${open ? "" : "pointer-events-none"}`} aria-hidden={!open}>
@@ -51,7 +51,7 @@ export function HamburgerMenu({
           }`}
         >
           <div className="flex items-center justify-between border-b border-neutral-200 px-5 py-4">
-            <span className="font-serif text-lg">Menu</span>
+            <span className="font-serif text-lg">{t["nav.menu"]}</span>
             <button onClick={() => setOpen(false)} aria-label="Close" className="text-2xl leading-none">
               ×
             </button>

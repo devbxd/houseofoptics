@@ -1,0 +1,2 @@
+alter table site_settings add column shop_description_en text not null default 'Find House of Optics in Furn El Chebbak, right next to Smoke N Black. Come discover our selection of frames and sunglasses in person — our team will be happy to help you choose.';
+alter table site_settings add column shop_description_ar text not null default 'تجدون متجر House of Optics في فرن الشباك، بجانب Smoke N Black مباشرة. تعالوا لاكتشاف تشكيلتنا من الإطارات والنظارات الشمسية عن قرب — سيسعد فريقنا بمساعدتكم في الاختيار.';

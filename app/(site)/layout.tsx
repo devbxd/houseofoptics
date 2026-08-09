@@ -32,7 +32,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           announcementText={settings.announcement_text}
           bannerColor={settings.banner_color}
         />
-        {settings.active_mode && <SiteModeOverlay mode={settings.active_mode} />}
+        {settings.active_mode && <SiteModeOverlay mode={settings.active_mode} t={t} />}
         {children}
         <CartFab />
         <BottomNav whatsappNumber={settings.whatsapp_number} contactEmail={settings.contact_email} t={t} />

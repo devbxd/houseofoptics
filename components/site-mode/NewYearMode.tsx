@@ -19,7 +19,7 @@ type Star = { left: number; top: number; delay: number; size: number };
 type Confetti = { left: number; delay: number; duration: number; color: string; sway: number };
 type Burst = { id: number; left: number; top: number; sparks: { dx: number; dy: number; color: string }[] };
 
-export function NewYearMode() {
+export function NewYearMode({ t }: { t: Record<string, string> }) {
   // Computed, not hardcoded — the banner stays correct every year the site is live.
   const year = new Date().getFullYear() + 1;
   const [stars, setStars] = useState<Star[] | null>(null);
@@ -159,7 +159,7 @@ export function NewYearMode() {
               animation: "mode-shimmer 3s linear infinite, mode-glow-pulse 2.2s ease-in-out infinite",
             }}
           >
-            Bonne Année {year}
+            {t["newYear.title"].replace("{year}", String(year))}
           </p>
         </div>
       </div>
