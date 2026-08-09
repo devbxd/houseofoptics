@@ -83,7 +83,7 @@ export async function getProductBySlug(slug: string) {
   const { data } = await supabase
     .from("products")
     .select(
-      "id, name, slug, description, price, discount_percent, stock, sku, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order), variants:product_variants(id, label, stock, sort_order)"
+      "id, name, slug, description, price, discount_percent, stock, sku, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order), variants:product_variants(*)"
     )
     .eq("slug", slug)
     .eq("is_active", true)
@@ -91,11 +91,14 @@ export async function getProductBySlug(slug: string) {
 
   if (!data) return null;
   const p = data as any;
+  const variants = (p.variants ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order);
   return {
     ...p,
     category: Array.isArray(p.category) ? p.category[0] ?? null : p.category,
     brand: Array.isArray(p.brand) ? p.brand[0] ?? null : p.brand,
     images: (p.images ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order),
-    variants: (p.variants ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order),
+    variants,
+    colorVariants: variants.filter((v: any) => v.kind !== "size"),
+    sizeVariants: variants.filter((v: any) => v.kind === "size"),
   };
 }

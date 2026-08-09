@@ -26,7 +26,8 @@ type Product = {
   brand_id?: string | null;
   sku?: string | null;
   is_active?: boolean;
-  variants?: { label: string; stock: number | null }[];
+  colorVariants?: { label: string; stock: number | null; price: number | null; description: string | null; image_url: string | null }[];
+  sizeVariants?: { label: string; stock: number | null; price: number | null; description: string | null; image_url: string | null }[];
 };
 
 export function ProductForm({
@@ -123,7 +124,7 @@ export function ProductForm({
 
       <div>
         <label className="mb-1 block text-sm text-neutral-600">
-          Stock (only used if this product has no color options below)
+          Stock (only used if this product has no color/size options below)
         </label>
         <input
           name="stock"
@@ -144,7 +145,8 @@ export function ProductForm({
         />
       </div>
 
-      <VariantsEditor initial={product?.variants ?? []} />
+      <VariantsEditor kind="color" initial={product?.colorVariants ?? []} />
+      <VariantsEditor kind="size" initial={product?.sizeVariants ?? []} />
 
       <div>
         <label className="mb-1 block text-sm text-neutral-600">Description</label>

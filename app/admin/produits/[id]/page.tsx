@@ -11,7 +11,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
   const [{ data: product }, { data: categories }, { data: brands }] = await Promise.all([
     supabase
       .from("products")
-      .select("*, images:product_images(id, url, sort_order), variants:product_variants(label, stock, sort_order)")
+      .select("*, images:product_images(id, url, sort_order), variants:product_variants(*)")
       .eq("id", id)
       .single(),
     supabase.from("categories").select("id, name, parent_id").order("sort_order"),
@@ -22,6 +22,8 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
 
   const images = (product.images ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order);
   const variants = (product.variants ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order);
+  const colorVariants = variants.filter((v: any) => v.kind !== "size");
+  const sizeVariants = variants.filter((v: any) => v.kind === "size");
   const updateWithId = updateProduct.bind(null, id);
 
   return (
@@ -34,7 +36,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
         action={updateWithId}
         categories={categories ?? []}
         brands={brands ?? []}
-        product={{ ...product, variants }}
+        product={{ ...product, colorVariants, sizeVariants }}
         submitLabel="Save"
       />
     </div>

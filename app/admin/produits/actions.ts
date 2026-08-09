@@ -7,21 +7,69 @@ import { slugify } from "@/lib/slugify";
 
 const BUCKET = "products";
 
-function parseVariants(formData: FormData) {
-  const labels = formData.getAll("variant_label") as string[];
-  const stocks = formData.getAll("variant_stock") as string[];
+function parseVariantRows(formData: FormData, prefix: string) {
+  const labels = formData.getAll(`${prefix}_label`) as string[];
+  const stocks = formData.getAll(`${prefix}_stock`) as string[];
+  const prices = formData.getAll(`${prefix}_price`) as string[];
+  const descriptions = formData.getAll(`${prefix}_description`) as string[];
+  const existingImages = formData.getAll(`${prefix}_existing_image`) as string[];
+  const images = formData.getAll(`${prefix}_image`) as File[];
   return labels
-    .map((label, i) => ({ label: label.trim(), stock: stocks[i]?.trim() ? Number(stocks[i]) : null }))
+    .map((label, i) => ({
+      label: label.trim(),
+      stock: stocks[i]?.trim() ? Number(stocks[i]) : null,
+      price: prices[i]?.trim() ? Number(prices[i]) : null,
+      description: descriptions[i]?.trim() || null,
+      existingImageUrl: existingImages[i]?.trim() || null,
+      imageFile: images[i] && images[i].size > 0 ? images[i] : null,
+    }))
     .filter((v) => v.label.length > 0);
 }
 
-async function saveVariants(supabase: ReturnType<typeof createServiceClient>, productId: string, formData: FormData) {
-  const variants = parseVariants(formData);
+async function uploadVariantImage(
+  supabase: ReturnType<typeof createServiceClient>,
+  productSlug: string,
+  file: File
+) {
+  const ext = file.name.split(".").pop() || "jpg";
+  const path = `${productSlug}/variants/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
+    contentType: file.type || "image/jpeg",
+    upsert: false,
+  });
+  if (error) return null;
+  const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  return pub.publicUrl;
+}
+
+async function saveVariants(
+  supabase: ReturnType<typeof createServiceClient>,
+  productId: string,
+  productSlug: string,
+  formData: FormData
+) {
+  const colorRows = parseVariantRows(formData, "variant_color");
+  const sizeRows = parseVariantRows(formData, "variant_size");
+  const rows = [
+    ...colorRows.map((v) => ({ ...v, kind: "color" as const })),
+    ...sizeRows.map((v) => ({ ...v, kind: "size" as const })),
+  ];
+
+  const resolved = await Promise.all(
+    rows.map(async (v) => ({
+      product_id: productId,
+      label: v.label,
+      stock: v.stock,
+      price: v.price,
+      description: v.description,
+      kind: v.kind,
+      image_url: v.imageFile ? await uploadVariantImage(supabase, productSlug, v.imageFile) : v.existingImageUrl,
+    }))
+  );
+
   await supabase.from("product_variants").delete().eq("product_id", productId);
-  if (variants.length > 0) {
-    await supabase.from("product_variants").insert(
-      variants.map((v, i) => ({ product_id: productId, label: v.label, stock: v.stock, sort_order: i }))
-    );
+  if (resolved.length > 0) {
+    await supabase.from("product_variants").insert(resolved.map((v, i) => ({ ...v, sort_order: i })));
   }
 }
 
@@ -69,7 +117,7 @@ export async function createProduct(formData: FormData) {
 
   if (error || !product) throw error;
 
-  await saveVariants(supabase, product.id, formData);
+  await saveVariants(supabase, product.id, product.slug, formData);
 
   const urls = await uploadImages(supabase, product.slug, files);
   if (urls.length > 0) {
@@ -109,7 +157,7 @@ export async function updateProduct(productId: string, formData: FormData) {
     .update({ name, category_id: categoryId, brand_id: brandId, description, price, discount_percent: discountPercent, stock, sku, is_active: isActive })
     .eq("id", productId);
 
-  await saveVariants(supabase, productId, formData);
+  await saveVariants(supabase, productId, product.slug, formData);
 
   const urls = await uploadImages(supabase, product.slug, files);
   if (urls.length > 0) {
