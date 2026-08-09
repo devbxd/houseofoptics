@@ -83,6 +83,25 @@ export default async function SettingsPage() {
           />
         </div>
 
+        <div className="border-t border-neutral-200 pt-4">
+          <label className="mb-1 block text-sm text-neutral-600">Shop address (used for the map on the Location page)</label>
+          <input
+            name="shop_address"
+            defaultValue={settings?.shop_address ?? "Smoke N Black, Furn El Chebbak, Liban"}
+            className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm text-neutral-600">Location page description</label>
+          <textarea
+            name="shop_description"
+            rows={4}
+            defaultValue={settings?.shop_description}
+            className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+          />
+        </div>
+
         <SubmitButton className="bg-brand-black px-6 py-2.5 text-sm uppercase tracking-wide text-white hover:opacity-90">
           Save
         </SubmitButton>

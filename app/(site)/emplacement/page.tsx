@@ -1,0 +1,39 @@
+import type { Metadata } from "next";
+import { getSiteSettings, mapEmbedUrl, mapDirectionsUrl } from "@/lib/settings";
+
+export const metadata: Metadata = {
+  title: "Notre boutique",
+  description: "Retrouvez House of Optics à Furn El Chebbak, Liban.",
+};
+
+export default async function LocationPage() {
+  const settings = await getSiteSettings();
+
+  return (
+    <main className="mx-auto max-w-2xl px-4 py-16 text-center">
+      <h1 className="font-serif text-2xl">Notre boutique</h1>
+      <p className="mx-auto mt-4 max-w-lg text-sm leading-relaxed text-neutral-600">{settings.shop_description}</p>
+
+      <div className="mt-8 aspect-[4/3] w-full overflow-hidden rounded-md border border-neutral-200 sm:aspect-video">
+        <iframe
+          src={mapEmbedUrl(settings.shop_address)}
+          title="Emplacement de la boutique"
+          className="h-full w-full"
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+        />
+      </div>
+
+      <p className="mt-4 text-sm text-neutral-500">{settings.shop_address}</p>
+
+      <a
+        href={mapDirectionsUrl(settings.shop_address)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-6 inline-block border border-brand-black px-8 py-3 text-xs uppercase tracking-[0.2em] transition-colors hover:bg-brand-black hover:text-white"
+      >
+        Ouvrir dans Google Maps
+      </a>
+    </main>
+  );
+}

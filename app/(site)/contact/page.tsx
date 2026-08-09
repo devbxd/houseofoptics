@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getSiteSettings, whatsappLink, phoneLink } from "@/lib/settings";
 import { getServerDict } from "@/lib/locale-server";
 
@@ -99,6 +100,17 @@ export default async function ContactPage() {
           </a>
         )}
       </div>
+
+      <Link
+        href="/emplacement"
+        className="mt-6 inline-flex items-center justify-center gap-2 text-sm text-neutral-600 hover:text-brand-black"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
+          <path d="M12 21s-7-6.5-7-11.5A7 7 0 0 1 19 9.5C19 14.5 12 21 12 21Z" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx="12" cy="9.5" r="2.3" />
+        </svg>
+        Voir notre boutique sur la carte
+      </Link>
     </main>
   );
 }

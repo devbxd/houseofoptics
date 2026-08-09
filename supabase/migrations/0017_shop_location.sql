@@ -1,0 +1,2 @@
+alter table site_settings add column shop_address text not null default 'Smoke N Black, Furn El Chebbak, Liban';
+alter table site_settings add column shop_description text not null default 'Retrouvez la boutique House of Optics à Furn El Chebbak, juste à côté de Smoke N Black. Venez découvrir notre sélection de montures et lunettes de soleil en personne — notre équipe se fera un plaisir de vous conseiller.';

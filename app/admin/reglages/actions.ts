@@ -13,6 +13,8 @@ export async function updateSettings(formData: FormData) {
     instagram_handle: String(formData.get("instagram_handle") ?? "").trim(),
     facebook_url: String(formData.get("facebook_url") ?? "").trim(),
     announcement_text: String(formData.get("announcement_text") ?? "").trim() || "Nouveautés ajoutées chaque semaine",
+    shop_address: String(formData.get("shop_address") ?? "").trim() || "Smoke N Black, Furn El Chebbak, Liban",
+    shop_description: String(formData.get("shop_description") ?? "").trim(),
   };
 
   const logo = formData.get("logo") as File | null;
@@ -33,4 +35,5 @@ export async function updateSettings(formData: FormData) {
 
   revalidatePath("/", "layout");
   revalidatePath("/admin/reglages");
+  revalidatePath("/emplacement");
 }

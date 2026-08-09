@@ -94,9 +94,20 @@ export function HamburgerMenu({
               </div>
             )}
             <Link
+              href="/emplacement"
+              onClick={() => setOpen(false)}
+              className="mt-2 flex items-center gap-2 border-t border-neutral-100 py-2.5 pt-4 uppercase tracking-wide"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
+                <path d="M12 21s-7-6.5-7-11.5A7 7 0 0 1 19 9.5C19 14.5 12 21 12 21Z" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="12" cy="9.5" r="2.3" />
+              </svg>
+              {t["nav.location"]}
+            </Link>
+            <Link
               href="/contact"
               onClick={() => setOpen(false)}
-              className="mt-2 block border-t border-neutral-100 py-2.5 pt-4 uppercase tracking-wide"
+              className="block py-2.5 uppercase tracking-wide"
             >
               {t["nav.contact"]}
             </Link>

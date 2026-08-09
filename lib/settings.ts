@@ -17,6 +17,8 @@ export type SiteSettings = {
   body_font: string;
   announcement_text: string;
   banner_color: string;
+  shop_address: string;
+  shop_description: string;
 };
 
 const DEFAULT_SETTINGS: SiteSettings = {
@@ -33,6 +35,9 @@ const DEFAULT_SETTINGS: SiteSettings = {
   body_font: DEFAULT_BODY_FONT,
   announcement_text: "Nouveautés ajoutées chaque semaine",
   banner_color: "#111111",
+  shop_address: "Smoke N Black, Furn El Chebbak, Liban",
+  shop_description:
+    "Retrouvez la boutique House of Optics à Furn El Chebbak, juste à côté de Smoke N Black. Venez découvrir notre sélection de montures et lunettes de soleil en personne — notre équipe se fera un plaisir de vous conseiller.",
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {
@@ -61,4 +66,12 @@ export function whatsappLink(number: string, message?: string) {
 
 export function phoneLink(number: string) {
   return `tel:+${number.replace(/[^\d]/g, "")}`;
+}
+
+export function mapEmbedUrl(address: string) {
+  return `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`;
+}
+
+export function mapDirectionsUrl(address: string) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 }
