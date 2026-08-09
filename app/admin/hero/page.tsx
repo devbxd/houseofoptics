@@ -2,9 +2,10 @@ import Image from "next/image";
 import { createServiceClient } from "@/lib/supabase/server";
 import { Pagination } from "@/components/Pagination";
 import { HeroImageToggle } from "./HeroImageToggle";
-import { uploadHeroSlide } from "./actions";
+import { uploadHeroSlide, updateHeroTitle } from "./actions";
 import { SubmitButton } from "@/components/SubmitButton";
 import { HeroSlidesGrid } from "./HeroSlidesGrid";
+import { CurrentHeroGrid } from "./CurrentHeroGrid";
 
 const PAGE_SIZE = 24;
 
@@ -32,6 +33,10 @@ export default async function AdminHeroPage({
     .select("id, image_url")
     .order("sort_order", { ascending: true });
 
+  // select("*") rather than naming the column — hero_title_fr comes from a
+  // migration that may not have run yet, and "*" degrades gracefully.
+  const { data: settings } = await supabase.from("site_settings").select("*").single();
+
   let query = supabase
     .from("products")
     .select("id, name, images:product_images(id, url, sort_order, is_hero)", { count: "exact" })
@@ -51,6 +56,25 @@ export default async function AdminHeroPage({
         nothing is selected, the site automatically shows the sharpest recent product photos instead.
       </p>
 
+      <div className="mb-8 max-w-lg rounded-md border border-neutral-200 bg-white p-4">
+        <p className="mb-1 text-sm font-medium">Big homepage title</p>
+        <p className="mb-3 text-xs text-neutral-500">
+          Type it in any language you want — it's automatically translated so every visitor sees it in French,
+          English or Arabic depending on the site's language. Leave empty to use the default title.
+        </p>
+        <form action={updateHeroTitle} className="flex items-center gap-3">
+          <input
+            name="hero_title"
+            defaultValue={settings?.hero_title_fr ?? ""}
+            placeholder="e.g. L'art de voir autrement."
+            className="flex-1 border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+          />
+          <SubmitButton className="border border-brand-black px-4 py-2 text-xs uppercase tracking-wide hover:bg-brand-black hover:text-white">
+            Save
+          </SubmitButton>
+        </form>
+      </div>
+
       <div className="mb-8 rounded-md border border-neutral-200 bg-white p-4">
         <p className="mb-3 text-sm font-medium">Custom uploaded images ({(customSlides ?? []).length})</p>
         <HeroSlidesGrid slides={customSlides ?? []} />
@@ -65,13 +89,7 @@ export default async function AdminHeroPage({
       {current && current.length > 0 && (
         <div className="mb-8 rounded-md border border-neutral-200 bg-white p-4">
           <p className="mb-3 text-sm font-medium">Currently in the carousel ({current.length})</p>
-          <div className="flex flex-wrap gap-3">
-            {current.map((img: any) => (
-              <div key={img.id} className="relative h-20 w-20 overflow-hidden rounded border border-neutral-200">
-                <Image src={img.url} alt="" fill sizes="80px" className="object-cover" />
-              </div>
-            ))}
-          </div>
+          <CurrentHeroGrid images={current.map((img: any) => ({ id: img.id, url: img.url }))} />
         </div>
       )}
 

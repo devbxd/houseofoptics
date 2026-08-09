@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
+import { translateToAllLocales } from "@/lib/translate";
 
 export async function toggleHeroImage(imageId: string, isHero: boolean) {
   const supabase = createServiceClient();
@@ -44,6 +45,41 @@ export async function uploadHeroSlide(formData: FormData) {
 export async function deleteHeroSlide(id: string) {
   const supabase = createServiceClient();
   await supabase.from("hero_slides").delete().eq("id", id);
+  revalidatePath("/admin/hero");
+  revalidatePath("/", "layout");
+}
+
+// The client types the headline in whichever language is easiest for
+// them — this auto-translates it into all three site locales so every
+// visitor sees it correctly regardless of the site's active language.
+export async function updateHeroTitle(formData: FormData) {
+  const text = String(formData.get("hero_title") ?? "").trim();
+  const supabase = createServiceClient();
+
+  if (!text) {
+    await supabase
+      .from("site_settings")
+      .update({ hero_title_fr: null, hero_title_en: null, hero_title_ar: null })
+      .eq("id", true);
+    revalidatePath("/admin/hero");
+    revalidatePath("/", "layout");
+    return;
+  }
+
+  const { fr, en, ar } = await translateToAllLocales(text);
+  const fields = { hero_title_fr: fr, hero_title_en: en, hero_title_ar: ar };
+
+  // hero_title_* come from a migration that may not have run yet — retry
+  // the base settings update path is unaffected either way since this is
+  // its own isolated update call.
+  const { error } = await supabase.from("site_settings").update(fields).eq("id", true);
+  if (error) {
+    // Nothing sensible to fall back to here (there are no older columns
+    // for this field) — surface it so the admin knows the save didn't
+    // take effect rather than silently doing nothing.
+    throw new Error("Couldn't save the hero title — the database may need the latest migration applied.");
+  }
+
   revalidatePath("/admin/hero");
   revalidatePath("/", "layout");
 }

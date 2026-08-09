@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { listProducts } from "@/lib/products";
-import { getCategories } from "@/lib/settings";
+import { getCategories, getSiteSettings, localizedHeroTitle } from "@/lib/settings";
 import { NewsletterForm } from "@/components/NewsletterForm";
 import { TestimonialsCarousel } from "@/components/TestimonialsCarousel";
 import { FeedbackForm } from "@/components/FeedbackForm";
@@ -12,7 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export default async function HomePage() {
   const supabase = await createClient();
-  const [heroPool, categories, { data: brands }, { t }, { data: testimonials }, { data: feedbackProducts }] =
+  const [heroPool, categories, { data: brands }, { locale, t }, { data: testimonials }, { data: feedbackProducts }, settings] =
     await Promise.all([
       listProducts({}, 1, 12),
       getCategories(),
@@ -24,7 +24,10 @@ export default async function HomePage() {
         .eq("is_active", true)
         .order("sort_order", { ascending: true }),
       supabase.from("products").select("id, name").eq("is_active", true).order("name", { ascending: true }),
+      getSiteSettings(),
     ]);
+
+  const heroTitle = localizedHeroTitle(settings, locale) ?? `${t["home.title1"]}\n${t["home.title2"]}`;
 
   const topCategories = categories.filter((c) => !c.parent_id && c.slug !== "events");
 
@@ -85,9 +88,12 @@ export default async function HomePage() {
         <div className="relative z-10 w-full px-6 pb-16 md:px-16 md:pb-24">
           <p className="text-xs uppercase tracking-[0.4em] text-white/70">{t["home.eyebrow"]}</p>
           <h1 className="mt-4 max-w-2xl font-serif text-5xl leading-[1.05] tracking-wide md:text-7xl">
-            {t["home.title1"]}
-            <br />
-            {t["home.title2"]}
+            {heroTitle.split("\n").map((line, i) => (
+              <span key={i}>
+                {i > 0 && <br />}
+                {line}
+              </span>
+            ))}
           </h1>
           <p className="mt-5 max-w-md text-sm text-white/80">{t["home.subtitle"]}</p>
           <Link

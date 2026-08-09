@@ -21,6 +21,9 @@ export type SiteSettings = {
   shop_description: string;
   shop_description_en: string;
   shop_description_ar: string;
+  hero_title_fr: string;
+  hero_title_en: string;
+  hero_title_ar: string;
 };
 
 const DEFAULT_SETTINGS: SiteSettings = {
@@ -44,6 +47,9 @@ const DEFAULT_SETTINGS: SiteSettings = {
     "Find House of Optics in Furn El Chebbak, right next to Smoke N Black. Come discover our selection of frames and sunglasses in person — our team will be happy to help you choose.",
   shop_description_ar:
     "تجدون متجر House of Optics في فرن الشباك، بجانب Smoke N Black مباشرة. تعالوا لاكتشاف تشكيلتنا من الإطارات والنظارات الشمسية عن قرب — سيسعد فريقنا بمساعدتكم في الاختيار.",
+  hero_title_fr: "",
+  hero_title_en: "",
+  hero_title_ar: "",
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {
@@ -86,4 +92,12 @@ export function localizedShopDescription(settings: SiteSettings, locale: "fr" | 
   if (locale === "en") return settings.shop_description_en || settings.shop_description;
   if (locale === "ar") return settings.shop_description_ar || settings.shop_description;
   return settings.shop_description;
+}
+
+// Returns null (not a fallback string) when the client hasn't set a custom
+// hero title yet, so callers can fall back to the built-in i18n headline.
+export function localizedHeroTitle(settings: SiteSettings, locale: "fr" | "en" | "ar"): string | null {
+  if (locale === "en") return settings.hero_title_en || null;
+  if (locale === "ar") return settings.hero_title_ar || null;
+  return settings.hero_title_fr || null;
 }
