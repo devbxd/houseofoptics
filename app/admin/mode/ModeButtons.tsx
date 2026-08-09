@@ -6,9 +6,8 @@ import type { SiteMode } from "@/lib/settings";
 
 const OPTIONS: { value: SiteMode; label: string; emoji: string; activeClass: string }[] = [
   { value: null, label: "Normal", emoji: "🏬", activeClass: "bg-brand-black text-white border-brand-black" },
-  { value: "noel", label: "Mode Noël", emoji: "🎄", activeClass: "bg-[#0e3b28] text-white border-[#0e3b28]" },
+  { value: "noel", label: "Noël & Nouvel An", emoji: "🎄", activeClass: "bg-[#0e3b28] text-white border-[#0e3b28]" },
   { value: "halloween", label: "Mode Halloween", emoji: "🎃", activeClass: "bg-[#3a1a4d] text-white border-[#3a1a4d]" },
-  { value: "nouvel_an", label: "Mode Nouvel An", emoji: "🎆", activeClass: "bg-[#12122c] text-white border-[#12122c]" },
 ];
 
 export function ModeButtons({ initialMode }: { initialMode: SiteMode }) {
@@ -16,7 +15,7 @@ export function ModeButtons({ initialMode }: { initialMode: SiteMode }) {
   const [pending, setPending] = useState(false);
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
       {OPTIONS.map((opt) => {
         const active = mode === opt.value;
         return (
