@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { getCategoryImages } from "./actions";
 
 type VariantRow = {
   key: string;
@@ -32,7 +33,15 @@ function emptyRow(): VariantRow {
   };
 }
 
-export function VariantsEditor({ kind, initial }: { kind: "color" | "size"; initial: VariantData[] }) {
+export function VariantsEditor({
+  kind,
+  initial,
+  categoryId,
+}: {
+  kind: "color" | "size";
+  initial: VariantData[];
+  categoryId: string;
+}) {
   const prefix = kind === "color" ? "variant_color" : "variant_size";
   const [rows, setRows] = useState<VariantRow[]>(
     initial.length > 0
@@ -48,8 +57,33 @@ export function VariantsEditor({ kind, initial }: { kind: "color" | "size"; init
       : []
   );
 
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [pickerRowKey, setPickerRowKey] = useState<string | null>(null);
+  const [galleryRowKey, setGalleryRowKey] = useState<string | null>(null);
+  const [categoryImages, setCategoryImages] = useState<string[] | null>(null);
+  const [loadingGallery, setLoadingGallery] = useState(false);
+
   function update(key: string, patch: Partial<VariantRow>) {
     setRows((r) => r.map((row) => (row.key === key ? { ...row, ...patch } : row)));
+  }
+
+  async function openGallery(rowKey: string) {
+    setPickerRowKey(null);
+    setGalleryRowKey(rowKey);
+    // Always refetch rather than caching — the category can change between
+    // opens, and this list is small enough that refetching is cheap.
+    setLoadingGallery(true);
+    const urls = await getCategoryImages(categoryId || null);
+    setCategoryImages(urls);
+    setLoadingGallery(false);
+  }
+
+  function chooseFromGallery(url: string) {
+    if (!galleryRowKey) return;
+    const input = fileInputRefs.current[galleryRowKey];
+    if (input) input.value = "";
+    update(galleryRowKey, { existingImageUrl: url, previewUrl: url });
+    setGalleryRowKey(null);
   }
 
   const label = kind === "color" ? "Color options" : "Size options";
@@ -110,24 +144,31 @@ export function VariantsEditor({ kind, initial }: { kind: "color" | "size"; init
             <div className="flex gap-2">
               <div className="shrink-0">
                 <input type="hidden" name={`${prefix}_existing_image`} value={row.existingImageUrl} />
-                <label className="flex h-14 w-14 cursor-pointer items-center justify-center overflow-hidden rounded border border-dashed border-neutral-300 text-center text-[10px] leading-tight text-neutral-400 hover:border-brand-black">
+                <button
+                  type="button"
+                  onClick={() => setPickerRowKey(row.key)}
+                  className="flex h-14 w-14 items-center justify-center overflow-hidden rounded border border-dashed border-neutral-300 text-center text-[10px] leading-tight text-neutral-400 hover:border-brand-black"
+                >
                   {row.previewUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element -- small local preview, next/image's fill sizing isn't worth it here
                     <img src={row.previewUrl} alt="" className="h-full w-full object-cover" />
                   ) : (
                     "Photo"
                   )}
-                  <input
-                    name={`${prefix}_image`}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0] ?? null;
-                      update(row.key, { previewUrl: file ? URL.createObjectURL(file) : row.existingImageUrl || null });
-                    }}
-                  />
-                </label>
+                </button>
+                <input
+                  ref={(el) => {
+                    fileInputRefs.current[row.key] = el;
+                  }}
+                  name={`${prefix}_image`}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null;
+                    update(row.key, { previewUrl: file ? URL.createObjectURL(file) : row.existingImageUrl || null });
+                  }}
+                />
               </div>
               <textarea
                 name={`${prefix}_description`}
@@ -141,6 +182,82 @@ export function VariantsEditor({ kind, initial }: { kind: "color" | "size"; init
           </div>
         ))}
       </div>
+
+      {pickerRowKey && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          onClick={() => setPickerRowKey(null)}
+        >
+          <div className="w-72 rounded-md bg-white p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <p className="mb-3 text-sm font-medium">Choose a photo</p>
+            <button
+              type="button"
+              onClick={() => {
+                fileInputRefs.current[pickerRowKey]?.click();
+                setPickerRowKey(null);
+              }}
+              className="mb-2 block w-full border border-neutral-300 px-3 py-2.5 text-left text-sm hover:border-brand-black"
+            >
+              Upload from device
+            </button>
+            <button
+              type="button"
+              onClick={() => openGallery(pickerRowKey)}
+              className="block w-full border border-neutral-300 px-3 py-2.5 text-left text-sm hover:border-brand-black"
+            >
+              Choose from this category's photos
+            </button>
+            <button
+              type="button"
+              onClick={() => setPickerRowKey(null)}
+              className="mt-3 block w-full text-center text-xs text-neutral-400 hover:text-neutral-600"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {galleryRowKey && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setGalleryRowKey(null)}
+        >
+          <div
+            className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-md bg-white p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-sm font-medium">Category photos</p>
+              <button type="button" onClick={() => setGalleryRowKey(null)} className="text-xl leading-none text-neutral-400 hover:text-brand-black">
+                ×
+              </button>
+            </div>
+            {loadingGallery && <p className="text-sm text-neutral-500">Loading...</p>}
+            {!loadingGallery && !categoryId && (
+              <p className="text-sm text-neutral-500">Pick a category for this product first.</p>
+            )}
+            {!loadingGallery && categoryId && categoryImages && categoryImages.length === 0 && (
+              <p className="text-sm text-neutral-500">No photos found in this category yet.</p>
+            )}
+            {!loadingGallery && categoryImages && categoryImages.length > 0 && (
+              <div className="grid grid-cols-4 gap-2">
+                {categoryImages.map((url) => (
+                  <button
+                    key={url}
+                    type="button"
+                    onClick={() => chooseFromGallery(url)}
+                    className="relative aspect-square overflow-hidden rounded border border-neutral-200 hover:border-brand-black"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element -- small gallery thumbnail, next/image's fill sizing isn't worth it here */}
+                    <img src={url} alt="" className="h-full w-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { VariantsEditor } from "./VariantsEditor";
 
@@ -46,6 +46,7 @@ export function ProductForm({
   submitLabel: string;
 }) {
   const flatCategories = flattenCategories(categories);
+  const [categoryId, setCategoryId] = useState(product?.category_id ?? "");
   // create() still redirects on success, so this only ever resolves to true
   // for update() — which now stays on the page instead of navigating away.
   const [saved, dispatch] = useActionState(async (_prev: boolean, formData: FormData) => {
@@ -70,7 +71,8 @@ export function ProductForm({
           <label className="mb-1 block text-sm text-neutral-600">Category</label>
           <select
             name="category_id"
-            defaultValue={product?.category_id ?? ""}
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
             className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
           >
             <option value="">No category</option>
@@ -147,8 +149,8 @@ export function ProductForm({
         />
       </div>
 
-      <VariantsEditor kind="color" initial={product?.colorVariants ?? []} />
-      <VariantsEditor kind="size" initial={product?.sizeVariants ?? []} />
+      <VariantsEditor kind="color" initial={product?.colorVariants ?? []} categoryId={categoryId} />
+      <VariantsEditor kind="size" initial={product?.sizeVariants ?? []} categoryId={categoryId} />
 
       <div>
         <label className="mb-1 block text-sm text-neutral-600">Description</label>

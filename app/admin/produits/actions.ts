@@ -7,6 +7,23 @@ import { slugify } from "@/lib/slugify";
 
 const BUCKET = "products";
 
+// Lets the variant photo picker offer "reuse a photo already in this
+// category" instead of only uploading a new file.
+export async function getCategoryImages(categoryId: string | null): Promise<string[]> {
+  if (!categoryId) return [];
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("products")
+    .select("images:product_images(url)")
+    .eq("category_id", categoryId);
+
+  const urls = new Set<string>();
+  for (const p of data ?? []) {
+    for (const img of (p as any).images ?? []) urls.add(img.url);
+  }
+  return Array.from(urls);
+}
+
 function parseVariantRows(formData: FormData, prefix: string) {
   const labels = formData.getAll(`${prefix}_label`) as string[];
   const stocks = formData.getAll(`${prefix}_stock`) as string[];
