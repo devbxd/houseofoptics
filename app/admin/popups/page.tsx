@@ -31,6 +31,7 @@ export default async function PopupsPage() {
 
       <form
         action={createPopup}
+        encType="multipart/form-data"
         className="mb-8 max-w-md space-y-3 rounded-md border border-neutral-200 bg-white p-4"
       >
         <p className="text-sm font-medium">New pop-up</p>
@@ -42,6 +43,10 @@ export default async function PopupsPage() {
             placeholder="e.g. Welcome offer"
             className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
           />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm text-neutral-600">Image (optional — shown above the description)</label>
+          <input name="image" type="file" accept="image/*" className="w-full text-sm" />
         </div>
         <div>
           <label className="mb-1 block text-sm text-neutral-600">Description</label>

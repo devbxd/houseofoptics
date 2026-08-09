@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import Image from "next/image";
 import { togglePopup, deletePopup } from "./actions";
 
 type Popup = {
@@ -10,6 +11,7 @@ type Popup = {
   discount_percent: number | null;
   max_uses: number | null;
   duration_days: number | null;
+  image_url?: string | null;
   is_active: boolean;
   created_at: string;
   usesCount: number | null;
@@ -29,21 +31,28 @@ export function PopupRow({ popup }: { popup: Popup }) {
   return (
     <div className="rounded-md border border-neutral-200 bg-white p-4">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium">{popup.title}</p>
-          {popup.description && <p className="mt-1 text-sm text-neutral-600">{popup.description}</p>}
-          <div className="mt-2 flex flex-wrap gap-3 text-xs text-neutral-500">
-            {popup.discount_percent != null && <span>{popup.discount_percent}% off</span>}
-            {popup.max_uses != null && (
-              <span>
-                {popup.usesCount ?? 0} / {popup.max_uses} orders used
-              </span>
-            )}
-            {daysLeft != null && (
-              <span>
-                {daysLeft} day{daysLeft === 1 ? "" : "s"} left
-              </span>
-            )}
+        <div className="flex gap-3">
+          {popup.image_url && (
+            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded border border-neutral-200">
+              <Image src={popup.image_url} alt="" fill sizes="48px" className="object-cover" />
+            </div>
+          )}
+          <div>
+            <p className="text-sm font-medium">{popup.title}</p>
+            {popup.description && <p className="mt-1 text-sm text-neutral-600">{popup.description}</p>}
+            <div className="mt-2 flex flex-wrap gap-3 text-xs text-neutral-500">
+              {popup.discount_percent != null && <span>{popup.discount_percent}% off</span>}
+              {popup.max_uses != null && (
+                <span>
+                  {popup.usesCount ?? 0} / {popup.max_uses} orders used
+                </span>
+              )}
+              {daysLeft != null && (
+                <span>
+                  {daysLeft} day{daysLeft === 1 ? "" : "s"} left
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-3">
