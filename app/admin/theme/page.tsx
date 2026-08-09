@@ -1,14 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { updateTheme } from "./actions";
 import { SubmitButton } from "@/components/SubmitButton";
-import { HEADING_FONTS, BODY_FONTS, DEFAULT_HEADING_FONT, DEFAULT_BODY_FONT } from "@/lib/fonts";
 
 export default async function ThemePage() {
   const supabase = await createClient();
-  const { data: settings } = await supabase
-    .from("site_settings")
-    .select("accent_color, dark_color, banner_color, heading_font, body_font")
-    .single();
+  const { data: settings } = await supabase.from("site_settings").select("accent_color, dark_color, banner_color").single();
 
   return (
     <div>
@@ -57,35 +53,9 @@ export default async function ThemePage() {
           </div>
         </div>
 
-        <div>
-          <label className="mb-1 block text-sm text-neutral-600">Heading font (titles, product names)</label>
-          <select
-            name="heading_font"
-            defaultValue={settings?.heading_font ?? DEFAULT_HEADING_FONT}
-            className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
-          >
-            {Object.keys(HEADING_FONTS).map((f) => (
-              <option key={f} value={f}>
-                {f}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm text-neutral-600">Body font (paragraphs, buttons, menus)</label>
-          <select
-            name="body_font"
-            defaultValue={settings?.body_font ?? DEFAULT_BODY_FONT}
-            className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
-          >
-            {Object.keys(BODY_FONTS).map((f) => (
-              <option key={f} value={f}>
-                {f}
-              </option>
-            ))}
-          </select>
-        </div>
+        <p className="text-xs text-neutral-500">
+          Looking for fonts? That moved to its own <span className="font-medium">Font</span> page in the sidebar.
+        </p>
 
         <SubmitButton className="bg-brand-black px-6 py-2.5 text-sm uppercase tracking-wide text-white hover:opacity-90">
           Save

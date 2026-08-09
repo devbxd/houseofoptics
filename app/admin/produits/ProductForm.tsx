@@ -25,6 +25,8 @@ type Product = {
   category_id: string | null;
   brand_id?: string | null;
   sku?: string | null;
+  additional_info?: string | null;
+  shipping_info?: string | null;
   is_active?: boolean;
   colorVariants?: { label: string; stock: number | null; price: number | null; description: string | null; image_url: string | null }[];
   sizeVariants?: { label: string; stock: number | null; price: number | null; description: string | null; image_url: string | null }[];
@@ -154,6 +156,31 @@ export function ProductForm({
           name="description"
           rows={4}
           defaultValue={product?.description}
+          className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+        />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm text-neutral-600">
+          Additional information (optional — shown in its own tab on the product page; leave empty to keep the
+          automatic brand/category/colors/sizes summary)
+        </label>
+        <textarea
+          name="additional_info"
+          rows={3}
+          defaultValue={product?.additional_info ?? ""}
+          className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+        />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm text-neutral-600">
+          Shipping &amp; delivery (optional — leave empty to keep the default shipping text)
+        </label>
+        <textarea
+          name="shipping_info"
+          rows={3}
+          defaultValue={product?.shipping_info ?? ""}
           className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
         />
       </div>

@@ -2,6 +2,9 @@ import Image from "next/image";
 import { createServiceClient } from "@/lib/supabase/server";
 import { Pagination } from "@/components/Pagination";
 import { HeroImageToggle } from "./HeroImageToggle";
+import { uploadHeroSlide } from "./actions";
+import { SubmitButton } from "@/components/SubmitButton";
+import { HeroSlidesGrid } from "./HeroSlidesGrid";
 
 const PAGE_SIZE = 24;
 
@@ -24,6 +27,11 @@ export default async function AdminHeroPage({
     .eq("is_hero", true)
     .order("hero_order", { ascending: true });
 
+  const { data: customSlides } = await supabase
+    .from("hero_slides")
+    .select("id, image_url")
+    .order("sort_order", { ascending: true });
+
   let query = supabase
     .from("products")
     .select("id, name, images:product_images(id, url, sort_order, is_hero)", { count: "exact" })
@@ -39,9 +47,20 @@ export default async function AdminHeroPage({
     <div>
       <h1 className="mb-2 font-serif text-2xl">Homepage carousel</h1>
       <p className="mb-6 max-w-lg text-sm text-neutral-500">
-        Pick which photos scroll on the homepage. If none are selected, the site automatically shows the
-        sharpest recent photos instead.
+        Pick which photos scroll on the homepage, or upload any image you want (not tied to a product). If
+        nothing is selected, the site automatically shows the sharpest recent product photos instead.
       </p>
+
+      <div className="mb-8 rounded-md border border-neutral-200 bg-white p-4">
+        <p className="mb-3 text-sm font-medium">Custom uploaded images ({(customSlides ?? []).length})</p>
+        <HeroSlidesGrid slides={customSlides ?? []} />
+        <form action={uploadHeroSlide} encType="multipart/form-data" className="mt-3 flex items-center gap-3">
+          <input name="image" type="file" accept="image/*" required className="text-sm" />
+          <SubmitButton className="border border-brand-black px-4 py-2 text-xs uppercase tracking-wide hover:bg-brand-black hover:text-white">
+            Upload
+          </SubmitButton>
+        </form>
+      </div>
 
       {current && current.length > 0 && (
         <div className="mb-8 rounded-md border border-neutral-200 bg-white p-4">

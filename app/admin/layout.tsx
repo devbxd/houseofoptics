@@ -10,10 +10,12 @@ const NAV = [
   { href: "/admin/produits", label: "Products" },
   { href: "/admin/discounts", label: "Discounts" },
   { href: "/admin/hero", label: "Homepage" },
+  { href: "/admin/popups", label: "Pop-ups" },
   { href: "/admin/orders", label: "Orders" },
   { href: "/admin/testimonials", label: "Testimonials" },
   { href: "/admin/subscribers", label: "Subscribers" },
   { href: "/admin/theme", label: "Design" },
+  { href: "/admin/police", label: "Font" },
   { href: "/admin/mode", label: "Mode" },
   { href: "/admin/reglages", label: "Settings" },
 ];

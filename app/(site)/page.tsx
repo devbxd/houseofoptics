@@ -9,10 +9,12 @@ import { HeroCarousel } from "@/components/HeroCarousel";
 import { BrandStrip } from "@/components/BrandStrip";
 import { getServerDict } from "@/lib/locale-server";
 import { createClient } from "@/lib/supabase/server";
+import { getActivePopup } from "@/lib/popups";
+import { PromoPopup } from "@/components/PromoPopup";
 
 export default async function HomePage() {
   const supabase = await createClient();
-  const [heroPool, categories, { data: brands }, { t }, { data: testimonials }, { data: feedbackProducts }] =
+  const [heroPool, categories, { data: brands }, { t }, { data: testimonials }, { data: feedbackProducts }, activePopup] =
     await Promise.all([
       listProducts({}, 1, 12),
       getCategories(),
@@ -24,6 +26,7 @@ export default async function HomePage() {
         .eq("is_active", true)
         .order("sort_order", { ascending: true }),
       supabase.from("products").select("id, name").eq("is_active", true).order("name", { ascending: true }),
+      getActivePopup(),
     ]);
 
   const topCategories = categories.filter((c) => !c.parent_id && c.slug !== "events");
@@ -50,21 +53,29 @@ export default async function HomePage() {
     if (img) categoryImageById.set(r.category_id, img.url);
   }
 
-  // Manually curated hero images take priority; if the client hasn't picked
-  // any yet, fall back to the sharpest recent product photos.
-  const { data: manualHero } = await supabase
-    .from("product_images")
-    .select("url, sort_order, hero_order, products(name)")
-    .eq("is_hero", true)
-    .order("hero_order", { ascending: true });
+  // Custom uploaded images (not tied to any product) come first, then
+  // manually curated product photos; if the client hasn't picked either,
+  // fall back to the sharpest recent product photos.
+  const [{ data: customSlides }, { data: manualHero }] = await Promise.all([
+    supabase.from("hero_slides").select("id, image_url, sort_order").order("sort_order", { ascending: true }),
+    supabase
+      .from("product_images")
+      .select("url, sort_order, hero_order, products(name)")
+      .eq("is_hero", true)
+      .order("hero_order", { ascending: true }),
+  ]);
+
+  const customHeroImages = (customSlides ?? []).map((s) => ({ id: s.id, name: "", url: s.image_url }));
+  const manualHeroImages =
+    manualHero?.map((img: any, i: number) => ({
+      id: `${img.url}-${i}`,
+      name: img.products?.name ?? "",
+      url: img.url,
+    })) ?? [];
 
   const heroImages =
-    manualHero && manualHero.length > 0
-      ? manualHero.map((img: any, i: number) => ({
-          id: `${img.url}-${i}`,
-          name: img.products?.name ?? "",
-          url: img.url,
-        }))
+    customHeroImages.length > 0 || manualHeroImages.length > 0
+      ? [...customHeroImages, ...manualHeroImages]
       : heroPool.products
           .filter((p) => p.images[0])
           .slice(0, 6)
@@ -72,6 +83,7 @@ export default async function HomePage() {
 
   return (
     <main>
+      {activePopup && <PromoPopup popup={activePopup} />}
       <section className="relative flex h-[85vh] min-h-[560px] items-end overflow-hidden bg-brand-black text-white">
         <HeroCarousel slides={heroImages} />
         <div className="relative z-10 w-full px-6 pb-16 md:px-16 md:pb-24">

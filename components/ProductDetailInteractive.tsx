@@ -28,6 +28,8 @@ export function ProductDetailInteractive({
   description,
   stock,
   sku,
+  additionalInfo,
+  shippingInfo,
   colorVariants,
   sizeVariants,
   brand,
@@ -46,6 +48,8 @@ export function ProductDetailInteractive({
   description: string;
   stock: number | null;
   sku: string | null;
+  additionalInfo: string | null;
+  shippingInfo: string | null;
   colorVariants: VariantDetail[];
   sizeVariants: VariantDetail[];
   brand: { name: string; slug: string } | null;
@@ -325,16 +329,26 @@ export function ProductDetailInteractive({
             {description || "—"}
           </Accordion>
           <Accordion title={t["product.additionalInfo"]}>
-            <ul className="space-y-1">
-              {brand && <li>Brand: {brand.name}</li>}
-              {category && <li>Category: {category.name}</li>}
-              {colorVariants.length > 0 && <li>Colors: {colorVariants.map((v) => v.label).join(", ")}</li>}
-              {sizeVariants.length > 0 && <li>Sizes: {sizeVariants.map((v) => v.label).join(", ")}</li>}
-            </ul>
+            {additionalInfo ? (
+              <p className="whitespace-pre-line">{additionalInfo}</p>
+            ) : (
+              <ul className="space-y-1">
+                {brand && <li>Brand: {brand.name}</li>}
+                {category && <li>Category: {category.name}</li>}
+                {colorVariants.length > 0 && <li>Colors: {colorVariants.map((v) => v.label).join(", ")}</li>}
+                {sizeVariants.length > 0 && <li>Sizes: {sizeVariants.map((v) => v.label).join(", ")}</li>}
+              </ul>
+            )}
           </Accordion>
           <Accordion title={t["product.shippingDelivery"]}>
-            <p>{t["product.shippingBeirut"]}</p>
-            <p>{t["product.shippingOutside"]}</p>
+            {shippingInfo ? (
+              <p className="whitespace-pre-line">{shippingInfo}</p>
+            ) : (
+              <>
+                <p>{t["product.shippingBeirut"]}</p>
+                <p>{t["product.shippingOutside"]}</p>
+              </>
+            )}
           </Accordion>
         </div>
       </div>

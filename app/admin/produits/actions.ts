@@ -90,6 +90,23 @@ async function uploadImages(supabase: ReturnType<typeof createServiceClient>, pr
   return urls;
 }
 
+// additional_info/shipping_info come from a migration that may not have run
+// yet on this deployment — retry without them rather than failing the whole
+// save if Postgres rejects them as unknown columns.
+async function insertProductSafe(supabase: ReturnType<typeof createServiceClient>, fields: Record<string, unknown>) {
+  const first = await supabase.from("products").insert(fields).select("id, slug").single();
+  if (!first.error) return first;
+  const { additional_info, shipping_info, ...fallback } = fields;
+  return supabase.from("products").insert(fallback).select("id, slug").single();
+}
+
+async function updateProductSafe(supabase: ReturnType<typeof createServiceClient>, productId: string, fields: Record<string, unknown>) {
+  const { error } = await supabase.from("products").update(fields).eq("id", productId);
+  if (!error) return;
+  const { additional_info, shipping_info, ...fallback } = fields;
+  await supabase.from("products").update(fallback).eq("id", productId);
+}
+
 export async function createProduct(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const categoryId = String(formData.get("category_id") ?? "") || null;
@@ -102,6 +119,8 @@ export async function createProduct(formData: FormData) {
   const stockRaw = String(formData.get("stock") ?? "").trim();
   const stock = stockRaw ? Number(stockRaw) : null;
   const sku = String(formData.get("sku") ?? "").trim() || null;
+  const additionalInfo = String(formData.get("additional_info") ?? "").trim() || null;
+  const shippingInfo = String(formData.get("shipping_info") ?? "").trim() || null;
   const files = (formData.getAll("images") as File[]).filter((f) => f.size > 0);
 
   if (!name) return;
@@ -109,11 +128,19 @@ export async function createProduct(formData: FormData) {
   const supabase = createServiceClient();
   const slug = `${slugify(name)}-${Math.random().toString(36).slice(2, 7)}`;
 
-  const { data: product, error } = await supabase
-    .from("products")
-    .insert({ name, slug, category_id: categoryId, brand_id: brandId, description, price, discount_percent: discountPercent, stock, sku })
-    .select("id, slug")
-    .single();
+  const { data: product, error } = await insertProductSafe(supabase, {
+    name,
+    slug,
+    category_id: categoryId,
+    brand_id: brandId,
+    description,
+    price,
+    discount_percent: discountPercent,
+    stock,
+    sku,
+    additional_info: additionalInfo,
+    shipping_info: shippingInfo,
+  });
 
   if (error || !product) throw error;
 
@@ -143,6 +170,8 @@ export async function updateProduct(productId: string, formData: FormData) {
   const stockRaw = String(formData.get("stock") ?? "").trim();
   const stock = stockRaw ? Number(stockRaw) : null;
   const sku = String(formData.get("sku") ?? "").trim() || null;
+  const additionalInfo = String(formData.get("additional_info") ?? "").trim() || null;
+  const shippingInfo = String(formData.get("shipping_info") ?? "").trim() || null;
   const isActive = formData.get("is_active") === "on";
   const files = (formData.getAll("images") as File[]).filter((f) => f.size > 0);
 
@@ -152,10 +181,19 @@ export async function updateProduct(productId: string, formData: FormData) {
   const { data: product } = await supabase.from("products").select("slug").eq("id", productId).single();
   if (!product) return;
 
-  await supabase
-    .from("products")
-    .update({ name, category_id: categoryId, brand_id: brandId, description, price, discount_percent: discountPercent, stock, sku, is_active: isActive })
-    .eq("id", productId);
+  await updateProductSafe(supabase, productId, {
+    name,
+    category_id: categoryId,
+    brand_id: brandId,
+    description,
+    price,
+    discount_percent: discountPercent,
+    stock,
+    sku,
+    additional_info: additionalInfo,
+    shipping_info: shippingInfo,
+    is_active: isActive,
+  });
 
   await saveVariants(supabase, productId, product.slug, formData);
 
