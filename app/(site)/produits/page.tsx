@@ -36,7 +36,7 @@ export default async function ProductsPage({
         <Pagination page={page} total={total} pageSize={pageSize} basePath={basePath} />
       </div>
 
-      <BrandStrip brands={brands ?? []} title="Shop by Brand" />
+      <BrandStrip brands={brands ?? []} title={t["home.shopByBrand"]} />
     </main>
   );
 }

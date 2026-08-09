@@ -68,7 +68,7 @@ export function ProductActions({
     <div>
       {variants.length > 0 && (
         <div className="mt-4">
-          <p className="mb-2 text-sm text-neutral-600">Color (optional — tap again to remove)</p>
+          <p className="mb-2 text-sm text-neutral-600">{t["product.colorOptional"]}</p>
           <div className="flex flex-wrap gap-2">
             {variants.map((v) => (
               <button
@@ -88,7 +88,9 @@ export function ProductActions({
       )}
 
       {!noPrice && activeStock != null && activeStock > 0 && activeStock <= 5 && (
-        <p className="mt-3 text-sm font-medium text-brand-red">Only {activeStock} left — order soon</p>
+        <p className="mt-3 text-sm font-medium text-brand-red">
+          {t["product.onlyLeft"].replace("{count}", String(activeStock))}
+        </p>
       )}
 
       <div className="mt-4 flex gap-3">

@@ -126,13 +126,11 @@ export default async function HomePage() {
         </section>
       )}
 
-      <BrandStrip brands={brands ?? []} title="Shop by Brand" />
+      <BrandStrip brands={brands ?? []} title={t["home.shopByBrand"]} />
 
       <section className="bg-brand-black px-6 py-16 text-center text-white">
         <h2 className="font-serif text-2xl tracking-wide">{t["home.newArrivals"]}</h2>
-        <p className="mx-auto mt-3 max-w-md text-sm text-white/70">
-          The full collection, organized and ready to browse.
-        </p>
+        <p className="mx-auto mt-3 max-w-md text-sm text-white/70">{t["home.newArrivalsSubtitle"]}</p>
         <Link
           href="/produits"
           className="mt-8 inline-block border border-white px-10 py-3 text-xs uppercase tracking-[0.2em] transition-colors hover:bg-white hover:text-brand-black"
@@ -141,7 +139,7 @@ export default async function HomePage() {
         </Link>
       </section>
 
-      <TestimonialsCarousel testimonials={testimonials ?? []}>
+      <TestimonialsCarousel testimonials={testimonials ?? []} title={t["home.testimonialsTitle"]}>
         <FeedbackForm t={t} products={feedbackProducts ?? []} />
       </TestimonialsCarousel>
 

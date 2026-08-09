@@ -8,10 +8,12 @@ export function ProductGallery({
   images,
   alt,
   discountPercent,
+  zoomLabel,
 }: {
   images: { url: string }[];
   alt: string;
   discountPercent?: number | null;
+  zoomLabel?: string;
 }) {
   const [active, setActive] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -100,6 +102,7 @@ export function ProductGallery({
           index={active}
           onIndexChange={setActive}
           onClose={() => setLightboxOpen(false)}
+          zoomLabel={zoomLabel}
         />
       )}
     </div>

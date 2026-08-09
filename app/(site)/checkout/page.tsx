@@ -186,9 +186,7 @@ export default function CheckoutPage() {
           {t["checkout.reference"]} : <span className="font-mono">{confirmedOrderId.slice(0, 8)}</span>
         </p>
         <p className="mt-4 text-sm leading-relaxed text-neutral-600">
-          {paymentMethod === "cod"
-            ? "Cash on delivery — pay when your order arrives. We'll contact you shortly to confirm."
-            : t["checkout.confirmedMessage"]}
+          {paymentMethod === "cod" ? t["checkout.codMessage"] : t["checkout.confirmedMessage"]}
         </p>
 
         {ownerWhatsapp && confirmedSnapshot && (
@@ -200,7 +198,7 @@ export default function CheckoutPage() {
             rel="noopener noreferrer"
             className="mt-8 block w-full bg-green-600 py-3 text-center text-sm uppercase tracking-widest text-white hover:opacity-90"
           >
-            Send it via WhatsApp too
+            {t["checkout.sendWhatsappToo"]}
           </a>
         )}
         </div>
@@ -278,12 +276,12 @@ export default function CheckoutPage() {
         </div>
 
         <div>
-          <label className="mb-2 block text-sm text-neutral-600">Shipping</label>
+          <label className="mb-2 block text-sm text-neutral-600">{t["checkout.shipping"]}</label>
           <div className="space-y-2">
             {(
               [
-                { value: "beirut", label: "Beirut", cost: SHIPPING_COST.beirut },
-                { value: "outside_beirut", label: "Outside Beirut", cost: SHIPPING_COST.outside_beirut },
+                { value: "beirut", label: t["checkout.beirut"], cost: SHIPPING_COST.beirut },
+                { value: "outside_beirut", label: t["checkout.outsideBeirut"], cost: SHIPPING_COST.outside_beirut },
               ] as const
             ).map((opt) => (
               <label
@@ -306,22 +304,22 @@ export default function CheckoutPage() {
             ))}
           </div>
           <a
-            href={`https://wa.me/${EXPRESS_WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi, I'd like express shipping for my order.")}`}
+            href={`https://wa.me/${EXPRESS_WHATSAPP_NUMBER}?text=${encodeURIComponent(t["checkout.expressMessage"])}`}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-2 inline-block text-xs uppercase tracking-wide text-green-700 hover:underline"
           >
-            Need it faster? Ask about express shipping on WhatsApp →
+            {t["checkout.expressCta"]}
           </a>
         </div>
 
         <div>
-          <label className="mb-2 block text-sm text-neutral-600">Payment</label>
+          <label className="mb-2 block text-sm text-neutral-600">{t["checkout.payment"]}</label>
           <div className="space-y-2">
             {(
               [
-                { value: "card", label: "Pay by card" },
-                { value: "cod", label: "Cash on delivery" },
+                { value: "card", label: t["checkout.payByCard"] },
+                { value: "cod", label: t["checkout.cashOnDelivery"] },
               ] as const
             ).map((opt) => (
               <label
@@ -350,7 +348,7 @@ export default function CheckoutPage() {
             <p>${subtotal.toFixed(2)}</p>
           </div>
           <div className="flex items-center justify-between text-sm text-neutral-500">
-            <p>Shipping</p>
+            <p>{t["checkout.shipping"]}</p>
             <p>${shippingCost.toFixed(2)}</p>
           </div>
           <div className="flex items-center justify-between">
@@ -364,7 +362,7 @@ export default function CheckoutPage() {
           disabled={submitting}
           className="w-full bg-brand-black py-3 text-center text-sm uppercase tracking-widest text-white hover:opacity-90 disabled:opacity-50"
         >
-          {submitting ? t["checkout.processing"] : paymentMethod === "cod" ? "Place order" : t["checkout.payByCard"]}
+          {submitting ? t["checkout.processing"] : paymentMethod === "cod" ? t["checkout.placeOrder"] : t["checkout.payByCard"]}
         </button>
         {paymentMethod === "card" && (
           <p className="text-center text-xs text-neutral-400">{t["checkout.securePayment"]}</p>

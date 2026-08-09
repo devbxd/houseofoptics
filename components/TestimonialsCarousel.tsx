@@ -7,9 +7,11 @@ type Testimonial = { id: string; author_name: string; quote: string; rating: num
 
 export function TestimonialsCarousel({
   testimonials,
+  title = "What our customers say",
   children,
 }: {
   testimonials: Testimonial[];
+  title?: string;
   children?: React.ReactNode;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -36,7 +38,7 @@ export function TestimonialsCarousel({
     <section className="mx-auto max-w-6xl px-6 py-16">
       {testimonials.length > 0 && (
         <>
-          <h2 className="mb-10 text-center font-serif text-2xl tracking-wide">What our customers say</h2>
+          <h2 className="mb-10 text-center font-serif text-2xl tracking-wide">{title}</h2>
           <div ref={trackRef} className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-4">
             {testimonials.map((r) => (
               <div

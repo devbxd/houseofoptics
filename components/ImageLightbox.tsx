@@ -7,11 +7,13 @@ export function ImageLightbox({
   index,
   onIndexChange,
   onClose,
+  zoomLabel = "Zoom",
 }: {
   images: { url: string }[];
   index: number;
   onIndexChange: (i: number) => void;
   onClose: () => void;
+  zoomLabel?: string;
 }) {
   const [zoomed, setZoomed] = useState(false);
   const hasMultiple = images.length > 1;
@@ -64,7 +66,7 @@ export function ImageLightbox({
             <circle cx="11" cy="11" r="7" />
             <path d="m21 21-4.3-4.3M8 11h6M11 8v6" strokeLinecap="round" />
           </svg>
-          Zoom
+          {zoomLabel}
         </button>
       )}
 

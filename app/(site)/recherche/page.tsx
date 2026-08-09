@@ -23,7 +23,7 @@ export default async function SearchPage({
         <input
           name="q"
           defaultValue={search}
-          placeholder="Search for a product..."
+          placeholder={t["search.placeholder"]}
           autoFocus
           className="flex-1 border border-neutral-300 px-4 py-2.5 text-sm focus:border-brand-black focus:outline-none"
         />
@@ -31,20 +31,21 @@ export default async function SearchPage({
           type="submit"
           className="bg-brand-black px-6 py-2.5 text-xs uppercase tracking-wide text-white hover:opacity-90"
         >
-          Search
+          {t["search.button"]}
         </button>
       </form>
 
       {search ? (
         <>
           <p className="mb-6 text-center text-sm text-neutral-500">
-            {total} result{total === 1 ? "" : "s"} for &ldquo;{search}&rdquo;
+            {(total === 1 ? t["search.resultsForOne"] : t["search.resultsForMany"]).replace("{count}", String(total))}{" "}
+            &ldquo;{search}&rdquo;
           </p>
           <ProductGrid products={products} t={t} />
           <Pagination page={page} total={total} pageSize={pageSize} basePath={`/recherche?q=${encodeURIComponent(search)}`} />
         </>
       ) : (
-        <p className="text-center text-sm text-neutral-500">Type something to search the collection.</p>
+        <p className="text-center text-sm text-neutral-500">{t["search.emptyPrompt"]}</p>
       )}
     </main>
   );

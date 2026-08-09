@@ -56,7 +56,12 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     <main className="mx-auto max-w-5xl px-4 py-10">
       <div className="grid gap-8 md:grid-cols-2">
         <div>
-          <ProductGallery images={product.images} alt={product.name} discountPercent={product.discount_percent} />
+          <ProductGallery
+            images={product.images}
+            alt={product.name}
+            discountPercent={product.discount_percent}
+            zoomLabel={t["product.zoom"]}
+          />
 
           <nav className="mt-4 text-xs text-neutral-500">
             <Link href="/" className="hover:text-brand-black">
