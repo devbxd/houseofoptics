@@ -8,14 +8,11 @@ function refresh() {
   revalidatePath("/", "layout");
 }
 
-// youtube_url/tiktok_url/pinterest_url/footer_copyright_text come from a
-// migration that may not have run yet — retry without them so nothing here
-// silently no-ops before the client applies it.
+// Facebook/Instagram/WhatsApp/Email all come from Admin > Settings — this
+// only owns the copyright line. footer_copyright_text comes from a
+// migration that may not have run yet.
 export async function updateFooterSocials(formData: FormData) {
   const fields = {
-    youtube_url: String(formData.get("youtube_url") ?? "").trim(),
-    tiktok_url: String(formData.get("tiktok_url") ?? "").trim(),
-    pinterest_url: String(formData.get("pinterest_url") ?? "").trim(),
     footer_copyright_text: String(formData.get("footer_copyright_text") ?? "").trim(),
   };
   const supabase = createServiceClient();

@@ -9,9 +9,6 @@ export type SiteSettings = {
   contact_email: string;
   instagram_handle: string;
   facebook_url: string;
-  youtube_url: string;
-  tiktok_url: string;
-  pinterest_url: string;
   footer_copyright_text: string;
   logo_url: string | null;
   accent_color: string;
@@ -47,9 +44,6 @@ const DEFAULT_SETTINGS: SiteSettings = {
   contact_email: "",
   instagram_handle: "house.of.optics",
   facebook_url: "",
-  youtube_url: "",
-  tiktok_url: "",
-  pinterest_url: "",
   footer_copyright_text: "",
   logo_url: null,
   accent_color: "#c8102e",

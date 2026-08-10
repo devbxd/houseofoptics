@@ -9,7 +9,7 @@ import { SiteModeOverlay } from "@/components/site-mode/SiteModeOverlay";
 import { PromoPopup } from "@/components/PromoPopup";
 import { SpinWheelPopup } from "@/components/SpinWheelPopup";
 import { BackButton } from "@/components/BackButton";
-import { getSiteSettings, getCategories } from "@/lib/settings";
+import { getSiteSettings, getCategories, whatsappLink } from "@/lib/settings";
 import { getServerDict } from "@/lib/locale-server";
 import { getActivePopup } from "@/lib/popups";
 import { createClient } from "@/lib/supabase/server";
@@ -58,9 +58,8 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           sections={normalizedFooterSections}
           facebookUrl={settings.facebook_url}
           instagramUrl={settings.instagram_handle ? `https://instagram.com/${settings.instagram_handle}` : ""}
-          youtubeUrl={settings.youtube_url}
-          tiktokUrl={settings.tiktok_url}
-          pinterestUrl={settings.pinterest_url}
+          whatsappUrl={settings.whatsapp_number ? whatsappLink(settings.whatsapp_number) : ""}
+          emailUrl={settings.contact_email ? `mailto:${settings.contact_email}` : ""}
           copyrightText={settings.footer_copyright_text}
         />
         {settings.spin_wheel_enabled ? (

@@ -57,18 +57,16 @@ export function Footer({
   sections,
   facebookUrl,
   instagramUrl,
-  youtubeUrl,
-  tiktokUrl,
-  pinterestUrl,
+  whatsappUrl,
+  emailUrl,
   copyrightText,
 }: {
   brandName: string;
   sections: FooterSection[];
   facebookUrl: string;
   instagramUrl: string;
-  youtubeUrl: string;
-  tiktokUrl: string;
-  pinterestUrl: string;
+  whatsappUrl: string;
+  emailUrl: string;
   copyrightText: string;
 }) {
   const year = new Date().getFullYear();
@@ -80,9 +78,8 @@ export function Footer({
         <SocialIcons
           facebookUrl={facebookUrl}
           instagramUrl={instagramUrl}
-          youtubeUrl={youtubeUrl}
-          tiktokUrl={tiktokUrl}
-          pinterestUrl={pinterestUrl}
+          whatsappUrl={whatsappUrl}
+          emailUrl={emailUrl}
           className="mb-8 flex items-center gap-5"
           iconClassName="h-5 w-5 text-white/70 transition-colors hover:text-white"
         />

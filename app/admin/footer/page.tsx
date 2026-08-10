@@ -34,40 +34,13 @@ export default async function AdminFooterPage() {
       <div className="mb-8 max-w-lg rounded-md border border-neutral-200 bg-white p-4">
         <p className="mb-1 text-sm font-medium">Social links &amp; copyright</p>
         <p className="mb-3 text-xs text-neutral-500">
-          Facebook and Instagram are set on the{" "}
+          The footer shows Facebook, Instagram, WhatsApp and Email — all four are set on the{" "}
           <Link href="/admin/reglages" className="underline hover:text-brand-black">
             Settings
           </Link>{" "}
-          page — everything else that appears at the bottom of the site is here.
+          page. Only the copyright line is set here.
         </p>
         <form action={updateFooterSocials} className="space-y-3">
-          <div>
-            <label className="mb-1 block text-xs text-neutral-500">YouTube URL</label>
-            <input
-              name="youtube_url"
-              defaultValue={settings?.youtube_url ?? ""}
-              placeholder="https://youtube.com/@..."
-              className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-neutral-500">TikTok URL</label>
-            <input
-              name="tiktok_url"
-              defaultValue={settings?.tiktok_url ?? ""}
-              placeholder="https://tiktok.com/@..."
-              className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-neutral-500">Pinterest URL</label>
-            <input
-              name="pinterest_url"
-              defaultValue={settings?.pinterest_url ?? ""}
-              placeholder="https://pinterest.com/..."
-              className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
-            />
-          </div>
           <div>
             <label className="mb-1 block text-xs text-neutral-500">Copyright line</label>
             <input
