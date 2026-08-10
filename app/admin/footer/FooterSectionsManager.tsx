@@ -7,7 +7,7 @@ import {
   deleteFooterSection,
   moveFooterSection,
   addFooterLink,
-  updateFooterLink,
+  renameFooterLink,
   deleteFooterLink,
   moveFooterLink,
 } from "./actions";
@@ -18,7 +18,6 @@ type Section = { id: string; title: string; links: Link[] };
 function LinkRow({ sectionId, link, isFirst, isLast }: { sectionId: string; link: Link; isFirst: boolean; isLast: boolean }) {
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(link.label);
-  const [url, setUrl] = useState(link.url);
   const [, startTransition] = useTransition();
 
   if (editing) {
@@ -27,19 +26,13 @@ function LinkRow({ sectionId, link, isFirst, isLast }: { sectionId: string; link
         <input
           value={label}
           onChange={(e) => setLabel(e.target.value)}
-          className="w-32 border border-neutral-300 px-2 py-1 text-xs focus:border-brand-black focus:outline-none"
-        />
-        <input
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="/page or https://..."
           className="flex-1 border border-neutral-300 px-2 py-1 text-xs focus:border-brand-black focus:outline-none"
         />
         <button
           type="button"
           className="text-xs text-brand-red"
           onClick={() => {
-            startTransition(() => updateFooterLink(link.id, label, url));
+            startTransition(() => renameFooterLink(link.id, label));
             setEditing(false);
           }}
         >
@@ -62,7 +55,7 @@ function LinkRow({ sectionId, link, isFirst, isLast }: { sectionId: string; link
           ↓
         </button>
         <button type="button" onClick={() => setEditing(true)} className="hover:text-brand-black">
-          Edit
+          Rename
         </button>
         <button type="button" onClick={() => startTransition(() => deleteFooterLink(link.id))} className="hover:text-red-600">
           Delete
@@ -76,7 +69,6 @@ function SectionCard({ section, isFirst, isLast }: { section: Section; isFirst: 
   const [editingTitle, setEditingTitle] = useState(false);
   const [title, setTitle] = useState(section.title);
   const [newLabel, setNewLabel] = useState("");
-  const [newUrl, setNewUrl] = useState("");
   const [, startTransition] = useTransition();
 
   return (
@@ -139,28 +131,22 @@ function SectionCard({ section, isFirst, isLast }: { section: Section; isFirst: 
         <input
           value={newLabel}
           onChange={(e) => setNewLabel(e.target.value)}
-          placeholder="Link text (e.g. Shop)"
-          className="w-32 border border-neutral-300 px-2 py-1.5 text-xs focus:border-brand-black focus:outline-none"
-        />
-        <input
-          value={newUrl}
-          onChange={(e) => setNewUrl(e.target.value)}
-          placeholder="/produits or https://..."
+          placeholder="Link text (e.g. Size Guide)"
           className="flex-1 border border-neutral-300 px-2 py-1.5 text-xs focus:border-brand-black focus:outline-none"
         />
         <button
           type="button"
           onClick={() => {
-            if (!newLabel.trim() || !newUrl.trim()) return;
-            startTransition(() => addFooterLink(section.id, newLabel, newUrl));
+            if (!newLabel.trim()) return;
+            startTransition(() => addFooterLink(section.id, newLabel));
             setNewLabel("");
-            setNewUrl("");
           }}
-          className="border border-brand-black px-3 py-1.5 text-xs uppercase tracking-wide hover:bg-brand-black hover:text-white"
+          className="shrink-0 border border-brand-black px-3 py-1.5 text-xs uppercase tracking-wide hover:bg-brand-black hover:text-white"
         >
           Add link
         </button>
       </div>
+      <p className="mt-1.5 text-xs text-neutral-400">A new page is created automatically — edit its text in "Page content" below.</p>
     </div>
   );
 }

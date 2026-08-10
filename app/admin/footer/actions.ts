@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
+import { slugify } from "@/lib/slugify";
 
 function refresh() {
   revalidatePath("/admin/footer");
@@ -61,24 +62,40 @@ export async function moveFooterSection(id: string, direction: "up" | "down") {
   refresh();
 }
 
-export async function addFooterLink(sectionId: string, label: string, url: string) {
-  if (!label.trim() || !url.trim()) return;
+// No URL to type — a new content page is created automatically from the
+// label (e.g. "Size Guide" -> /page/size-guide, or /page/size-guide-x7k2
+// if that slug is already taken), and the link points straight at it. The
+// client only ever fills in the page's text afterward, in "Page content".
+export async function addFooterLink(sectionId: string, label: string) {
+  if (!label.trim()) return;
   const supabase = createServiceClient();
+
+  const baseSlug = slugify(label) || "page";
+  const { data: existing } = await supabase.from("content_pages").select("id").eq("slug", baseSlug).maybeSingle();
+  const slug = existing ? `${baseSlug}-${Math.random().toString(36).slice(2, 6)}` : baseSlug;
+
+  const { error: pageError } = await supabase
+    .from("content_pages")
+    .insert({ slug, title: label.trim(), body: "Content coming soon — check back later." });
+  if (pageError) throw new Error("Couldn't create the page — the database may need the latest migration applied.");
+
   const { count } = await supabase
     .from("footer_links")
     .select("*", { count: "exact", head: true })
     .eq("section_id", sectionId);
   const { error } = await supabase
     .from("footer_links")
-    .insert({ section_id: sectionId, label: label.trim(), url: url.trim(), sort_order: count ?? 0 });
+    .insert({ section_id: sectionId, label: label.trim(), url: `/page/${slug}`, sort_order: count ?? 0 });
   if (error) throw new Error("Couldn't add the link — the database may need the latest migration applied.");
   refresh();
 }
 
-export async function updateFooterLink(id: string, label: string, url: string) {
-  if (!label.trim() || !url.trim()) return;
+// Renaming only changes the label shown in the footer — not the URL, and
+// not the linked page's own title (edited separately in "Page content").
+export async function renameFooterLink(id: string, label: string) {
+  if (!label.trim()) return;
   const supabase = createServiceClient();
-  await supabase.from("footer_links").update({ label: label.trim(), url: url.trim() }).eq("id", id);
+  await supabase.from("footer_links").update({ label: label.trim() }).eq("id", id);
   refresh();
 }
 
