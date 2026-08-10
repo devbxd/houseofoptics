@@ -169,6 +169,7 @@ export function SpinWheelPopup({ brandName }: { brandName: string }) {
                 <p className="mt-2 rounded border border-dashed border-brand-black px-4 py-2 font-mono text-lg tracking-wider">
                   {result.code}
                 </p>
+                <p className="mt-1 text-xs text-neutral-400">Valid for 1 hour, single use only.</p>
               </>
             ) : (
               <>

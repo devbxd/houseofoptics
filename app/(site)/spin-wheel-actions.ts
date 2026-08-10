@@ -3,12 +3,12 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { subscribeToNewsletter } from "./newsletter-actions";
 
-// Weighted so most spins land on "no luck" — protects margins while still
-// giving real winners plenty of the time.
+// Heavily weighted toward "no luck" — real discounts should be a rare,
+// exciting exception, not something most visitors walk away with.
 const PRIZES: { percent: number; weight: number }[] = [
-  { percent: 0, weight: 45 },
-  { percent: 10, weight: 35 },
-  { percent: 15, weight: 20 },
+  { percent: 0, weight: 75 },
+  { percent: 10, weight: 17 },
+  { percent: 15, weight: 8 },
 ];
 
 function pickWeighted(): number {
@@ -56,6 +56,8 @@ export async function spinWheel(email: string): Promise<{ discountPercent: numbe
   return { discountPercent, code };
 }
 
+const CODE_LIFETIME_MS = 60 * 60 * 1000; // codes expire 1 hour after being won
+
 export async function validatePromoCode(code: string): Promise<{ valid: boolean; discountPercent: number | null }> {
   const trimmed = code.trim().toUpperCase();
   if (!trimmed) return { valid: false, discountPercent: null };
@@ -63,11 +65,14 @@ export async function validatePromoCode(code: string): Promise<{ valid: boolean;
   const supabase = createServiceClient();
   const { data } = await supabase
     .from("spin_wheel_wins")
-    .select("discount_percent")
+    .select("discount_percent, created_at")
     .eq("code", trimmed)
     .is("used_at", null)
     .maybeSingle();
 
   if (!data) return { valid: false, discountPercent: null };
+  if (Date.now() - new Date(data.created_at).getTime() > CODE_LIFETIME_MS) {
+    return { valid: false, discountPercent: null };
+  }
   return { valid: true, discountPercent: data.discount_percent };
 }

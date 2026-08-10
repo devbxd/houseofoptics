@@ -26,19 +26,19 @@ export async function createOrder(input: CheckoutInput) {
   const itemsTotal = input.items.reduce((a, i) => a + i.price * i.quantity, 0);
 
   // Re-validate the promo code against the database rather than trusting
-  // whatever discount the client displayed — an already-used or made-up
-  // code is silently ignored instead of failing the whole order.
+  // whatever discount the client displayed — an already-used, expired, or
+  // made-up code is silently ignored instead of failing the whole order.
   let discountPercent = 0;
   let redeemedCode: string | null = null;
   if (input.promoCode) {
     const normalized = input.promoCode.trim().toUpperCase();
     const { data: win } = await supabase
       .from("spin_wheel_wins")
-      .select("discount_percent")
+      .select("discount_percent, created_at")
       .eq("code", normalized)
       .is("used_at", null)
       .maybeSingle();
-    if (win) {
+    if (win && Date.now() - new Date(win.created_at).getTime() <= 60 * 60 * 1000) {
       discountPercent = win.discount_percent;
       redeemedCode = normalized;
     }
