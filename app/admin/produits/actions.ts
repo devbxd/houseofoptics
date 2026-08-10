@@ -121,20 +121,20 @@ async function uploadImages(supabase: ReturnType<typeof createServiceClient>, pr
   return urls;
 }
 
-// additional_info/shipping_info come from a migration that may not have run
-// yet on this deployment — retry without them rather than failing the whole
-// save if Postgres rejects them as unknown columns.
+// base_color comes from a migration that may not have run yet on this
+// deployment — retry without it rather than failing the whole save if
+// Postgres rejects it as an unknown column.
 async function insertProductSafe(supabase: ReturnType<typeof createServiceClient>, fields: Record<string, unknown>) {
   const first = await supabase.from("products").insert(fields).select("id, slug").single();
   if (!first.error) return first;
-  const { additional_info, shipping_info, ...fallback } = fields;
+  const { base_color, ...fallback } = fields;
   return supabase.from("products").insert(fallback).select("id, slug").single();
 }
 
 async function updateProductSafe(supabase: ReturnType<typeof createServiceClient>, productId: string, fields: Record<string, unknown>) {
   const { error } = await supabase.from("products").update(fields).eq("id", productId);
   if (!error) return;
-  const { additional_info, shipping_info, ...fallback } = fields;
+  const { base_color, ...fallback } = fields;
   await supabase.from("products").update(fallback).eq("id", productId);
 }
 
@@ -150,8 +150,7 @@ export async function createProduct(formData: FormData) {
   const stockRaw = String(formData.get("stock") ?? "").trim();
   const stock = stockRaw ? Number(stockRaw) : null;
   const sku = String(formData.get("sku") ?? "").trim() || null;
-  const additionalInfo = String(formData.get("additional_info") ?? "").trim() || null;
-  const shippingInfo = String(formData.get("shipping_info") ?? "").trim() || null;
+  const baseColor = String(formData.get("base_color") ?? "").trim() || null;
   const files = (formData.getAll("images") as File[]).filter((f) => f.size > 0);
 
   if (!name) return;
@@ -169,8 +168,7 @@ export async function createProduct(formData: FormData) {
     discount_percent: discountPercent,
     stock,
     sku,
-    additional_info: additionalInfo,
-    shipping_info: shippingInfo,
+    base_color: baseColor,
   });
 
   if (error || !product) throw error;
@@ -201,8 +199,7 @@ export async function updateProduct(productId: string, formData: FormData) {
   const stockRaw = String(formData.get("stock") ?? "").trim();
   const stock = stockRaw ? Number(stockRaw) : null;
   const sku = String(formData.get("sku") ?? "").trim() || null;
-  const additionalInfo = String(formData.get("additional_info") ?? "").trim() || null;
-  const shippingInfo = String(formData.get("shipping_info") ?? "").trim() || null;
+  const baseColor = String(formData.get("base_color") ?? "").trim() || null;
   const isActive = formData.get("is_active") === "on";
   const files = (formData.getAll("images") as File[]).filter((f) => f.size > 0);
 
@@ -221,8 +218,7 @@ export async function updateProduct(productId: string, formData: FormData) {
     discount_percent: discountPercent,
     stock,
     sku,
-    additional_info: additionalInfo,
-    shipping_info: shippingInfo,
+    base_color: baseColor,
     is_active: isActive,
   });
 
@@ -243,6 +239,22 @@ export async function updateProduct(productId: string, formData: FormData) {
   revalidatePath(`/admin/produits/${productId}`);
   revalidatePath("/", "layout");
   return { ok: true };
+}
+
+// Additional info / shipping text applies to every product at once (set
+// once here) rather than per product — only the description is per-product.
+export async function updateGlobalProductInfo(formData: FormData) {
+  const additionalInfo = String(formData.get("global_additional_info") ?? "").trim();
+  const shippingInfo = String(formData.get("global_shipping_info") ?? "").trim();
+
+  const supabase = createServiceClient();
+  await supabase
+    .from("site_settings")
+    .update({ global_additional_info: additionalInfo, global_shipping_info: shippingInfo })
+    .eq("id", true);
+
+  revalidatePath("/admin/produits");
+  revalidatePath("/", "layout");
 }
 
 export async function deleteProduct(productId: string) {

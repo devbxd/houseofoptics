@@ -34,6 +34,7 @@ export function ProductDetailInteractive({
   description,
   stock,
   sku,
+  baseColor,
   additionalInfo,
   shippingInfo,
   variants,
@@ -53,6 +54,7 @@ export function ProductDetailInteractive({
   description: string;
   stock: number | null;
   sku: string | null;
+  baseColor: string | null;
   additionalInfo: string | null;
   shippingInfo: string | null;
   variants: VariantDetail[];
@@ -183,6 +185,12 @@ export function ProductDetailInteractive({
           )}
           {outOfStock ? t["product.outOfStock"] : t["product.available"]}
         </p>
+
+        {baseColor && (
+          <p className="mt-3 text-sm text-neutral-600">
+            {t["product.baseColor"]} <span className="font-medium text-brand-black">{baseColor}</span>
+          </p>
+        )}
 
         {variants.length > 0 && (
           <div className="mt-4">

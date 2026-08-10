@@ -24,6 +24,8 @@ export type SiteSettings = {
   hero_title_fr: string;
   hero_title_en: string;
   hero_title_ar: string;
+  global_additional_info: string;
+  global_shipping_info: string;
 };
 
 const DEFAULT_SETTINGS: SiteSettings = {
@@ -50,6 +52,8 @@ const DEFAULT_SETTINGS: SiteSettings = {
   hero_title_fr: "",
   hero_title_en: "",
   hero_title_ar: "",
+  global_additional_info: "",
+  global_shipping_info: "",
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {

@@ -6,6 +6,7 @@ import { CartFab } from "@/components/CartFab";
 import { PageViewTracker } from "@/components/PageViewTracker";
 import { SiteModeOverlay } from "@/components/site-mode/SiteModeOverlay";
 import { PromoPopup } from "@/components/PromoPopup";
+import { BackButton } from "@/components/BackButton";
 import { getSiteSettings, getCategories } from "@/lib/settings";
 import { getServerDict } from "@/lib/locale-server";
 import { getActivePopup } from "@/lib/popups";
@@ -36,6 +37,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           bannerColor={settings.banner_color}
         />
         {settings.active_mode && <SiteModeOverlay mode={settings.active_mode} t={t} />}
+        <BackButton label={t["nav.back"]} />
         {children}
         {activePopup && <PromoPopup popup={activePopup} />}
         <CartFab />

@@ -7,12 +7,13 @@ import { TestimonialsCarousel } from "@/components/TestimonialsCarousel";
 import { FeedbackForm } from "@/components/FeedbackForm";
 import { HeroCarousel } from "@/components/HeroCarousel";
 import { BrandStrip } from "@/components/BrandStrip";
+import { ModelPhotosStrip } from "@/components/ModelPhotosStrip";
 import { getServerDict } from "@/lib/locale-server";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function HomePage() {
   const supabase = await createClient();
-  const [heroPool, categories, { data: brands }, { locale, t }, { data: testimonials }, { data: feedbackProducts }, settings] =
+  const [heroPool, categories, { data: brands }, { locale, t }, { data: testimonials }, { data: feedbackProducts }, settings, { data: modelPhotos }] =
     await Promise.all([
       listProducts({}, 1, 12),
       getCategories(),
@@ -25,9 +26,19 @@ export default async function HomePage() {
         .order("sort_order", { ascending: true }),
       supabase.from("products").select("id, name").eq("is_active", true).order("name", { ascending: true }),
       getSiteSettings(),
+      supabase
+        .from("model_photos")
+        .select("id, image_url, product:products(name, slug)")
+        .order("sort_order", { ascending: true }),
     ]);
 
   const heroTitle = localizedHeroTitle(settings, locale) ?? `${t["home.title1"]}\n${t["home.title2"]}`;
+
+  const normalizedModelPhotos = (modelPhotos ?? []).map((p: any) => ({
+    id: p.id,
+    image_url: p.image_url,
+    product: Array.isArray(p.product) ? p.product[0] ?? null : p.product,
+  }));
 
   const topCategories = categories.filter((c) => !c.parent_id && c.slug !== "events");
 
@@ -141,6 +152,8 @@ export default async function HomePage() {
       )}
 
       <BrandStrip brands={brands ?? []} title={t["home.shopByBrand"]} />
+
+      <ModelPhotosStrip photos={normalizedModelPhotos} title={t["home.modelPhotos"]} />
 
       <section className="bg-brand-black px-6 py-16 text-center text-white">
         <h2 className="font-serif text-2xl tracking-wide">{t["home.newArrivals"]}</h2>

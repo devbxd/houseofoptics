@@ -25,8 +25,7 @@ type Product = {
   category_id: string | null;
   brand_id?: string | null;
   sku?: string | null;
-  additional_info?: string | null;
-  shipping_info?: string | null;
+  base_color?: string | null;
   is_active?: boolean;
   variants?: {
     color_label: string | null;
@@ -146,13 +145,26 @@ export function ProductForm({
         />
       </div>
 
-      <div>
-        <label className="mb-1 block text-sm text-neutral-600">SKU (optional, shown on the product page)</label>
-        <input
-          name="sku"
-          defaultValue={product?.sku ?? ""}
-          className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
-        />
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="mb-1 block text-sm text-neutral-600">SKU (optional, shown on the product page)</label>
+          <input
+            name="sku"
+            defaultValue={product?.sku ?? ""}
+            className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm text-neutral-600">
+            Base color (the color already shown in the main photos)
+          </label>
+          <input
+            name="base_color"
+            defaultValue={product?.base_color ?? ""}
+            placeholder="e.g. Black"
+            className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+          />
+        </div>
       </div>
 
       <VariantsEditor initial={product?.variants ?? []} categoryId={categoryId} />
@@ -163,31 +175,6 @@ export function ProductForm({
           name="description"
           rows={4}
           defaultValue={product?.description}
-          className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
-        />
-      </div>
-
-      <div>
-        <label className="mb-1 block text-sm text-neutral-600">
-          Additional information (optional — shown in its own tab on the product page; leave empty to keep the
-          automatic brand/category/colors/sizes summary)
-        </label>
-        <textarea
-          name="additional_info"
-          rows={3}
-          defaultValue={product?.additional_info ?? ""}
-          className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
-        />
-      </div>
-
-      <div>
-        <label className="mb-1 block text-sm text-neutral-600">
-          Shipping &amp; delivery (optional — leave empty to keep the default shipping text)
-        </label>
-        <textarea
-          name="shipping_info"
-          rows={3}
-          defaultValue={product?.shipping_info ?? ""}
           className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
         />
       </div>

@@ -10,6 +10,10 @@ body {
   padding-bottom: 4.5rem; /* space for the fixed bottom nav, always visible */
 }
 
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 [data-reveal] {
   opacity: 0;
   transform: translateY(24px);

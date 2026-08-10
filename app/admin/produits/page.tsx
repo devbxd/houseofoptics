@@ -1,8 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { createServiceClient } from "@/lib/supabase/server";
-import { deleteProduct } from "./actions";
+import { deleteProduct, updateGlobalProductInfo } from "./actions";
 import { Pagination } from "@/components/Pagination";
+import { getSiteSettings } from "@/lib/settings";
+import { SubmitButton } from "@/components/SubmitButton";
 
 const PAGE_SIZE = 30;
 
@@ -29,11 +31,42 @@ export default async function AdminProductsPage({
 
   if (search) query = query.ilike("name", `%${search}%`);
 
-  const { data: products, count } = await query;
+  const [{ data: products, count }, settings] = await Promise.all([query, getSiteSettings()]);
   const basePath = search ? `/admin/produits?q=${encodeURIComponent(search)}` : "/admin/produits";
 
   return (
     <div>
+      <div className="mb-8 max-w-lg rounded-md border border-neutral-200 bg-white p-4">
+        <p className="mb-1 text-sm font-medium">Additional information &amp; Shipping (all products)</p>
+        <p className="mb-3 text-xs text-neutral-500">
+          These two apply to every product at once — only the description is set per product, in each product's
+          own edit page.
+        </p>
+        <form action={updateGlobalProductInfo} className="space-y-3">
+          <div>
+            <label className="mb-1 block text-sm text-neutral-600">Additional information</label>
+            <textarea
+              name="global_additional_info"
+              rows={3}
+              defaultValue={settings.global_additional_info}
+              className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm text-neutral-600">Shipping &amp; delivery</label>
+            <textarea
+              name="global_shipping_info"
+              rows={3}
+              defaultValue={settings.global_shipping_info}
+              className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+            />
+          </div>
+          <SubmitButton className="border border-brand-black px-4 py-2 text-xs uppercase tracking-wide hover:bg-brand-black hover:text-white">
+            Save
+          </SubmitButton>
+        </form>
+      </div>
+
       <div className="mb-6 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h1 className="font-serif text-2xl">Products {count != null && <span className="text-sm font-normal text-neutral-400">({count})</span>}</h1>
