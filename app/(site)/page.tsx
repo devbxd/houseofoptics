@@ -168,13 +168,14 @@ export default async function HomePage() {
         <section key={brand.id}>
           <Link
             href={`/marque/${brand.slug}`}
-            className="group relative block aspect-[4/5] overflow-hidden bg-neutral-100 sm:aspect-[4/3]"
+            className="group relative block aspect-[4/5] overflow-hidden bg-neutral-100 sm:mx-auto sm:aspect-[4/3] sm:max-w-4xl"
           >
             <Image
               src={banner!}
               alt={brand.name}
               fill
-              sizes="100vw"
+              quality={90}
+              sizes="(min-width: 640px) 896px, 100vw"
               className="object-cover transition-transform duration-700 group-hover:scale-105"
             />
             <span className="absolute bottom-6 left-6 bg-white px-4 py-2 font-serif text-lg tracking-wide text-brand-black md:bottom-10 md:left-10 md:text-2xl">

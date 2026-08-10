@@ -58,6 +58,18 @@ async function translateOrClear(text: string) {
   return translateToAllLocales(text);
 }
 
+// Also editable from Admin > Settings — kept here too since this is where
+// the client naturally looks for homepage text edits.
+export async function updateAnnouncementText(formData: FormData) {
+  const text = String(formData.get("announcement_text") ?? "").trim() || "Nouveautés ajoutées chaque semaine";
+  const supabase = createServiceClient();
+  await supabase.from("site_settings").update({ announcement_text: text }).eq("id", true);
+
+  revalidatePath("/admin/hero");
+  revalidatePath("/admin/reglages");
+  revalidatePath("/", "layout");
+}
+
 export async function updateHeroTexts(formData: FormData) {
   const eyebrow = String(formData.get("hero_eyebrow") ?? "").trim();
   const title = String(formData.get("hero_title") ?? "").trim();

@@ -2,7 +2,7 @@ import Image from "next/image";
 import { createServiceClient } from "@/lib/supabase/server";
 import { Pagination } from "@/components/Pagination";
 import { HeroImageToggle } from "./HeroImageToggle";
-import { uploadHeroSlide, updateHeroTexts } from "./actions";
+import { uploadHeroSlide, updateHeroTexts, updateAnnouncementText } from "./actions";
 import { SubmitButton } from "@/components/SubmitButton";
 import { HeroSlidesGrid } from "./HeroSlidesGrid";
 import { CurrentHeroGrid } from "./CurrentHeroGrid";
@@ -91,6 +91,24 @@ export default async function AdminHeroPage({
               className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
             />
           </div>
+          <SubmitButton className="border border-brand-black px-4 py-2 text-xs uppercase tracking-wide hover:bg-brand-black hover:text-white">
+            Save
+          </SubmitButton>
+        </form>
+      </div>
+
+      <div className="mb-8 max-w-lg rounded-md border border-neutral-200 bg-white p-4">
+        <p className="mb-1 text-sm font-medium">Announcement banner (top of every page)</p>
+        <p className="mb-3 text-xs text-neutral-500">
+          The scrolling black bar at the very top of the site, e.g. "Nouveautés ajoutées chaque semaine". Banner
+          color is set on the Design page.
+        </p>
+        <form action={updateAnnouncementText} className="flex items-center gap-3">
+          <input
+            name="announcement_text"
+            defaultValue={settings?.announcement_text ?? "Nouveautés ajoutées chaque semaine"}
+            className="flex-1 border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+          />
           <SubmitButton className="border border-brand-black px-4 py-2 text-xs uppercase tracking-wide hover:bg-brand-black hover:text-white">
             Save
           </SubmitButton>
