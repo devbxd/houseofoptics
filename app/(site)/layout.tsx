@@ -1,5 +1,6 @@
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
+import { Footer } from "@/components/Footer";
 import { CartProvider } from "@/components/CartProvider";
 import { WishlistProvider } from "@/components/WishlistProvider";
 import { CartFab } from "@/components/CartFab";
@@ -11,14 +12,26 @@ import { BackButton } from "@/components/BackButton";
 import { getSiteSettings, getCategories } from "@/lib/settings";
 import { getServerDict } from "@/lib/locale-server";
 import { getActivePopup } from "@/lib/popups";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
-  const [settings, categories, { locale, t }, activePopup] = await Promise.all([
+  const supabase = await createClient();
+  const [settings, categories, { locale, t }, activePopup, { data: footerSections }] = await Promise.all([
     getSiteSettings(),
     getCategories(),
     getServerDict(),
     getActivePopup(),
+    supabase
+      .from("footer_sections")
+      .select("id, title, links:footer_links(id, label, url, sort_order)")
+      .order("sort_order", { ascending: true }),
   ]);
+
+  const normalizedFooterSections = (footerSections ?? []).map((s: any) => ({
+    id: s.id,
+    title: s.title,
+    links: (s.links ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order),
+  }));
 
   return (
     <WishlistProvider>
@@ -40,6 +53,16 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         {settings.active_mode && <SiteModeOverlay mode={settings.active_mode} t={t} />}
         <BackButton label={t["nav.back"]} />
         {children}
+        <Footer
+          brandName={settings.brand_name}
+          sections={normalizedFooterSections}
+          facebookUrl={settings.facebook_url}
+          instagramUrl={settings.instagram_handle ? `https://instagram.com/${settings.instagram_handle}` : ""}
+          youtubeUrl={settings.youtube_url}
+          tiktokUrl={settings.tiktok_url}
+          pinterestUrl={settings.pinterest_url}
+          copyrightText={settings.footer_copyright_text}
+        />
         {settings.spin_wheel_enabled ? (
           <SpinWheelPopup brandName={settings.brand_name} />
         ) : (

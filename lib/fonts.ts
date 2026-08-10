@@ -78,12 +78,21 @@ export const BODY_FONTS = {
 
 export type HeadingFont = keyof typeof HEADING_FONTS;
 export type BodyFont = keyof typeof BODY_FONTS;
+// Accent picks from the same curated sans list as body — buttons/menus/
+// labels are short uppercase text, the same pool of clean sans fonts suits
+// them, and it avoids a fourth giant curated list to maintain.
+export type AccentFont = BodyFont;
 
 export const DEFAULT_HEADING_FONT: HeadingFont = "Playfair Display";
 export const DEFAULT_BODY_FONT: BodyFont = "Inter";
+export const DEFAULT_ACCENT_FONT: AccentFont = "Inter";
 
-export function googleFontsHref(headingFont: string, bodyFont: string) {
+export function googleFontsHref(headingFont: string, bodyFont: string, accentFont?: string) {
   const headingParam = HEADING_FONTS[headingFont as HeadingFont] ?? HEADING_FONTS[DEFAULT_HEADING_FONT];
   const bodyParam = BODY_FONTS[bodyFont as BodyFont] ?? BODY_FONTS[DEFAULT_BODY_FONT];
-  return `https://fonts.googleapis.com/css2?family=${headingParam}&family=${bodyParam}&display=swap`;
+  const accentParam = BODY_FONTS[accentFont as AccentFont] ?? BODY_FONTS[DEFAULT_ACCENT_FONT];
+  // Dedupe — accent commonly matches body, no need to request the same
+  // family twice from Google Fonts.
+  const families = Array.from(new Set([headingParam, bodyParam, accentParam]));
+  return `https://fonts.googleapis.com/css2?${families.map((f) => `family=${f}`).join("&")}&display=swap`;
 }

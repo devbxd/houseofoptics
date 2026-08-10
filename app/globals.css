@@ -14,6 +14,13 @@ body {
   display: none;
 }
 
+/* Accent font (Admin > Font) — every button, nav link, badge and small
+   uppercase label site-wide shares this one utility class by convention,
+   so this single rule reaches all of them without hunting down each one. */
+.uppercase {
+  font-family: var(--font-accent);
+}
+
 [data-reveal] {
   opacity: 0;
   transform: translateY(24px);

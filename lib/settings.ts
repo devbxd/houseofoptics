@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { DEFAULT_HEADING_FONT, DEFAULT_BODY_FONT } from "@/lib/fonts";
+import { DEFAULT_HEADING_FONT, DEFAULT_BODY_FONT, DEFAULT_ACCENT_FONT } from "@/lib/fonts";
 
 export type SiteMode = "noel" | "halloween" | "nouvel_an" | null;
 
@@ -9,12 +9,17 @@ export type SiteSettings = {
   contact_email: string;
   instagram_handle: string;
   facebook_url: string;
+  youtube_url: string;
+  tiktok_url: string;
+  pinterest_url: string;
+  footer_copyright_text: string;
   logo_url: string | null;
   accent_color: string;
   dark_color: string;
   active_mode: SiteMode;
   heading_font: string;
   body_font: string;
+  accent_font: string;
   announcement_text: string;
   banner_color: string;
   shop_address: string;
@@ -42,12 +47,17 @@ const DEFAULT_SETTINGS: SiteSettings = {
   contact_email: "",
   instagram_handle: "house.of.optics",
   facebook_url: "",
+  youtube_url: "",
+  tiktok_url: "",
+  pinterest_url: "",
+  footer_copyright_text: "",
   logo_url: null,
   accent_color: "#c8102e",
   dark_color: "#111111",
   active_mode: null,
   heading_font: DEFAULT_HEADING_FONT,
   body_font: DEFAULT_BODY_FONT,
+  accent_font: DEFAULT_ACCENT_FONT,
   announcement_text: "Nouveautés ajoutées chaque semaine",
   banner_color: "#111111",
   shop_address: "Smoke N Black, Furn El Chebbak, Liban",

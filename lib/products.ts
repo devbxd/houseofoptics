@@ -62,6 +62,26 @@ export async function getRelatedProducts(
   product: { id: string; category: { slug: string } | null; brand: { slug: string } | null },
   limit = 8
 ): Promise<ProductCard[]> {
+  // A manual pick (Admin > Products > edit product > Related sunglasses)
+  // always wins over the automatic category/brand matching below.
+  const supabase = await createClient();
+  const { data: manual } = await supabase
+    .from("product_related_products")
+    .select(
+      "sort_order, related:products!product_related_products_related_product_id_fkey(id, name, slug, price, discount_percent, stock, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order))"
+    )
+    .eq("product_id", product.id)
+    .order("sort_order", { ascending: true });
+
+  if (manual && manual.length > 0) {
+    return manual.map((row: any) => ({
+      ...row.related,
+      category: Array.isArray(row.related.category) ? row.related.category[0] ?? null : row.related.category,
+      brand: Array.isArray(row.related.brand) ? row.related.brand[0] ?? null : row.related.brand,
+      images: (row.related.images ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order),
+    })) as ProductCard[];
+  }
+
   // Prefer same category, fall back to same brand, then just recent products
   // — most products don't have a category assigned yet, and the section
   // should still show something useful instead of disappearing.

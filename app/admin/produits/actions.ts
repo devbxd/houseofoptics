@@ -347,3 +347,32 @@ export async function setProductImagePosition(productId: string, imageId: string
   revalidatePath("/admin/produits");
   revalidatePath("/", "layout");
 }
+
+// A manual related-products pick overrides the automatic category/brand
+// matching shown under "Related products" on the public product page.
+export async function addRelatedProduct(productId: string, relatedProductId: string) {
+  if (productId === relatedProductId) return;
+  const supabase = createServiceClient();
+  const { count } = await supabase
+    .from("product_related_products")
+    .select("*", { count: "exact", head: true })
+    .eq("product_id", productId);
+
+  const { error } = await supabase
+    .from("product_related_products")
+    .insert({ product_id: productId, related_product_id: relatedProductId, sort_order: count ?? 0 });
+  if (error && error.code !== "23505") {
+    // 23505 = already added (unique constraint) — fine, nothing to do.
+    throw new Error("Couldn't add — the database may need the latest migration applied.");
+  }
+
+  revalidatePath(`/admin/produits/${productId}`);
+  revalidatePath("/", "layout");
+}
+
+export async function removeRelatedProduct(id: string, productId: string) {
+  const supabase = createServiceClient();
+  await supabase.from("product_related_products").delete().eq("id", id);
+  revalidatePath(`/admin/produits/${productId}`);
+  revalidatePath("/", "layout");
+}

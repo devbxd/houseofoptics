@@ -34,8 +34,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="stylesheet" href={googleFontsHref(settings.heading_font, settings.body_font)} />
-        <style>{`:root{--color-accent:${settings.accent_color};--color-dark:${settings.dark_color};--font-serif:'${settings.heading_font}',Georgia,serif;--font-sans:'${settings.body_font}',system-ui,sans-serif;}`}</style>
+        <link rel="stylesheet" href={googleFontsHref(settings.heading_font, settings.body_font, settings.accent_font)} />
+        <style>{`:root{--color-accent:${settings.accent_color};--color-dark:${settings.dark_color};--font-serif:'${settings.heading_font}',Georgia,serif;--font-sans:'${settings.body_font}',system-ui,sans-serif;--font-accent:'${settings.accent_font}',system-ui,sans-serif;}`}</style>
       </head>
       <body className="min-h-screen bg-white font-sans text-brand-black antialiased">{children}</body>
     </html>
