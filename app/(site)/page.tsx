@@ -59,7 +59,7 @@ export default async function HomePage() {
         return { brand: b, products, banner: b.homepage_banner_url || products[0]?.images[0]?.url || null };
       })
     )
-  ).filter((s) => s.products.length > 0 && s.banner);
+  ).filter((s) => s.banner);
 
   const topCategories = categories.filter((c) => !c.parent_id && c.slug !== "events");
 
@@ -189,7 +189,13 @@ export default async function HomePage() {
                 {t["home.shopCollection"]}
               </Link>
             </div>
-            <ProductGrid products={products} t={t} />
+            {products.length > 0 ? (
+              <ProductGrid products={products} t={t} />
+            ) : (
+              <p className="py-16 text-center text-sm uppercase tracking-widest text-neutral-400">
+                {t["home.brandComingSoon"]}
+              </p>
+            )}
           </div>
         </section>
       ))}
