@@ -168,7 +168,7 @@ export default async function HomePage() {
         <section key={brand.id}>
           <Link
             href={`/marque/${brand.slug}`}
-            className="group relative block aspect-[4/5] overflow-hidden bg-neutral-100 sm:aspect-[16/9] lg:aspect-[21/9]"
+            className="group relative block aspect-[4/5] overflow-hidden bg-neutral-100 sm:aspect-[4/3]"
           >
             <Image
               src={banner!}
