@@ -24,6 +24,12 @@ export type SiteSettings = {
   hero_title_fr: string;
   hero_title_en: string;
   hero_title_ar: string;
+  hero_eyebrow_fr: string;
+  hero_eyebrow_en: string;
+  hero_eyebrow_ar: string;
+  hero_subtitle_fr: string;
+  hero_subtitle_en: string;
+  hero_subtitle_ar: string;
   global_additional_info: string;
   global_shipping_info: string;
   spin_wheel_enabled: boolean;
@@ -53,6 +59,12 @@ const DEFAULT_SETTINGS: SiteSettings = {
   hero_title_fr: "",
   hero_title_en: "",
   hero_title_ar: "",
+  hero_eyebrow_fr: "",
+  hero_eyebrow_en: "",
+  hero_eyebrow_ar: "",
+  hero_subtitle_fr: "",
+  hero_subtitle_en: "",
+  hero_subtitle_ar: "",
   global_additional_info: "",
   global_shipping_info: "",
   spin_wheel_enabled: false,
@@ -106,4 +118,16 @@ export function localizedHeroTitle(settings: SiteSettings, locale: "fr" | "en" |
   if (locale === "en") return settings.hero_title_en || null;
   if (locale === "ar") return settings.hero_title_ar || null;
   return settings.hero_title_fr || null;
+}
+
+export function localizedHeroEyebrow(settings: SiteSettings, locale: "fr" | "en" | "ar"): string | null {
+  if (locale === "en") return settings.hero_eyebrow_en || null;
+  if (locale === "ar") return settings.hero_eyebrow_ar || null;
+  return settings.hero_eyebrow_fr || null;
+}
+
+export function localizedHeroSubtitle(settings: SiteSettings, locale: "fr" | "en" | "ar"): string | null {
+  if (locale === "en") return settings.hero_subtitle_en || null;
+  if (locale === "ar") return settings.hero_subtitle_ar || null;
+  return settings.hero_subtitle_fr || null;
 }

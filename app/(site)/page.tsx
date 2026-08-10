@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { listProducts } from "@/lib/products";
-import { getCategories, getSiteSettings, localizedHeroTitle } from "@/lib/settings";
+import { getCategories, getSiteSettings, localizedHeroTitle, localizedHeroEyebrow, localizedHeroSubtitle } from "@/lib/settings";
 import { NewsletterForm } from "@/components/NewsletterForm";
 import { TestimonialsCarousel } from "@/components/TestimonialsCarousel";
 import { FeedbackForm } from "@/components/FeedbackForm";
@@ -33,6 +33,8 @@ export default async function HomePage() {
     ]);
 
   const heroTitle = localizedHeroTitle(settings, locale) ?? `${t["home.title1"]}\n${t["home.title2"]}`;
+  const heroEyebrow = localizedHeroEyebrow(settings, locale) ?? t["home.eyebrow"];
+  const heroSubtitle = localizedHeroSubtitle(settings, locale) ?? t["home.subtitle"];
 
   const normalizedModelPhotos = (modelPhotos ?? []).map((p: any) => ({
     id: p.id,
@@ -100,7 +102,7 @@ export default async function HomePage() {
       <section className="relative flex h-[85vh] min-h-[560px] items-end overflow-hidden bg-brand-black text-white">
         <HeroCarousel slides={heroImages} />
         <div className="relative z-10 w-full px-6 pb-16 md:px-16 md:pb-24">
-          <p className="text-xs uppercase tracking-[0.4em] text-white/70">{t["home.eyebrow"]}</p>
+          <p className="text-xs uppercase tracking-[0.4em] text-white/70">{heroEyebrow}</p>
           <h1 className="mt-4 max-w-2xl font-serif text-5xl leading-[1.05] tracking-wide md:text-7xl">
             {heroTitle.split("\n").map((line, i) => (
               <span key={i}>
@@ -109,7 +111,7 @@ export default async function HomePage() {
               </span>
             ))}
           </h1>
-          <p className="mt-5 max-w-md text-sm text-white/80">{t["home.subtitle"]}</p>
+          <p className="mt-5 max-w-md text-sm text-white/80">{heroSubtitle}</p>
           <Link
             href="/produits"
             className="mt-8 inline-block border border-white px-10 py-3.5 text-xs uppercase tracking-[0.25em] transition-colors hover:bg-white hover:text-brand-black"

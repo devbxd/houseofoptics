@@ -2,7 +2,7 @@ import Image from "next/image";
 import { createServiceClient } from "@/lib/supabase/server";
 import { Pagination } from "@/components/Pagination";
 import { HeroImageToggle } from "./HeroImageToggle";
-import { uploadHeroSlide, updateHeroTitle } from "./actions";
+import { uploadHeroSlide, updateHeroTexts } from "./actions";
 import { SubmitButton } from "@/components/SubmitButton";
 import { HeroSlidesGrid } from "./HeroSlidesGrid";
 import { CurrentHeroGrid } from "./CurrentHeroGrid";
@@ -57,18 +57,40 @@ export default async function AdminHeroPage({
       </p>
 
       <div className="mb-8 max-w-lg rounded-md border border-neutral-200 bg-white p-4">
-        <p className="mb-1 text-sm font-medium">Big homepage title</p>
+        <p className="mb-1 text-sm font-medium">Homepage banner text</p>
         <p className="mb-3 text-xs text-neutral-500">
-          Type it in any language you want — it's automatically translated so every visitor sees it in French,
-          English or Arabic depending on the site's language. Leave empty to use the default title.
+          Type each line in any language you want — it's automatically translated so every visitor sees it in
+          French, English or Arabic depending on the site's language. Leave a field empty to use the default text.
         </p>
-        <form action={updateHeroTitle} className="flex items-center gap-3">
-          <input
-            name="hero_title"
-            defaultValue={settings?.hero_title_fr ?? ""}
-            placeholder="e.g. L'art de voir autrement."
-            className="flex-1 border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
-          />
+        <form action={updateHeroTexts} className="space-y-3">
+          <div>
+            <label className="mb-1 block text-xs text-neutral-500">Small line above the title</label>
+            <input
+              name="hero_eyebrow"
+              defaultValue={settings?.hero_eyebrow_fr ?? ""}
+              placeholder="e.g. Collection Signature"
+              className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-neutral-500">Big title</label>
+            <input
+              name="hero_title"
+              defaultValue={settings?.hero_title_fr ?? ""}
+              placeholder="e.g. L'art de voir autrement."
+              className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-neutral-500">Small paragraph below the title</label>
+            <textarea
+              name="hero_subtitle"
+              defaultValue={settings?.hero_subtitle_fr ?? ""}
+              placeholder="e.g. Une sélection exclusive de montures d'exception..."
+              rows={2}
+              className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+            />
+          </div>
           <SubmitButton className="border border-brand-black px-4 py-2 text-xs uppercase tracking-wide hover:bg-brand-black hover:text-white">
             Save
           </SubmitButton>
