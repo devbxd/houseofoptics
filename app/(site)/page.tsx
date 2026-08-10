@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { listProducts } from "@/lib/products";
 import { getCategories, getSiteSettings, localizedHeroTitle, localizedHeroEyebrow, localizedHeroSubtitle } from "@/lib/settings";
 import { NewsletterForm } from "@/components/NewsletterForm";
@@ -8,6 +9,7 @@ import { HeroCarousel } from "@/components/HeroCarousel";
 import { BrandStrip } from "@/components/BrandStrip";
 import { CategoryCarousel } from "@/components/CategoryCarousel";
 import { ModelPhotosStrip } from "@/components/ModelPhotosStrip";
+import { ProductGrid } from "@/components/ProductGrid";
 import { getServerDict } from "@/lib/locale-server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -41,6 +43,18 @@ export default async function HomePage() {
     image_url: p.image_url,
     product: Array.isArray(p.product) ? p.product[0] ?? null : p.product,
   }));
+
+  // A handful of full-bleed "shop the brand" blocks — one lifestyle image
+  // plus a small product grid per brand — shown lower on the homepage.
+  // Capped to 4 brands so a small catalog doesn't turn into an endless page.
+  const brandShowcases = (
+    await Promise.all(
+      (brands ?? []).slice(0, 4).map(async (b) => {
+        const { products } = await listProducts({ brandSlug: b.slug }, 1, 4);
+        return { brand: b, products, banner: products[0]?.images[0]?.url ?? null };
+      })
+    )
+  ).filter((s) => s.products.length > 0 && s.banner);
 
   const topCategories = categories.filter((c) => !c.parent_id && c.slug !== "events");
 
@@ -144,6 +158,33 @@ export default async function HomePage() {
       <BrandStrip brands={brands ?? []} title={t["home.shopByBrand"]} />
 
       <ModelPhotosStrip photos={normalizedModelPhotos} title={t["home.modelPhotos"]} />
+
+      {brandShowcases.map(({ brand, products, banner }) => (
+        <section key={brand.id}>
+          <Link href={`/marque/${brand.slug}`} className="group relative block h-[70vh] min-h-[420px] overflow-hidden bg-neutral-100">
+            <Image
+              src={banner!}
+              alt={brand.name}
+              fill
+              sizes="100vw"
+              className="object-cover transition-transform duration-700 group-hover:scale-105"
+            />
+            <span className="absolute bottom-6 left-6 bg-white px-4 py-2 font-serif text-lg tracking-wide text-brand-black md:bottom-10 md:left-10 md:text-2xl">
+              {brand.name}
+            </span>
+          </Link>
+
+          <div className="mx-auto max-w-6xl px-4 py-12 md:px-6 md:py-16">
+            <div className="mb-8 flex items-center justify-between md:mb-10">
+              <h2 className="font-serif text-2xl tracking-wide">{brand.name}</h2>
+              <Link href={`/marque/${brand.slug}`} className="text-xs uppercase tracking-[0.2em] text-neutral-600 hover:text-brand-black">
+                {t["home.shopCollection"]}
+              </Link>
+            </div>
+            <ProductGrid products={products} t={t} />
+          </div>
+        </section>
+      ))}
 
       <section className="bg-brand-black px-6 py-16 text-center text-white">
         <h2 className="font-serif text-2xl tracking-wide">{t["home.newArrivals"]}</h2>
