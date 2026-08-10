@@ -45,6 +45,15 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     .eq("is_active", true)
     .order("sort_order", { ascending: true });
 
+  const ratedReviews = (reviews ?? []).filter((r) => r.rating != null);
+  const ratingSummary =
+    ratedReviews.length > 0
+      ? {
+          average: ratedReviews.reduce((sum, r) => sum + (r.rating ?? 0), 0) / ratedReviews.length,
+          count: ratedReviews.length,
+        }
+      : null;
+
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
       <ProductDetailInteractive
@@ -60,6 +69,10 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         baseColor={product.base_color ?? null}
         additionalInfo={settings.global_additional_info || null}
         shippingInfo={settings.global_shipping_info || null}
+        returnsInfo={settings.returns_info || null}
+        warrantyInfo={settings.warranty_info || null}
+        packagingImageUrl={settings.packaging_image_url || null}
+        ratingSummary={ratingSummary}
         variants={product.variants ?? []}
         brand={product.brand}
         category={product.category}

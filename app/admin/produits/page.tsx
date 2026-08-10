@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { createServiceClient } from "@/lib/supabase/server";
-import { deleteProduct, updateGlobalProductInfo } from "./actions";
+import { deleteProduct, updateGlobalProductInfo, uploadPackagingImage, removePackagingImage } from "./actions";
 import { Pagination } from "@/components/Pagination";
 import { getSiteSettings } from "@/lib/settings";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -61,8 +61,56 @@ export default async function AdminProductsPage({
               className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
             />
           </div>
+          <div>
+            <label className="mb-1 block text-sm text-neutral-600">Returns</label>
+            <textarea
+              name="returns_info"
+              rows={3}
+              defaultValue={settings.returns_info}
+              placeholder="Leave empty to use the default returns text"
+              className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm text-neutral-600">Warranty</label>
+            <textarea
+              name="warranty_info"
+              rows={3}
+              defaultValue={settings.warranty_info}
+              placeholder="Leave empty to use the default warranty text"
+              className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+            />
+          </div>
           <SubmitButton className="border border-brand-black px-4 py-2 text-xs uppercase tracking-wide hover:bg-brand-black hover:text-white">
             Save
+          </SubmitButton>
+        </form>
+      </div>
+
+      <div className="mb-8 max-w-lg rounded-md border border-neutral-200 bg-white p-4">
+        <p className="mb-1 text-sm font-medium">Packaging photo (all products)</p>
+        <p className="mb-3 text-xs text-neutral-500">
+          Shown on every product page after the description, as an "Included With Every Pair" section — e.g. a
+          photo of the box, pouch and cleaning cloth.
+        </p>
+        {settings.packaging_image_url && (
+          <div className="mb-3 flex items-center gap-3">
+            <Image
+              src={settings.packaging_image_url}
+              alt="Packaging"
+              width={96}
+              height={96}
+              className="h-24 w-24 rounded object-cover"
+            />
+            <form action={removePackagingImage}>
+              <SubmitButton className="text-xs text-neutral-400 hover:text-red-600">Remove</SubmitButton>
+            </form>
+          </div>
+        )}
+        <form action={uploadPackagingImage} encType="multipart/form-data" className="flex items-center gap-3">
+          <input name="image" type="file" accept="image/*" required className="text-sm" />
+          <SubmitButton className="border border-brand-black px-4 py-2 text-xs uppercase tracking-wide hover:bg-brand-black hover:text-white">
+            Upload
           </SubmitButton>
         </form>
       </div>

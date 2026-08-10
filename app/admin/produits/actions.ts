@@ -241,18 +241,60 @@ export async function updateProduct(productId: string, formData: FormData) {
   return { ok: true };
 }
 
-// Additional info / shipping text applies to every product at once (set
-// once here) rather than per product — only the description is per-product.
+// Additional info / shipping / returns / warranty text applies to every
+// product at once (set once here) rather than per product — only the
+// description stays per-product, set in each product's own edit page.
 export async function updateGlobalProductInfo(formData: FormData) {
   const additionalInfo = String(formData.get("global_additional_info") ?? "").trim();
   const shippingInfo = String(formData.get("global_shipping_info") ?? "").trim();
+  const returnsInfo = String(formData.get("returns_info") ?? "").trim();
+  const warrantyInfo = String(formData.get("warranty_info") ?? "").trim();
+
+  const fields = {
+    global_additional_info: additionalInfo,
+    global_shipping_info: shippingInfo,
+    returns_info: returnsInfo,
+    warranty_info: warrantyInfo,
+  };
 
   const supabase = createServiceClient();
-  await supabase
-    .from("site_settings")
-    .update({ global_additional_info: additionalInfo, global_shipping_info: shippingInfo })
-    .eq("id", true);
+  // returns_info/warranty_info come from a migration that may not have run
+  // yet — retry without them so additional info/shipping still save.
+  const { error } = await supabase.from("site_settings").update(fields).eq("id", true);
+  if (error) {
+    const { returns_info, warranty_info, ...fallback } = fields;
+    await supabase.from("site_settings").update(fallback).eq("id", true);
+  }
 
+  revalidatePath("/admin/produits");
+  revalidatePath("/", "layout");
+}
+
+// One packaging photo (box/pouch/case) shown on every product page, between
+// the description and the additional-info/shipping accordions.
+export async function uploadPackagingImage(formData: FormData) {
+  const file = formData.get("image") as File | null;
+  if (!file || file.size === 0) return;
+
+  const supabase = createServiceClient();
+  const ext = file.name.split(".").pop() || "jpg";
+  const path = `packaging/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
+    contentType: file.type || "image/jpeg",
+    upsert: false,
+  });
+  if (error) return;
+
+  const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  await supabase.from("site_settings").update({ packaging_image_url: pub.publicUrl }).eq("id", true);
+
+  revalidatePath("/admin/produits");
+  revalidatePath("/", "layout");
+}
+
+export async function removePackagingImage() {
+  const supabase = createServiceClient();
+  await supabase.from("site_settings").update({ packaging_image_url: null }).eq("id", true);
   revalidatePath("/admin/produits");
   revalidatePath("/", "layout");
 }

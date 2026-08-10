@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "./CartProvider";
@@ -81,6 +82,10 @@ export function ProductDetailInteractive({
   baseColor,
   additionalInfo,
   shippingInfo,
+  returnsInfo,
+  warrantyInfo,
+  packagingImageUrl,
+  ratingSummary,
   variants,
   brand,
   category,
@@ -101,6 +106,10 @@ export function ProductDetailInteractive({
   baseColor: string | null;
   additionalInfo: string | null;
   shippingInfo: string | null;
+  returnsInfo: string | null;
+  warrantyInfo: string | null;
+  packagingImageUrl: string | null;
+  ratingSummary: { average: number; count: number } | null;
   variants: VariantDetail[];
   brand: { name: string; slug: string } | null;
   category: { name: string; slug: string } | null;
@@ -197,6 +206,18 @@ export function ProductDetailInteractive({
           </Link>
         )}
         <h1 className="mt-1 font-serif text-2xl">{name}</h1>
+
+        {ratingSummary && (
+          <p className="mt-1.5 flex items-center gap-1.5 text-sm text-neutral-600">
+            <span className="text-amber-500" aria-hidden>
+              {"★".repeat(Math.round(ratingSummary.average))}
+              {"☆".repeat(5 - Math.round(ratingSummary.average))}
+            </span>
+            {t["product.ratingSummary"]
+              .replace("{rating}", ratingSummary.average.toFixed(1))
+              .replace("{count}", String(ratingSummary.count))}
+          </p>
+        )}
 
         <p className="mt-3 text-lg">
           {hasPrice ? (
@@ -337,9 +358,25 @@ export function ProductDetailInteractive({
         </div>
 
         <div className="mt-6 border-t border-neutral-200">
-          <Accordion title={t["product.description"]} defaultOpen>
-            {description || "—"}
-          </Accordion>
+          <Accordion title={t["product.description"]}>{description || "—"}</Accordion>
+        </div>
+
+        {packagingImageUrl && (
+          <div className="mt-6">
+            <p className="mb-3 text-sm font-semibold uppercase tracking-wide">{t["product.packagingTitle"]}</p>
+            <div className="relative aspect-[4/3] w-full overflow-hidden bg-neutral-100">
+              <Image
+                src={packagingImageUrl}
+                alt={t["product.packagingTitle"]}
+                fill
+                sizes="(min-width: 768px) 50vw, 100vw"
+                className="object-cover"
+              />
+            </div>
+          </div>
+        )}
+
+        <div className={packagingImageUrl ? "" : "border-t border-neutral-200"}>
           <Accordion title={t["product.additionalInfo"]}>
             {additionalInfo ? (
               <p className="whitespace-pre-line">{additionalInfo}</p>
@@ -360,6 +397,12 @@ export function ProductDetailInteractive({
                 <p>{t["product.shippingOutside"]}</p>
               </>
             )}
+          </Accordion>
+          <Accordion title={t["product.returns"]}>
+            <p className="whitespace-pre-line">{returnsInfo || t["product.returnsDefault"]}</p>
+          </Accordion>
+          <Accordion title={t["product.warranty"]}>
+            <p className="whitespace-pre-line">{warrantyInfo || t["product.warrantyDefault"]}</p>
           </Accordion>
         </div>
       </div>
