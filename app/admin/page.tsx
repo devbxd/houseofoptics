@@ -17,8 +17,8 @@ export default async function AdminOverviewPage() {
     supabase.from("products").select("*", { count: "exact", head: true }),
     supabase.from("categories").select("*", { count: "exact", head: true }),
     supabase.from("orders").select("*", { count: "exact", head: true }),
-    supabase.from("page_views").select("*", { count: "exact", head: true }),
-    supabase.from("page_views").select("*", { count: "exact", head: true }).gte("created_at", sevenDaysAgo),
+    supabase.from("site_visits").select("*", { count: "exact", head: true }),
+    supabase.from("site_visits").select("*", { count: "exact", head: true }).gte("created_at", sevenDaysAgo),
     supabase.from("newsletter_subscribers").select("*", { count: "exact", head: true }),
     supabase.from("wishlist_events").select("product_id").order("created_at", { ascending: false }).limit(5000),
   ]);
