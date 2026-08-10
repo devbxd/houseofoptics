@@ -19,7 +19,9 @@ export default async function HomePage() {
     await Promise.all([
       listProducts({}, 1, 12),
       getCategories(),
-      supabase.from("brands").select("id, name, slug, logo_url").order("sort_order", { ascending: true }),
+      // select("*") rather than naming featured_on_homepage/homepage_banner_url
+      // — they come from a migration that may not have run yet.
+      supabase.from("brands").select("*").order("sort_order", { ascending: true }),
       getServerDict(),
       supabase
         .from("testimonials")
@@ -44,17 +46,17 @@ export default async function HomePage() {
     product: Array.isArray(p.product) ? p.product[0] ?? null : p.product,
   }));
 
-  // Three full-bleed "shop the brand" blocks — one lifestyle image plus a
-  // small product grid per brand — shown lower on the homepage.
-  const FEATURED_BRAND_SLUGS = ["cartier", "dior", "prada"];
-  const featuredBrands = FEATURED_BRAND_SLUGS.map((slug) => (brands ?? []).find((b) => b.slug === slug)).filter(
-    (b): b is NonNullable<typeof b> => !!b
-  );
+  // Full-bleed "shop the brand" blocks — one banner photo plus a small
+  // product grid per brand — shown lower on the homepage, for whichever
+  // brands the client ticks "Featured on homepage" for (Admin > Brands).
+  // Capped so ticking many brands can't turn the homepage into an endless
+  // page of extra product queries.
+  const featuredBrands = (brands ?? []).filter((b: any) => b.featured_on_homepage).slice(0, 6);
   const brandShowcases = (
     await Promise.all(
-      featuredBrands.map(async (b) => {
+      featuredBrands.map(async (b: any) => {
         const { products } = await listProducts({ brandSlug: b.slug }, 1, 4);
-        return { brand: b, products, banner: products[0]?.images[0]?.url ?? null };
+        return { brand: b, products, banner: b.homepage_banner_url || products[0]?.images[0]?.url || null };
       })
     )
   ).filter((s) => s.products.length > 0 && s.banner);
@@ -164,7 +166,10 @@ export default async function HomePage() {
 
       {brandShowcases.map(({ brand, products, banner }) => (
         <section key={brand.id}>
-          <Link href={`/marque/${brand.slug}`} className="group relative block h-[70vh] min-h-[420px] overflow-hidden bg-neutral-100">
+          <Link
+            href={`/marque/${brand.slug}`}
+            className="group relative block aspect-[4/5] overflow-hidden bg-neutral-100 sm:aspect-[16/9] lg:aspect-[21/9]"
+          >
             <Image
               src={banner!}
               alt={brand.name}

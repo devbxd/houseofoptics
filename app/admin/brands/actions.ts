@@ -52,3 +52,45 @@ export async function uploadBrandLogo(id: string, formData: FormData) {
   revalidatePath("/admin/brands");
   revalidatePath("/", "layout");
 }
+
+// The homepage showcase banner is its own photo, deliberately separate
+// from a product photo — the client picks one framed for a wide banner
+// instead of it being auto-cropped from whatever a product happens to have.
+export async function uploadBrandBanner(id: string, formData: FormData) {
+  const file = formData.get("banner") as File | null;
+  if (!file || file.size === 0) return;
+
+  const supabase = createServiceClient();
+  const ext = file.name.split(".").pop() || "jpg";
+  const path = `brands/banners/${id}-${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from("products").upload(path, file, {
+    contentType: file.type || "image/jpeg",
+    upsert: false,
+  });
+  if (error) throw new Error(error.message);
+
+  const { data: pub } = supabase.storage.from("products").getPublicUrl(path);
+  const { error: updateError } = await supabase
+    .from("brands")
+    .update({ homepage_banner_url: pub.publicUrl })
+    .eq("id", id);
+  if (updateError) throw new Error("Couldn't save the banner — the database may need the latest migration applied.");
+
+  revalidatePath("/admin/brands");
+  revalidatePath("/", "layout");
+}
+
+export async function removeBrandBanner(id: string) {
+  const supabase = createServiceClient();
+  await supabase.from("brands").update({ homepage_banner_url: null }).eq("id", id);
+  revalidatePath("/admin/brands");
+  revalidatePath("/", "layout");
+}
+
+export async function setBrandFeatured(id: string, featured: boolean) {
+  const supabase = createServiceClient();
+  const { error } = await supabase.from("brands").update({ featured_on_homepage: featured }).eq("id", id);
+  if (error) throw new Error("Couldn't save — the database may need the latest migration applied.");
+  revalidatePath("/admin/brands");
+  revalidatePath("/", "layout");
+}

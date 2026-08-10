@@ -5,10 +5,10 @@ import { SubmitButton } from "@/components/SubmitButton";
 
 export default async function AdminBrandsPage() {
   const supabase = await createClient();
-  const { data: brands } = await supabase
-    .from("brands")
-    .select("id, name, slug, logo_url")
-    .order("sort_order", { ascending: true });
+  // select("*") rather than naming featured_on_homepage/homepage_banner_url —
+  // they come from a migration that may not have run yet, and "*" degrades
+  // gracefully instead of erroring on a missing column.
+  const { data: brands } = await supabase.from("brands").select("*").order("sort_order", { ascending: true });
 
   const counts = new Map<string, number>();
   await Promise.all(
@@ -24,6 +24,8 @@ export default async function AdminBrandsPage() {
       <p className="mb-6 max-w-lg text-sm text-neutral-500">
         Ray-Ban, Gucci, Prada... Create brands here, then assign each product to one when editing it.
         Click the logo square next to a brand name to upload its logo — it shows up on the shop and homepage.
+        Tick "Featured on homepage" and upload a banner photo to give a brand its own showcase section on the
+        homepage (its products underneath are automatic).
       </p>
 
       <form action={createBrand} className="mb-8 flex max-w-md gap-2">
