@@ -28,14 +28,40 @@ function generateCode(): string {
   return code;
 }
 
+const SPIN_COOLDOWN_MS = 24 * 60 * 60 * 1000; // one spin per email every 24h
+
 export async function spinWheel(email: string): Promise<{ discountPercent: number; code: string | null }> {
-  const trimmed = email.trim();
+  const trimmed = email.trim().toLowerCase();
   if (!trimmed || !trimmed.includes("@")) {
     throw new Error("A valid email is required");
   }
 
-  const discountPercent = pickWeighted();
   const supabase = createServiceClient();
+
+  // Gate every attempt (win or not) by email — otherwise "no luck" spins
+  // are free and someone can just keep spinning with the same address.
+  const { data: lastAttempt } = await supabase
+    .from("spin_wheel_attempts")
+    .select("created_at")
+    .eq("email", trimmed)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (lastAttempt) {
+    const elapsed = Date.now() - new Date(lastAttempt.created_at).getTime();
+    if (elapsed < SPIN_COOLDOWN_MS) {
+      const hoursLeft = Math.max(1, Math.ceil((SPIN_COOLDOWN_MS - elapsed) / (60 * 60 * 1000)));
+      throw new Error(`You've already spun with this email — try again in ${hoursLeft}h.`);
+    }
+  }
+
+  // spin_wheel_attempts comes from a migration that may not have run yet —
+  // if the insert silently fails the spin still works, just without the
+  // cooldown being enforced until the migration is applied.
+  await supabase.from("spin_wheel_attempts").insert({ email: trimmed });
+
+  const discountPercent = pickWeighted();
 
   let code: string | null = null;
   if (discountPercent > 0) {

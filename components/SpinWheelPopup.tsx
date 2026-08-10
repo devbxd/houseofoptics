@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { spinWheel } from "@/app/(site)/spin-wheel-actions";
 
-const RED = "#7a1224";
-const GOLD = "#d9a86c";
+const WHEEL_BLACK = "var(--color-dark, #111111)";
+const WHEEL_WHITE = "#ffffff";
+const WHEEL_ACCENT = "var(--color-accent, #c8102e)";
 
 const SEGMENTS = [
   { percent: 0, label: "No luck" },
@@ -17,13 +18,15 @@ const SEGMENTS = [
 const SEGMENT_ANGLE = 360 / SEGMENTS.length;
 
 const WHEEL_BACKGROUND = `conic-gradient(${SEGMENTS.map((_, i) => {
-  const color = i % 2 === 0 ? RED : GOLD;
+  const color = i % 2 === 0 ? WHEEL_BLACK : WHEEL_WHITE;
   const from = i * SEGMENT_ANGLE;
   const to = from + SEGMENT_ANGLE;
   return `${color} ${from}deg ${to}deg`;
 }).join(", ")})`;
 
+const SPIN_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const DISMISS_KEY = "house-of-optics-spin-wheel-dismissed";
+const LAST_SPIN_KEY = "house-of-optics-spin-wheel-last-spin";
 
 export function SpinWheelPopup({ brandName }: { brandName: string }) {
   const [dismissed, setDismissed] = useState(true);
@@ -35,16 +38,26 @@ export function SpinWheelPopup({ brandName }: { brandName: string }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const already = !!localStorage.getItem(DISMISS_KEY);
-    setDismissed(already);
-    if (already) return;
+    const closedWithoutPlaying = !!localStorage.getItem(DISMISS_KEY);
+    const lastSpinRaw = localStorage.getItem(LAST_SPIN_KEY);
+    const stillOnCooldown = lastSpinRaw ? Date.now() - Number(lastSpinRaw) < SPIN_COOLDOWN_MS : false;
+    const shouldHide = closedWithoutPlaying || stillOnCooldown;
+    setDismissed(shouldHide);
+    if (shouldHide) return;
     const timer = setTimeout(() => setVisible(true), 1200);
     return () => clearTimeout(timer);
   }, []);
 
-  function close() {
+  // Declined without spinning — don't show it again on this browser.
+  function closeWithoutPlaying() {
     setVisible(false);
     localStorage.setItem(DISMISS_KEY, "1");
+  }
+
+  // Already spun — the 24h cooldown (LAST_SPIN_KEY) governs when it can
+  // reappear, so this must NOT set the permanent dismiss flag.
+  function closeAfterSpin() {
+    setVisible(false);
   }
 
   async function handleSpin(e: React.FormEvent) {
@@ -58,6 +71,7 @@ export function SpinWheelPopup({ brandName }: { brandName: string }) {
 
     try {
       const res = await spinWheel(email);
+      localStorage.setItem(LAST_SPIN_KEY, String(Date.now()));
       const matchingIndexes = SEGMENTS.map((s, i) => (s.percent === res.discountPercent ? i : -1)).filter((i) => i >= 0);
       const targetIndex = matchingIndexes[Math.floor(Math.random() * matchingIndexes.length)];
       const segmentCenter = targetIndex * SEGMENT_ANGLE + SEGMENT_ANGLE / 2;
@@ -68,8 +82,8 @@ export function SpinWheelPopup({ brandName }: { brandName: string }) {
       setRotation(target);
       setResult(res);
       setTimeout(() => setPhase("result"), 4600);
-    } catch {
-      setError("Something went wrong, please try again.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong, please try again.");
       setPhase("idle");
     }
   }
@@ -81,7 +95,7 @@ export function SpinWheelPopup({ brandName }: { brandName: string }) {
       className={`fixed inset-0 z-[75] flex items-center justify-center bg-black/60 px-4 transition-opacity duration-500 ${
         visible ? "opacity-100" : "pointer-events-none opacity-0"
       }`}
-      onClick={phase === "idle" ? close : undefined}
+      onClick={phase === "idle" ? closeWithoutPlaying : undefined}
     >
       <div
         className={`relative w-full max-w-sm overflow-hidden rounded-2xl bg-white p-6 text-center shadow-2xl transition-transform duration-500 sm:p-8 ${
@@ -91,7 +105,7 @@ export function SpinWheelPopup({ brandName }: { brandName: string }) {
       >
         <button
           type="button"
-          onClick={close}
+          onClick={phase === "idle" ? closeWithoutPlaying : closeAfterSpin}
           aria-label="Close"
           className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full text-xl leading-none text-neutral-400 hover:text-brand-black"
         >
@@ -102,13 +116,14 @@ export function SpinWheelPopup({ brandName }: { brandName: string }) {
         <div className="relative mx-auto mb-4 h-[220px] w-[220px] sm:h-[250px] sm:w-[250px]">
           <div
             className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1"
-            style={{ width: 0, height: 0, borderLeft: "8px solid transparent", borderRight: "8px solid transparent", borderTop: "14px solid #1a1a1a" }}
+            style={{ width: 0, height: 0, borderLeft: "8px solid transparent", borderRight: "8px solid transparent", borderTop: `14px solid ${WHEEL_ACCENT}` }}
           />
 
           <div
-            className="h-full w-full rounded-full border-4 border-white shadow-[0_6px_20px_rgba(0,0,0,0.35)] transition-transform ease-out"
+            className="h-full w-full rounded-full shadow-[0_6px_20px_rgba(0,0,0,0.35)] transition-transform ease-out"
             style={{
               background: WHEEL_BACKGROUND,
+              border: `4px solid ${WHEEL_ACCENT}`,
               transform: `rotate(${rotation}deg)`,
               transitionDuration: phase === "spinning" ? "4500ms" : "0ms",
             }}
@@ -119,7 +134,7 @@ export function SpinWheelPopup({ brandName }: { brandName: string }) {
                 <div key={i} className="absolute left-1/2 top-1/2 h-0 w-0" style={{ transform: `rotate(${angle}deg)` }}>
                   <span
                     className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-bold uppercase tracking-wide sm:text-xs"
-                    style={{ top: -100, color: i % 2 === 0 ? "#fdf1e2" : "#4a1414" }}
+                    style={{ top: -100, color: i % 2 === 0 ? WHEEL_WHITE : WHEEL_BLACK }}
                   >
                     {s.label}
                   </span>
@@ -128,7 +143,10 @@ export function SpinWheelPopup({ brandName }: { brandName: string }) {
             })}
           </div>
 
-          <div className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-center text-[9px] font-bold uppercase leading-tight text-brand-black shadow-md">
+          <div
+            className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-center text-[9px] font-bold uppercase leading-tight text-brand-black shadow-md"
+            style={{ border: `2px solid ${WHEEL_ACCENT}` }}
+          >
             {brandName}
           </div>
         </div>
@@ -179,7 +197,7 @@ export function SpinWheelPopup({ brandName }: { brandName: string }) {
             )}
             <button
               type="button"
-              onClick={close}
+              onClick={closeAfterSpin}
               className="mt-6 w-full border border-brand-black py-3 text-sm uppercase tracking-widest text-brand-black transition-colors hover:bg-brand-black hover:text-white"
             >
               Continue shopping
