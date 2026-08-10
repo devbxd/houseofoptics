@@ -106,3 +106,16 @@ export async function moveFooterLink(id: string, sectionId: string, direction: "
   ]);
   refresh();
 }
+
+// The text shown on pages like /page/warranty, /page/faq... — editing the
+// text here means the client never has to touch the footer link's URL.
+export async function updateContentPage(id: string, title: string, body: string) {
+  if (!title.trim()) return;
+  const supabase = createServiceClient();
+  const { error } = await supabase
+    .from("content_pages")
+    .update({ title: title.trim(), body: body.trim(), updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw new Error("Couldn't save — the database may need the latest migration applied.");
+  refresh();
+}

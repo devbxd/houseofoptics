@@ -2,12 +2,13 @@ import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
 import { updateFooterSocials } from "./actions";
 import { FooterSectionsManager } from "./FooterSectionsManager";
+import { ContentPagesManager } from "./ContentPagesManager";
 import { SubmitButton } from "@/components/SubmitButton";
 
 export default async function AdminFooterPage() {
   const supabase = createServiceClient();
 
-  const [{ data: settings }, { data: sectionsRaw }] = await Promise.all([
+  const [{ data: settings }, { data: sectionsRaw }, { data: contentPages }] = await Promise.all([
     // select("*") — youtube_url/tiktok_url/pinterest_url/footer_copyright_text
     // come from a migration that may not have run yet.
     supabase.from("site_settings").select("*").single(),
@@ -15,6 +16,9 @@ export default async function AdminFooterPage() {
       .from("footer_sections")
       .select("id, title, links:footer_links(id, label, url, sort_order)")
       .order("sort_order", { ascending: true }),
+    // content_pages comes from a migration that may not have run yet — a
+    // missing table just yields null data here.
+    supabase.from("content_pages").select("id, slug, title, body").order("title", { ascending: true }),
   ]);
 
   const sections = (sectionsRaw ?? []).map((s: any) => ({
@@ -56,9 +60,18 @@ export default async function AdminFooterPage() {
         </form>
       </div>
 
-      <div className="max-w-2xl">
+      <div className="mb-8 max-w-2xl">
         <p className="mb-3 text-sm font-medium">Link sections</p>
         <FooterSectionsManager sections={sections} />
+      </div>
+
+      <div className="max-w-2xl">
+        <p className="mb-1 text-sm font-medium">Page content</p>
+        <p className="mb-3 text-xs text-neutral-500">
+          The actual text shown on Terms of Sale, Warranty, FAQ and the other footer pages — click Edit to change
+          what a page says, no need to touch the link itself.
+        </p>
+        <ContentPagesManager pages={contentPages ?? []} />
       </div>
     </div>
   );
