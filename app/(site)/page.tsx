@@ -44,12 +44,15 @@ export default async function HomePage() {
     product: Array.isArray(p.product) ? p.product[0] ?? null : p.product,
   }));
 
-  // A handful of full-bleed "shop the brand" blocks — one lifestyle image
-  // plus a small product grid per brand — shown lower on the homepage.
-  // Capped to 4 brands so a small catalog doesn't turn into an endless page.
+  // Three full-bleed "shop the brand" blocks — one lifestyle image plus a
+  // small product grid per brand — shown lower on the homepage.
+  const FEATURED_BRAND_SLUGS = ["cartier", "dior", "prada"];
+  const featuredBrands = FEATURED_BRAND_SLUGS.map((slug) => (brands ?? []).find((b) => b.slug === slug)).filter(
+    (b): b is NonNullable<typeof b> => !!b
+  );
   const brandShowcases = (
     await Promise.all(
-      (brands ?? []).slice(0, 4).map(async (b) => {
+      featuredBrands.map(async (b) => {
         const { products } = await listProducts({ brandSlug: b.slug }, 1, 4);
         return { brand: b, products, banner: products[0]?.images[0]?.url ?? null };
       })
