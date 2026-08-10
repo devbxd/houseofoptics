@@ -10,15 +10,24 @@ export default async function ClientsPage({
   const search = (q ?? "").trim().toLowerCase();
 
   const supabase = createServiceClient();
-  const { data: orders } = await supabase
-    .from("orders")
-    .select("customer_name, customer_email, customer_phone, created_at")
-    .order("created_at", { ascending: false });
+  const [{ data: orders }, { data: spinWins }] = await Promise.all([
+    supabase
+      .from("orders")
+      .select("customer_name, customer_email, customer_phone, created_at")
+      .order("created_at", { ascending: false }),
+    // spin_wheel_wins comes from a migration that may not have run yet —
+    // a missing table just yields null data here, handled by `?? []` below.
+    supabase.from("spin_wheel_wins").select("email").order("created_at", { ascending: false }),
+  ]);
 
   // No separate customers table — a "client" is every distinct email seen
-  // across orders. Keep the most recent name/phone for that email in case
-  // they changed between orders.
-  const byEmail = new Map<string, { name: string; phone: string; email: string; orderCount: number }>();
+  // across orders, plus every email captured by the spin wheel (even if
+  // they never ordered). Keep the most recent name/phone for that email in
+  // case they changed between orders.
+  const byEmail = new Map<
+    string,
+    { name: string; phone: string; email: string; orderCount: number; spinCount: number }
+  >();
   for (const o of orders ?? []) {
     const existing = byEmail.get(o.customer_email);
     if (existing) {
@@ -29,12 +38,24 @@ export default async function ClientsPage({
         phone: o.customer_phone,
         email: o.customer_email,
         orderCount: 1,
+        spinCount: 0,
       });
+    }
+  }
+  for (const w of spinWins ?? []) {
+    const existing = byEmail.get(w.email);
+    if (existing) {
+      existing.spinCount += 1;
+    } else {
+      byEmail.set(w.email, { name: "", phone: "", email: w.email, orderCount: 0, spinCount: 1 });
     }
   }
 
   let clients = Array.from(byEmail.values());
-  if (search) clients = clients.filter((c) => c.name.toLowerCase().includes(search));
+  if (search)
+    clients = clients.filter(
+      (c) => c.name.toLowerCase().includes(search) || c.email.toLowerCase().includes(search)
+    );
 
   return (
     <div>
@@ -61,12 +82,18 @@ export default async function ClientsPage({
             className="flex items-center justify-between rounded-md border border-neutral-200 bg-white p-4"
           >
             <div>
-              <p className="text-sm font-medium">{c.name}</p>
+              <p className="text-sm font-medium">{c.name || "(no order yet — spin wheel only)"}</p>
               <p className="text-xs text-neutral-500">
-                {c.phone} · {c.email}
+                {c.phone ? `${c.phone} · ` : ""}
+                {c.email}
               </p>
             </div>
             <div className="flex items-center gap-4">
+              {c.spinCount > 0 && (
+                <span className="text-xs text-neutral-400">
+                  {c.spinCount} spin{c.spinCount === 1 ? "" : "s"}
+                </span>
+              )}
               <span className="text-xs text-neutral-400">
                 {c.orderCount} order{c.orderCount === 1 ? "" : "s"}
               </span>

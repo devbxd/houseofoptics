@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { uploadModelPhoto } from "./actions";
 import { ModelPhotosGrid } from "./ModelPhotosGrid";
+import { ProductPicker } from "./ProductPicker";
 import { SubmitButton } from "@/components/SubmitButton";
 
 export default async function ModelPhotosPage() {
@@ -40,18 +41,7 @@ export default async function ModelPhotosPage() {
         </div>
         <div>
           <label className="mb-1 block text-sm text-neutral-600">Links to product</label>
-          <select
-            name="product_id"
-            required
-            className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
-          >
-            <option value="">Select a product...</option>
-            {(products ?? []).map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+          <ProductPicker products={products ?? []} />
         </div>
         <SubmitButton className="border border-brand-black px-4 py-2 text-xs uppercase tracking-wide hover:bg-brand-black hover:text-white">
           Add
