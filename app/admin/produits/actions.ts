@@ -143,6 +143,7 @@ export async function createProduct(formData: FormData) {
   const categoryId = String(formData.get("category_id") ?? "") || null;
   const brandId = String(formData.get("brand_id") ?? "") || null;
   const description = String(formData.get("description") ?? "").trim();
+  const additionalInfo = String(formData.get("additional_info") ?? "").trim();
   const priceRaw = String(formData.get("price") ?? "").trim();
   const price = priceRaw ? Number(priceRaw) : null;
   const discountRaw = String(formData.get("discount_percent") ?? "").trim();
@@ -164,6 +165,7 @@ export async function createProduct(formData: FormData) {
     category_id: categoryId,
     brand_id: brandId,
     description,
+    additional_info: additionalInfo,
     price,
     discount_percent: discountPercent,
     stock,
@@ -192,6 +194,7 @@ export async function updateProduct(productId: string, formData: FormData) {
   const categoryId = String(formData.get("category_id") ?? "") || null;
   const brandId = String(formData.get("brand_id") ?? "") || null;
   const description = String(formData.get("description") ?? "").trim();
+  const additionalInfo = String(formData.get("additional_info") ?? "").trim();
   const priceRaw = String(formData.get("price") ?? "").trim();
   const price = priceRaw ? Number(priceRaw) : null;
   const discountRaw = String(formData.get("discount_percent") ?? "").trim();
@@ -214,6 +217,7 @@ export async function updateProduct(productId: string, formData: FormData) {
     category_id: categoryId,
     brand_id: brandId,
     description,
+    additional_info: additionalInfo,
     price,
     discount_percent: discountPercent,
     stock,
@@ -241,28 +245,24 @@ export async function updateProduct(productId: string, formData: FormData) {
   return { ok: true };
 }
 
-// Additional info / shipping / returns / warranty text applies to every
-// product at once (set once here) rather than per product — only the
-// description stays per-product, set in each product's own edit page.
+// Shipping/returns text applies to every product at once (set once here)
+// rather than per product — description AND additional info are per
+// product now, set in each product's own edit page.
 export async function updateGlobalProductInfo(formData: FormData) {
-  const additionalInfo = String(formData.get("global_additional_info") ?? "").trim();
   const shippingInfo = String(formData.get("global_shipping_info") ?? "").trim();
   const returnsInfo = String(formData.get("returns_info") ?? "").trim();
-  const warrantyInfo = String(formData.get("warranty_info") ?? "").trim();
 
   const fields = {
-    global_additional_info: additionalInfo,
     global_shipping_info: shippingInfo,
     returns_info: returnsInfo,
-    warranty_info: warrantyInfo,
   };
 
   const supabase = createServiceClient();
-  // returns_info/warranty_info come from a migration that may not have run
-  // yet — retry without them so additional info/shipping still save.
+  // returns_info comes from a migration that may not have run yet — retry
+  // without it so shipping info still saves.
   const { error } = await supabase.from("site_settings").update(fields).eq("id", true);
   if (error) {
-    const { returns_info, warranty_info, ...fallback } = fields;
+    const { returns_info, ...fallback } = fields;
     await supabase.from("site_settings").update(fallback).eq("id", true);
   }
 

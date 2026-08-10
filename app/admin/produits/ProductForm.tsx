@@ -19,6 +19,7 @@ type Product = {
   id?: string;
   name: string;
   description: string;
+  additional_info?: string | null;
   price: number | null;
   discount_percent?: number | null;
   stock?: number | null;
@@ -175,6 +176,16 @@ export function ProductForm({
           name="description"
           rows={4}
           defaultValue={product?.description}
+          className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+        />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm text-neutral-600">Additional information (specific to this product)</label>
+        <textarea
+          name="additional_info"
+          rows={3}
+          defaultValue={product?.additional_info ?? ""}
           className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
         />
       </div>

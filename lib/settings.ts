@@ -30,12 +30,10 @@ export type SiteSettings = {
   hero_subtitle_fr: string;
   hero_subtitle_en: string;
   hero_subtitle_ar: string;
-  global_additional_info: string;
   global_shipping_info: string;
   spin_wheel_enabled: boolean;
   packaging_image_url: string | null;
   returns_info: string;
-  warranty_info: string;
 };
 
 const DEFAULT_SETTINGS: SiteSettings = {
@@ -68,12 +66,10 @@ const DEFAULT_SETTINGS: SiteSettings = {
   hero_subtitle_fr: "",
   hero_subtitle_en: "",
   hero_subtitle_ar: "",
-  global_additional_info: "",
   global_shipping_info: "",
   spin_wheel_enabled: false,
   packaging_image_url: null,
   returns_info: "",
-  warranty_info: "",
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {

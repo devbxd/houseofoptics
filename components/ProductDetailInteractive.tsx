@@ -83,7 +83,6 @@ export function ProductDetailInteractive({
   additionalInfo,
   shippingInfo,
   returnsInfo,
-  warrantyInfo,
   packagingImageUrl,
   ratingSummary,
   variants,
@@ -107,7 +106,6 @@ export function ProductDetailInteractive({
   additionalInfo: string | null;
   shippingInfo: string | null;
   returnsInfo: string | null;
-  warrantyInfo: string | null;
   packagingImageUrl: string | null;
   ratingSummary: { average: number; count: number } | null;
   variants: VariantDetail[];
@@ -388,6 +386,9 @@ export function ProductDetailInteractive({
               </ul>
             )}
           </Accordion>
+          <Accordion title={t["product.returns"]}>
+            <p className="whitespace-pre-line">{returnsInfo || t["product.returnsDefault"]}</p>
+          </Accordion>
           <Accordion title={t["product.shippingDelivery"]}>
             {shippingInfo ? (
               <p className="whitespace-pre-line">{shippingInfo}</p>
@@ -397,12 +398,6 @@ export function ProductDetailInteractive({
                 <p>{t["product.shippingOutside"]}</p>
               </>
             )}
-          </Accordion>
-          <Accordion title={t["product.returns"]}>
-            <p className="whitespace-pre-line">{returnsInfo || t["product.returnsDefault"]}</p>
-          </Accordion>
-          <Accordion title={t["product.warranty"]}>
-            <p className="whitespace-pre-line">{warrantyInfo || t["product.warrantyDefault"]}</p>
           </Accordion>
         </div>
       </div>

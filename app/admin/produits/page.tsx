@@ -37,21 +37,12 @@ export default async function AdminProductsPage({
   return (
     <div>
       <div className="mb-8 max-w-lg rounded-md border border-neutral-200 bg-white p-4">
-        <p className="mb-1 text-sm font-medium">Additional information &amp; Shipping (all products)</p>
+        <p className="mb-1 text-sm font-medium">Shipping &amp; Returns (all products)</p>
         <p className="mb-3 text-xs text-neutral-500">
-          These two apply to every product at once — only the description is set per product, in each product's
-          own edit page.
+          These two apply to every product at once — description and additional information are set per product,
+          in each product's own edit page.
         </p>
         <form action={updateGlobalProductInfo} className="space-y-3">
-          <div>
-            <label className="mb-1 block text-sm text-neutral-600">Additional information</label>
-            <textarea
-              name="global_additional_info"
-              rows={3}
-              defaultValue={settings.global_additional_info}
-              className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
-            />
-          </div>
           <div>
             <label className="mb-1 block text-sm text-neutral-600">Shipping &amp; delivery</label>
             <textarea
@@ -62,22 +53,12 @@ export default async function AdminProductsPage({
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm text-neutral-600">Returns</label>
+            <label className="mb-1 block text-sm text-neutral-600">Return and exchange</label>
             <textarea
               name="returns_info"
               rows={3}
               defaultValue={settings.returns_info}
               placeholder="Leave empty to use the default returns text"
-              className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm text-neutral-600">Warranty</label>
-            <textarea
-              name="warranty_info"
-              rows={3}
-              defaultValue={settings.warranty_info}
-              placeholder="Leave empty to use the default warranty text"
               className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
             />
           </div>
