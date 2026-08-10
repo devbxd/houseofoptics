@@ -1,10 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { ModeButtons } from "./ModeButtons";
+import { SpinWheelToggle } from "./SpinWheelToggle";
 import type { SiteMode } from "@/lib/settings";
 
 export default async function AdminModePage() {
   const supabase = await createClient();
-  const { data } = await supabase.from("site_settings").select("active_mode").single();
+  // select("*") rather than naming columns — spin_wheel_enabled comes from a
+  // migration that may not have run yet, and "*" degrades gracefully.
+  const { data } = await supabase.from("site_settings").select("*").single();
 
   return (
     <div>
@@ -16,6 +19,9 @@ export default async function AdminModePage() {
       </p>
 
       <ModeButtons initialMode={(data?.active_mode as SiteMode) ?? null} />
+
+      <h2 className="mb-2 mt-10 font-serif text-xl">Promotions</h2>
+      <SpinWheelToggle initialEnabled={!!data?.spin_wheel_enabled} />
     </div>
   );
 }

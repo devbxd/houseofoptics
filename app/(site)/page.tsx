@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import { listProducts } from "@/lib/products";
 import { getCategories, getSiteSettings, localizedHeroTitle } from "@/lib/settings";
 import { NewsletterForm } from "@/components/NewsletterForm";
@@ -7,6 +6,7 @@ import { TestimonialsCarousel } from "@/components/TestimonialsCarousel";
 import { FeedbackForm } from "@/components/FeedbackForm";
 import { HeroCarousel } from "@/components/HeroCarousel";
 import { BrandStrip } from "@/components/BrandStrip";
+import { CategoryCarousel } from "@/components/CategoryCarousel";
 import { ModelPhotosStrip } from "@/components/ModelPhotosStrip";
 import { getServerDict } from "@/lib/locale-server";
 import { createClient } from "@/lib/supabase/server";
@@ -57,9 +57,12 @@ export default async function HomePage() {
     : { data: [] as any[] };
 
   const categoryImageById = new Map<string, string>();
+  const categoryCountById = new Map<string, number>();
   for (const row of categoryPhotoRows ?? []) {
     const r = row as any;
-    if (!r.category_id || categoryImageById.has(r.category_id)) continue;
+    if (!r.category_id) continue;
+    categoryCountById.set(r.category_id, (categoryCountById.get(r.category_id) ?? 0) + 1);
+    if (categoryImageById.has(r.category_id)) continue;
     const img = (r.images ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order)[0];
     if (img) categoryImageById.set(r.category_id, img.url);
   }
@@ -118,36 +121,21 @@ export default async function HomePage() {
 
       {topCategories.length > 0 && (
         <section className="mx-auto max-w-6xl px-4 py-12 md:px-6 md:py-16">
-          <h2 className="mb-8 text-center font-serif text-2xl tracking-wide md:mb-10">{t["home.categories"]}</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-5 lg:grid-cols-4">
-            {topCategories.map((c) => {
-              const img = categoryImageById.get(c.id);
-              return (
-                <Link
-                  key={c.id}
-                  href={`/categorie/${c.slug}`}
-                  className="group relative aspect-square overflow-hidden rounded-sm bg-neutral-100"
-                >
-                  {img ? (
-                    <Image
-                      src={img}
-                      alt=""
-                      fill
-                      quality={90}
-                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                      className="object-cover transition-transform duration-700 ease-out group-hover:scale-110"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 bg-neutral-200" />
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 transition-opacity group-hover:from-black/70" />
-                  <span className="absolute bottom-0 left-0 right-0 p-3 text-center font-serif text-sm tracking-wide text-white md:p-4 md:text-lg">
-                    {c.name}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
+          <h2 className="text-center font-serif text-2xl tracking-wide">{t["home.categories"]}</h2>
+          <p className="mx-auto mb-8 mt-3 max-w-lg text-center text-sm text-neutral-500 md:mb-10">
+            {t["home.categoriesSubtitle"]}
+          </p>
+          <CategoryCarousel
+            categories={topCategories.map((c) => ({
+              id: c.id,
+              slug: c.slug,
+              name: c.name,
+              image: categoryImageById.get(c.id) ?? null,
+              count: categoryCountById.get(c.id) ?? 0,
+            }))}
+            shopNowLabel={t["home.shopNow"]}
+            productsLabel={t["home.productsCount"]}
+          />
         </section>
       )}
 

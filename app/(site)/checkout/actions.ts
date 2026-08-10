@@ -13,6 +13,7 @@ type CheckoutInput = {
   paymentMethod: "card" | "cod";
   shippingZone: "beirut" | "outside_beirut";
   shippingCost: number;
+  promoCode: string | null;
   items: { productId: string; variant: string | null; name: string; price: number; quantity: number }[];
 };
 
@@ -23,28 +24,63 @@ export async function createOrder(input: CheckoutInput) {
 
   const supabase = createServiceClient();
   const itemsTotal = input.items.reduce((a, i) => a + i.price * i.quantity, 0);
-  const total = itemsTotal + input.shippingCost;
 
-  const { data: order, error } = await supabase
-    .from("orders")
-    .insert({
-      customer_name: input.name,
-      customer_email: input.email,
-      customer_phone: input.phone,
-      address: input.address,
-      city: input.city,
-      latitude: input.latitude,
-      longitude: input.longitude,
-      payment_method: input.paymentMethod,
-      shipping_zone: input.shippingZone,
-      shipping_cost: input.shippingCost,
-      total,
-      status: "pending_payment",
-    })
-    .select("id")
-    .single();
+  // Re-validate the promo code against the database rather than trusting
+  // whatever discount the client displayed — an already-used or made-up
+  // code is silently ignored instead of failing the whole order.
+  let discountPercent = 0;
+  let redeemedCode: string | null = null;
+  if (input.promoCode) {
+    const normalized = input.promoCode.trim().toUpperCase();
+    const { data: win } = await supabase
+      .from("spin_wheel_wins")
+      .select("discount_percent")
+      .eq("code", normalized)
+      .is("used_at", null)
+      .maybeSingle();
+    if (win) {
+      discountPercent = win.discount_percent;
+      redeemedCode = normalized;
+    }
+  }
+
+  const discountAmount = Math.round(itemsTotal * (discountPercent / 100) * 100) / 100;
+  const total = itemsTotal - discountAmount + input.shippingCost;
+
+  const orderFields = {
+    customer_name: input.name,
+    customer_email: input.email,
+    customer_phone: input.phone,
+    address: input.address,
+    city: input.city,
+    latitude: input.latitude,
+    longitude: input.longitude,
+    payment_method: input.paymentMethod,
+    shipping_zone: input.shippingZone,
+    shipping_cost: input.shippingCost,
+    promo_code: redeemedCode,
+    discount_amount: discountAmount,
+    total,
+    status: "pending_payment",
+  };
+
+  // promo_code/discount_amount come from a migration that may not have run
+  // yet — retry without them rather than breaking checkout entirely.
+  let { data: order, error } = await supabase.from("orders").insert(orderFields).select("id").single();
+  if (error) {
+    const { promo_code, discount_amount, ...fallback } = orderFields;
+    ({ data: order, error } = await supabase.from("orders").insert(fallback).select("id").single());
+  }
 
   if (error || !order) throw error;
+
+  if (redeemedCode) {
+    await supabase
+      .from("spin_wheel_wins")
+      .update({ used_at: new Date().toISOString() })
+      .eq("code", redeemedCode)
+      .is("used_at", null);
+  }
 
   await supabase.from("order_items").insert(
     input.items.map((i) => ({

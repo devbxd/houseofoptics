@@ -7,6 +7,7 @@ import { useLocale } from "@/lib/locale-client";
 import { createClient } from "@/lib/supabase/client";
 import { createOrder } from "./actions";
 import { getBuyNowItem, clearBuyNowItem, type BuyNowItem } from "@/lib/buy-now";
+import { validatePromoCode } from "../spin-wheel-actions";
 
 const SHIPPING_COST = { beirut: 4, outside_beirut: 6 } as const;
 const EXPRESS_WHATSAPP_NUMBER = "96181701556";
@@ -21,6 +22,8 @@ type ConfirmedOrder = {
   paymentMethod: "card" | "cod";
   shippingZone: "beirut" | "outside_beirut";
   shippingCost: number;
+  promoCode: string | null;
+  discountAmount: number;
   items: { name: string; variant: string | null; quantity: number; price: number }[];
   subtotal: number;
   total: number;
@@ -44,6 +47,7 @@ function buildWhatsAppOrderMessage(orderId: string, o: ConfirmedOrder) {
     itemsText,
     "",
     `Subtotal: $${o.subtotal.toFixed(2)}`,
+    o.promoCode ? `Promo code ${o.promoCode}: -$${o.discountAmount.toFixed(2)}` : null,
     `Shipping (${o.shippingZone === "beirut" ? "Beirut" : "Outside Beirut"}): $${o.shippingCost.toFixed(2)}`,
     `Total: $${o.total.toFixed(2)}`,
     `Payment: ${o.paymentMethod === "cod" ? "Cash on delivery" : "Card"}`,
@@ -82,6 +86,11 @@ export default function CheckoutPage() {
   const [confirmedSnapshot, setConfirmedSnapshot] = useState<ConfirmedOrder | null>(null);
   const [ownerWhatsapp, setOwnerWhatsapp] = useState<string | null>(null);
 
+  const [promoInput, setPromoInput] = useState("");
+  const [promoChecking, setPromoChecking] = useState(false);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountPercent: number } | null>(null);
+
   useEffect(() => {
     const supabase = createClient();
     supabase
@@ -92,10 +101,30 @@ export default function CheckoutPage() {
   }, []);
 
   const shippingCost = SHIPPING_COST[shippingZone];
-  const total = subtotal + shippingCost;
+  const discountAmount = appliedPromo ? subtotal * (appliedPromo.discountPercent / 100) : 0;
+  const total = subtotal - discountAmount + shippingCost;
 
   function update(field: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  async function applyPromoCode() {
+    if (!promoInput.trim()) return;
+    setPromoChecking(true);
+    setPromoError(null);
+    try {
+      const res = await validatePromoCode(promoInput);
+      if (res.valid && res.discountPercent != null) {
+        setAppliedPromo({ code: promoInput.trim().toUpperCase(), discountPercent: res.discountPercent });
+      } else {
+        setAppliedPromo(null);
+        setPromoError(t["checkout.promoInvalid"]);
+      }
+    } catch {
+      setPromoError(t["checkout.genericError"]);
+    } finally {
+      setPromoChecking(false);
+    }
   }
 
   function useMyLocation() {
@@ -137,6 +166,7 @@ export default function CheckoutPage() {
         paymentMethod,
         shippingZone,
         shippingCost,
+        promoCode: appliedPromo?.code ?? null,
         items: items.map((i) => ({
           productId: i.productId,
           variant: i.variant,
@@ -156,6 +186,8 @@ export default function CheckoutPage() {
         paymentMethod,
         shippingZone,
         shippingCost,
+        promoCode: appliedPromo?.code ?? null,
+        discountAmount,
         items: items.map((i) => ({ name: i.name, variant: i.variant, quantity: i.quantity, price: i.price })),
         subtotal,
         total,
@@ -314,6 +346,45 @@ export default function CheckoutPage() {
         </div>
 
         <div>
+          <label className="mb-1 block text-sm text-neutral-600">{t["checkout.promoCode"]}</label>
+          {appliedPromo ? (
+            <div className="flex items-center justify-between border border-brand-black px-4 py-2.5 text-sm">
+              <span>
+                {appliedPromo.code} — {t["checkout.promoApplied"].replace("{percent}", String(appliedPromo.discountPercent))}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setAppliedPromo(null);
+                  setPromoInput("");
+                }}
+                className="text-xs uppercase text-neutral-400 hover:text-red-600"
+              >
+                {t["cart.remove"]}
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <input
+                value={promoInput}
+                onChange={(e) => setPromoInput(e.target.value)}
+                placeholder="SPIN-XXXXXX"
+                className="flex-1 border border-neutral-300 px-3 py-2 text-sm uppercase focus:border-brand-black focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={applyPromoCode}
+                disabled={promoChecking || !promoInput.trim()}
+                className="shrink-0 border border-brand-black px-4 py-2 text-xs uppercase tracking-wide hover:bg-brand-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {promoChecking ? t["checkout.processing"] : t["checkout.promoApply"]}
+              </button>
+            </div>
+          )}
+          {promoError && <p className="mt-1 text-xs text-brand-red">{promoError}</p>}
+        </div>
+
+        <div>
           <label className="mb-2 block text-sm text-neutral-600">{t["checkout.payment"]}</label>
           <div className="space-y-2">
             {(
@@ -347,6 +418,12 @@ export default function CheckoutPage() {
             <p>{t["cart.subtotal"]}</p>
             <p>${subtotal.toFixed(2)}</p>
           </div>
+          {appliedPromo && (
+            <div className="flex items-center justify-between text-sm text-brand-red">
+              <p>{t["checkout.promoDiscount"]}</p>
+              <p>-${discountAmount.toFixed(2)}</p>
+            </div>
+          )}
           <div className="flex items-center justify-between text-sm text-neutral-500">
             <p>{t["checkout.shipping"]}</p>
             <p>${shippingCost.toFixed(2)}</p>

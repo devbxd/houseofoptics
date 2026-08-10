@@ -6,6 +6,7 @@ import { CartFab } from "@/components/CartFab";
 import { PageViewTracker } from "@/components/PageViewTracker";
 import { SiteModeOverlay } from "@/components/site-mode/SiteModeOverlay";
 import { PromoPopup } from "@/components/PromoPopup";
+import { SpinWheelPopup } from "@/components/SpinWheelPopup";
 import { BackButton } from "@/components/BackButton";
 import { getSiteSettings, getCategories } from "@/lib/settings";
 import { getServerDict } from "@/lib/locale-server";
@@ -39,7 +40,11 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         {settings.active_mode && <SiteModeOverlay mode={settings.active_mode} t={t} />}
         <BackButton label={t["nav.back"]} />
         {children}
-        {activePopup && <PromoPopup popup={activePopup} />}
+        {settings.spin_wheel_enabled ? (
+          <SpinWheelPopup brandName={settings.brand_name} />
+        ) : (
+          activePopup && <PromoPopup popup={activePopup} />
+        )}
         <CartFab />
         <BottomNav whatsappNumber={settings.whatsapp_number} contactEmail={settings.contact_email} t={t} />
       </CartProvider>

@@ -11,3 +11,11 @@ export async function setSiteMode(mode: SiteMode) {
   revalidatePath("/", "layout");
   revalidatePath("/admin/mode");
 }
+
+export async function setSpinWheelEnabled(enabled: boolean) {
+  const supabase = createServiceClient();
+  await supabase.from("site_settings").update({ spin_wheel_enabled: enabled }).eq("id", true);
+
+  revalidatePath("/", "layout");
+  revalidatePath("/admin/mode");
+}

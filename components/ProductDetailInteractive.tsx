@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "./CartProvider";
@@ -22,6 +22,50 @@ type VariantDetail = {
 function variantLabel(v: { color_label: string | null; size_label: string | null }) {
   if (v.color_label && v.size_label) return `${v.color_label} — ${v.size_label}`;
   return v.color_label || v.size_label || "";
+}
+
+function VariantDropdown({
+  placeholder,
+  options,
+  selected,
+  disabledOptions,
+  onSelect,
+}: {
+  placeholder: string;
+  options: string[];
+  selected: string | null;
+  disabledOptions: Set<string>;
+  onSelect: (v: string) => void;
+}) {
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+
+  return (
+    <details ref={detailsRef} className="group relative mt-4">
+      <summary className="flex cursor-pointer list-none items-center justify-between border border-neutral-300 px-4 py-3 text-sm hover:border-brand-black">
+        <span className={selected ? "" : "text-neutral-500"}>{selected ?? placeholder}</span>
+        <svg viewBox="0 0 20 20" fill="currentColor" className="h-3 w-3 shrink-0 transition-transform group-open:rotate-180">
+          <path d="M5 7l5 5 5-5H5z" />
+        </svg>
+      </summary>
+      <div className="absolute inset-x-0 top-full z-10 mt-1 max-h-60 overflow-y-auto border border-neutral-300 bg-white shadow-lg">
+        {options.map((opt) => (
+          <button
+            key={opt}
+            type="button"
+            disabled={disabledOptions.has(opt)}
+            onClick={() => {
+              onSelect(opt);
+              if (detailsRef.current) detailsRef.current.open = false;
+            }}
+            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <span className="w-4 shrink-0">{selected === opt ? "✓" : ""}</span>
+            {opt}
+          </button>
+        ))}
+      </div>
+    </details>
+  );
 }
 
 export function ProductDetailInteractive({
@@ -69,15 +113,11 @@ export function ProductDetailInteractive({
   const router = useRouter();
 
   // Each entry in `variants` is a full version of the product (its own
-  // color/size combo, photo, price, stock) — selecting one is optional and
-  // tapping it again deselects it, falling back to the base product.
+  // color/size combo, photo, price, stock) — picking one from the dropdown
+  // is optional, the base product info shows until something is picked.
   const [selected, setSelected] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
-
-  function pickVariant(label: string) {
-    setSelected((sel) => (sel === label ? null : label));
-  }
 
   const active = selected ? variants.find((v) => variantLabel(v) === selected) ?? null : null;
 
@@ -194,25 +234,17 @@ export function ProductDetailInteractive({
 
         {variants.length > 0 && (
           <div className="mt-4">
-            <p className="mb-2 text-sm text-neutral-600">{t["product.variantOptional"]}</p>
-            <div className="flex flex-wrap gap-2">
-              {variants.map((v) => {
-                const l = variantLabel(v);
-                return (
-                  <button
-                    key={l}
-                    type="button"
-                    onClick={() => pickVariant(l)}
-                    disabled={v.stock != null && v.stock <= 0}
-                    className={`border px-4 py-1.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                      selected === l ? "border-brand-black bg-brand-black text-white" : "border-neutral-300 hover:border-brand-black"
-                    }`}
-                  >
-                    {l}
-                  </button>
-                );
-              })}
-            </div>
+            <p className="mb-2 text-sm text-neutral-600">
+              {t["product.variantOptional"]}
+              {selected && <span className="ml-1 font-medium text-brand-black">{selected}</span>}
+            </p>
+            <VariantDropdown
+              placeholder={t["product.chooseOption"]}
+              options={variants.map((v) => variantLabel(v))}
+              selected={selected}
+              disabledOptions={new Set(variants.filter((v) => v.stock != null && v.stock <= 0).map((v) => variantLabel(v)))}
+              onSelect={setSelected}
+            />
           </div>
         )}
 

@@ -26,6 +26,7 @@ export type SiteSettings = {
   hero_title_ar: string;
   global_additional_info: string;
   global_shipping_info: string;
+  spin_wheel_enabled: boolean;
 };
 
 const DEFAULT_SETTINGS: SiteSettings = {
@@ -54,6 +55,7 @@ const DEFAULT_SETTINGS: SiteSettings = {
   hero_title_ar: "",
   global_additional_info: "",
   global_shipping_info: "",
+  spin_wheel_enabled: false,
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {
