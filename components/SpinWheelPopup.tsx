@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { spinWheel } from "@/app/(site)/spin-wheel-actions";
+import type { SpinResult } from "@/app/(site)/spin-wheel-actions";
 
 const WHEEL_BLACK = "var(--color-dark, #111111)";
 const WHEEL_WHITE = "#ffffff";
@@ -34,7 +35,7 @@ export function SpinWheelPopup({ brandName }: { brandName: string }) {
   const [email, setEmail] = useState("");
   const [phase, setPhase] = useState<"idle" | "spinning" | "result">("idle");
   const [rotation, setRotation] = useState(0);
-  const [result, setResult] = useState<{ discountPercent: number; code: string | null } | null>(null);
+  const [result, setResult] = useState<Extract<SpinResult, { ok: true }> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -71,6 +72,12 @@ export function SpinWheelPopup({ brandName }: { brandName: string }) {
 
     try {
       const res = await spinWheel(email);
+      if (!res.ok) {
+        setError(res.error);
+        setPhase("idle");
+        return;
+      }
+
       localStorage.setItem(LAST_SPIN_KEY, String(Date.now()));
       const matchingIndexes = SEGMENTS.map((s, i) => (s.percent === res.discountPercent ? i : -1)).filter((i) => i >= 0);
       const targetIndex = matchingIndexes[Math.floor(Math.random() * matchingIndexes.length)];
@@ -82,8 +89,8 @@ export function SpinWheelPopup({ brandName }: { brandName: string }) {
       setRotation(target);
       setResult(res);
       setTimeout(() => setPhase("result"), 4600);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong, please try again.");
+    } catch {
+      setError("Something went wrong, please try again.");
       setPhase("idle");
     }
   }

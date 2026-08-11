@@ -30,10 +30,18 @@ function generateCode(): string {
 
 const SPIN_COOLDOWN_MS = 24 * 60 * 60 * 1000; // one spin per email every 24h
 
-export async function spinWheel(email: string): Promise<{ discountPercent: number; code: string | null }> {
+export type SpinResult =
+  | { ok: true; discountPercent: number; code: string | null }
+  | { ok: false; error: string };
+
+// Returns a result object instead of throwing — Next.js replaces any
+// thrown Server Action error with a generic "Server Components render"
+// message in production builds, which was showing up in the popup instead
+// of the actual "try again in Xh" text.
+export async function spinWheel(email: string): Promise<SpinResult> {
   const trimmed = email.trim().toLowerCase();
   if (!trimmed || !trimmed.includes("@")) {
-    throw new Error("A valid email is required");
+    return { ok: false, error: "A valid email is required" };
   }
 
   const supabase = createServiceClient();
@@ -52,7 +60,7 @@ export async function spinWheel(email: string): Promise<{ discountPercent: numbe
     const elapsed = Date.now() - new Date(lastAttempt.created_at).getTime();
     if (elapsed < SPIN_COOLDOWN_MS) {
       const hoursLeft = Math.max(1, Math.ceil((SPIN_COOLDOWN_MS - elapsed) / (60 * 60 * 1000)));
-      throw new Error(`You've already spun with this email — try again in ${hoursLeft}h.`);
+      return { ok: false, error: `You've already spun with this email — try again in ${hoursLeft}h.` };
     }
   }
 
@@ -79,7 +87,7 @@ export async function spinWheel(email: string): Promise<{ discountPercent: numbe
   // "you agree to receive updates" disclaimer shown on the wheel.
   subscribeToNewsletter(trimmed).catch(() => {});
 
-  return { discountPercent, code };
+  return { ok: true, discountPercent, code };
 }
 
 const CODE_LIFETIME_MS = 60 * 60 * 1000; // codes expire 1 hour after being won
