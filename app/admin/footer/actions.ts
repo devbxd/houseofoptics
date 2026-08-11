@@ -136,3 +136,9 @@ export async function updateContentPage(id: string, title: string, body: string)
   if (error) throw new Error("Couldn't save — the database may need the latest migration applied.");
   refresh();
 }
+
+export async function deleteContentPage(id: string) {
+  const supabase = createServiceClient();
+  await supabase.from("content_pages").delete().eq("id", id);
+  refresh();
+}

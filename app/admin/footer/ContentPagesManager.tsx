@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { updateContentPage } from "./actions";
+import { updateContentPage, deleteContentPage } from "./actions";
 
 type ContentPage = { id: string; slug: string; title: string; body: string };
 
@@ -50,9 +50,22 @@ function ContentPageRow({ page }: { page: ContentPage }) {
         <p className="text-sm font-medium">{page.title}</p>
         <p className="mt-0.5 truncate text-xs text-neutral-400">{page.body || "—"}</p>
       </div>
-      <button type="button" onClick={() => setEditing(true)} className="shrink-0 text-xs text-neutral-500 hover:text-brand-black">
-        Edit
-      </button>
+      <div className="flex shrink-0 items-center gap-3">
+        <button type="button" onClick={() => setEditing(true)} className="text-xs text-neutral-500 hover:text-brand-black">
+          Edit
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (confirm(`Delete the "${page.title}" page? Any footer link still pointing to it will stop working.`)) {
+              startTransition(() => deleteContentPage(page.id));
+            }
+          }}
+          className="text-xs text-neutral-500 hover:text-red-600"
+        >
+          Delete
+        </button>
+      </div>
     </div>
   );
 }
