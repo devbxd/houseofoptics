@@ -24,7 +24,7 @@ type OrderNotification = {
   items: { name: string; variant: string | null; price: number; quantity: number }[];
 };
 
-const FROM = "House of Optics <orders@resend.dev>";
+const FROM = "House of Optics <orders@houseofoptics.net>";
 
 // Never throws — a hiccup sending one email (network blip, Resend rate
 // limit, etc.) must never take down the checkout/newsletter form that

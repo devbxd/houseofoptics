@@ -37,7 +37,7 @@ export async function sendBroadcast(formData: FormData) {
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          from: "House of Optics <orders@resend.dev>",
+          from: "House of Optics <orders@houseofoptics.net>",
           to: [email],
           subject,
           html,
