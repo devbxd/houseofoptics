@@ -83,6 +83,17 @@ export function HamburgerMenu({
                 </span>
               )}
             </Link>
+            <Link
+              href="/historique"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 py-2.5 uppercase tracking-wide"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
+                <path d="M3 12a9 9 0 1 0 3-6.7" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M3 4v5h5M12 8v4l3 2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {t["nav.history"]}
+            </Link>
             {categories.length > 0 && (
               <div className="mt-2 border-t border-neutral-100 pt-2">
                 <CategoryLinks

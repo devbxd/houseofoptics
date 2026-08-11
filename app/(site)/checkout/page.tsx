@@ -7,6 +7,7 @@ import { useLocale } from "@/lib/locale-client";
 import { createClient } from "@/lib/supabase/client";
 import { createOrder } from "./actions";
 import { getBuyNowItem, clearBuyNowItem, type BuyNowItem } from "@/lib/buy-now";
+import { addOrderToHistory } from "@/lib/order-history";
 import { validatePromoCode } from "../spin-wheel-actions";
 
 const SHIPPING_COST = { beirut: 4, outside_beirut: 6 } as const;
@@ -175,6 +176,7 @@ export default function CheckoutPage() {
           quantity: i.quantity,
         })),
       });
+      addOrderToHistory(orderId);
       setConfirmedOrderId(orderId);
       setConfirmedSnapshot({
         name: form.name,
