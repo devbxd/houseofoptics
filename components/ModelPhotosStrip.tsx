@@ -10,7 +10,10 @@ type ModelPhoto = { id: string; image_url: string; product: { name: string; slug
 // still drag/swipe it by hand to move faster.
 export function ModelPhotosStrip({ photos, title }: { photos: ModelPhoto[]; title?: string }) {
   const linked = photos.filter((p) => p.product);
-  const loop = linked.length > 4;
+  // Cards here are much wider than the brand logos strip, so even 2 photos
+  // duplicated is already wider than the viewport — no need to wait for a
+  // large count before auto-scroll kicks in.
+  const loop = linked.length > 1;
   const items = loop ? [...linked, ...linked] : linked;
 
   const trackRef = useRef<HTMLDivElement>(null);
