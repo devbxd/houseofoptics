@@ -21,6 +21,27 @@ export function ModelPhotosStrip({ photos, title }: { photos: ModelPhoto[]; titl
   const resumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dragRef = useRef({ startX: 0, startScrollLeft: 0, dragging: false });
 
+  // With no width cap, the track is as wide as its container — if that's
+  // wide enough to fit every (duplicated) card at once, nothing scrolls
+  // and the visitor just sees every photo doubled up. Capping the track's
+  // own width to N-1 cards' worth guarantees there's always one card's
+  // width left to scroll through, so it visibly rotates instead.
+  useEffect(() => {
+    if (!loop) return;
+    const track = trackRef.current;
+    if (!track) return;
+
+    function applyWidthCap() {
+      if (!track) return;
+      const visibleCount = Math.max(1, linked.length - 1);
+      track.style.maxWidth = `${(track.scrollWidth * visibleCount) / (linked.length * 2)}px`;
+    }
+
+    applyWidthCap();
+    window.addEventListener("resize", applyWidthCap);
+    return () => window.removeEventListener("resize", applyWidthCap);
+  }, [loop, linked.length]);
+
   useEffect(() => {
     if (!loop) return;
     const track = trackRef.current;
