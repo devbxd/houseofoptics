@@ -8,7 +8,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 export default async function AdminFooterPage() {
   const supabase = createServiceClient();
 
-  const [{ data: settings }, { data: sectionsRaw }, { data: contentPages }] = await Promise.all([
+  const [{ data: settings }, { data: sectionsRaw }, { data: contentPagesRaw }] = await Promise.all([
     // select("*") — youtube_url/tiktok_url/pinterest_url/footer_copyright_text
     // come from a migration that may not have run yet.
     supabase.from("site_settings").select("*").single(),
@@ -16,15 +16,24 @@ export default async function AdminFooterPage() {
       .from("footer_sections")
       .select("id, title, links:footer_links(id, label, url, sort_order)")
       .order("sort_order", { ascending: true }),
-    // content_pages comes from a migration that may not have run yet — a
-    // missing table just yields null data here.
-    supabase.from("content_pages").select("id, slug, title, body").order("title", { ascending: true }),
+    // content_pages/content_page_blocks come from a migration that may not
+    // have run yet — a missing table just yields null data here.
+    supabase
+      .from("content_pages")
+      .select("id, slug, title, blocks:content_page_blocks(id, type, text, image_urls, sort_order)")
+      .order("title", { ascending: true }),
   ]);
 
   const sections = (sectionsRaw ?? []).map((s: any) => ({
     id: s.id,
     title: s.title,
     links: (s.links ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order),
+  }));
+
+  const contentPages = (contentPagesRaw ?? []).map((p: any) => ({
+    id: p.id,
+    title: p.title,
+    blocks: (p.blocks ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order),
   }));
 
   return (
@@ -71,7 +80,7 @@ export default async function AdminFooterPage() {
           The actual text shown on Terms of Sale, Warranty, FAQ and the other footer pages — click Edit to change
           what a page says, no need to touch the link itself.
         </p>
-        <ContentPagesManager pages={contentPages ?? []} />
+        <ContentPagesManager pages={contentPages} />
       </div>
     </div>
   );

@@ -124,14 +124,14 @@ export async function moveFooterLink(id: string, sectionId: string, direction: "
   refresh();
 }
 
-// The text shown on pages like /page/warranty, /page/faq... — editing the
-// text here means the client never has to touch the footer link's URL.
-export async function updateContentPage(id: string, title: string, body: string) {
+// Only the title — the page's actual content is a list of blocks, edited
+// with the functions below.
+export async function renamePage(id: string, title: string) {
   if (!title.trim()) return;
   const supabase = createServiceClient();
   const { error } = await supabase
     .from("content_pages")
-    .update({ title: title.trim(), body: body.trim(), updated_at: new Date().toISOString() })
+    .update({ title: title.trim(), updated_at: new Date().toISOString() })
     .eq("id", id);
   if (error) throw new Error("Couldn't save — the database may need the latest migration applied.");
   refresh();
@@ -140,5 +140,95 @@ export async function updateContentPage(id: string, title: string, body: string)
 export async function deleteContentPage(id: string) {
   const supabase = createServiceClient();
   await supabase.from("content_pages").delete().eq("id", id);
+  refresh();
+}
+
+async function nextBlockSortOrder(supabase: ReturnType<typeof createServiceClient>, pageId: string) {
+  const { count } = await supabase
+    .from("content_page_blocks")
+    .select("*", { count: "exact", head: true })
+    .eq("page_id", pageId);
+  return count ?? 0;
+}
+
+export async function addTextBlock(pageId: string) {
+  const supabase = createServiceClient();
+  const sort_order = await nextBlockSortOrder(supabase, pageId);
+  const { error } = await supabase.from("content_page_blocks").insert({ page_id: pageId, type: "text", text: "", sort_order });
+  if (error) throw new Error("Couldn't add the block — the database may need the latest migration applied.");
+  refresh();
+}
+
+export async function addImagesBlock(pageId: string) {
+  const supabase = createServiceClient();
+  const sort_order = await nextBlockSortOrder(supabase, pageId);
+  const { error } = await supabase
+    .from("content_page_blocks")
+    .insert({ page_id: pageId, type: "images", image_urls: [], sort_order });
+  if (error) throw new Error("Couldn't add the block — the database may need the latest migration applied.");
+  refresh();
+}
+
+export async function updateBlockText(blockId: string, text: string) {
+  const supabase = createServiceClient();
+  await supabase.from("content_page_blocks").update({ text }).eq("id", blockId);
+  refresh();
+}
+
+export async function deleteBlock(blockId: string) {
+  const supabase = createServiceClient();
+  await supabase.from("content_page_blocks").delete().eq("id", blockId);
+  refresh();
+}
+
+export async function moveBlock(blockId: string, pageId: string, direction: "up" | "down") {
+  const supabase = createServiceClient();
+  const { data: blocks } = await supabase
+    .from("content_page_blocks")
+    .select("id, sort_order")
+    .eq("page_id", pageId)
+    .order("sort_order", { ascending: true });
+  if (!blocks) return;
+  const idx = blocks.findIndex((b) => b.id === blockId);
+  const swapWith = direction === "up" ? idx - 1 : idx + 1;
+  if (idx < 0 || swapWith < 0 || swapWith >= blocks.length) return;
+
+  await Promise.all([
+    supabase.from("content_page_blocks").update({ sort_order: blocks[swapWith].sort_order }).eq("id", blocks[idx].id),
+    supabase.from("content_page_blocks").update({ sort_order: blocks[idx].sort_order }).eq("id", blocks[swapWith].id),
+  ]);
+  refresh();
+}
+
+const BUCKET = "products";
+
+export async function uploadBlockImage(blockId: string, formData: FormData) {
+  const file = formData.get("image") as File | null;
+  if (!file || file.size === 0) return;
+
+  const supabase = createServiceClient();
+  const { data: block } = await supabase.from("content_page_blocks").select("image_urls").eq("id", blockId).single();
+  if (!block) return;
+
+  const ext = file.name.split(".").pop() || "jpg";
+  const path = `content-pages/${blockId}-${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
+    contentType: file.type || "image/jpeg",
+    upsert: false,
+  });
+  if (error) throw new Error(error.message);
+
+  const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  const nextUrls = [...((block.image_urls as string[]) ?? []), pub.publicUrl];
+  await supabase.from("content_page_blocks").update({ image_urls: nextUrls }).eq("id", blockId);
+  refresh();
+}
+
+export async function removeBlockImage(blockId: string, url: string) {
+  const supabase = createServiceClient();
+  const { data: block } = await supabase.from("content_page_blocks").select("image_urls").eq("id", blockId).single();
+  if (!block) return;
+  const nextUrls = ((block.image_urls as string[]) ?? []).filter((u) => u !== url);
+  await supabase.from("content_page_blocks").update({ image_urls: nextUrls }).eq("id", blockId);
   refresh();
 }

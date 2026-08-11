@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -12,14 +13,40 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function ContentPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const supabase = await createClient();
-  const { data } = await supabase.from("content_pages").select("title, body").eq("slug", slug).single();
+  const { data: page } = await supabase.from("content_pages").select("id, title").eq("slug", slug).single();
 
-  if (!data) notFound();
+  if (!page) notFound();
+
+  const { data: blocks } = await supabase
+    .from("content_page_blocks")
+    .select("id, type, text, image_urls")
+    .eq("page_id", page.id)
+    .order("sort_order", { ascending: true });
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-16">
-      <h1 className="font-serif text-2xl">{data.title}</h1>
-      <p className="mt-6 whitespace-pre-line text-sm leading-relaxed text-neutral-700">{data.body}</p>
+      <h1 className="font-serif text-2xl">{page.title}</h1>
+      <div className="mt-6 space-y-8">
+        {(blocks ?? []).map((b) =>
+          b.type === "text" ? (
+            b.text?.trim() ? (
+              <p key={b.id} className="whitespace-pre-line text-sm leading-relaxed text-neutral-700">
+                {b.text}
+              </p>
+            ) : null
+          ) : (
+            (b.image_urls as string[]).length > 0 && (
+              <div key={b.id} className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4" style={{ scrollbarWidth: "none" }}>
+                {(b.image_urls as string[]).map((url) => (
+                  <div key={url} className="relative aspect-[4/5] w-56 shrink-0 overflow-hidden rounded-sm bg-neutral-100">
+                    <Image src={url} alt="" fill sizes="224px" className="object-cover" />
+                  </div>
+                ))}
+              </div>
+            )
+          )
+        )}
+      </div>
     </main>
   );
 }
