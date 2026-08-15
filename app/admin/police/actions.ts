@@ -13,14 +13,13 @@ export async function updateFonts(formData: FormData) {
   const accentFont = accentFontRaw in BODY_FONTS ? accentFontRaw : DEFAULT_ACCENT_FONT;
 
   const supabase = createServiceClient();
-  const fields = { heading_font: headingFont, body_font: bodyFont, accent_font: accentFont };
-  // accent_font comes from a migration that may not have run yet — retry
-  // without it so heading/body font (older columns) still save.
-  const { error } = await supabase.from("site_settings").update(fields).eq("id", true);
-  if (error) {
-    const { accent_font, ...fallback } = fields;
-    await supabase.from("site_settings").update(fallback).eq("id", true);
-  }
+  // heading_font/body_font (older columns, always present) and accent_font
+  // (newer column, migration may not have run on every environment) are
+  // saved as two separate updates — previously they were bundled into one
+  // update() call, so if accent_font's column was missing, the whole call
+  // errored and heading/body silently failed to save too.
+  await supabase.from("site_settings").update({ heading_font: headingFont, body_font: bodyFont }).eq("id", true);
+  await supabase.from("site_settings").update({ accent_font: accentFont }).eq("id", true);
 
   revalidatePath("/", "layout");
   revalidatePath("/admin/police");

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getProductBySlug, getRelatedProducts } from "@/lib/products";
+import { getProductBySlug, getRelatedProducts, getColorSiblings } from "@/lib/products";
 import { getSiteSettings, whatsappLink, phoneLink } from "@/lib/settings";
 import { ProductDetailInteractive } from "@/components/ProductDetailInteractive";
 import { ProductGrid } from "@/components/ProductGrid";
@@ -35,7 +35,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const waHref = settings.whatsapp_number ? whatsappLink(settings.whatsapp_number, orderMessage) : "/contact";
   const callHref = settings.whatsapp_number ? phoneLink(settings.whatsapp_number) : "/contact";
 
-  const related = await getRelatedProducts(product);
+  const [related, colorSiblings] = await Promise.all([getRelatedProducts(product), getColorSiblings(product)]);
 
   const supabase = await createClient();
   const { data: reviews } = await supabase
@@ -73,6 +73,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         packagingImageUrl={settings.packaging_image_url || null}
         ratingSummary={ratingSummary}
         variants={product.variants ?? []}
+        colorSiblings={colorSiblings}
         brand={product.brand}
         category={product.category}
         waHref={waHref}

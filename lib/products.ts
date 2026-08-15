@@ -98,6 +98,30 @@ export async function getRelatedProducts(
   return [];
 }
 
+export type ColorSibling = { id: string; name: string; slug: string; image: string | null; base_color: string | null };
+
+// Products tagged as "other colors" of this one (Admin > Products > edit
+// product > Other colors) — shown as swatches so a shopper can jump between
+// colorways without losing their place.
+export async function getColorSiblings(product: { id: string; color_group_id?: string | null }): Promise<ColorSibling[]> {
+  if (!product.color_group_id) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("products")
+    .select("id, name, slug, base_color, images:product_images(url, sort_order)")
+    .eq("color_group_id", product.color_group_id)
+    .eq("is_active", true)
+    .neq("id", product.id);
+
+  return ((data as any[]) ?? []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    base_color: p.base_color ?? null,
+    image: (p.images ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order)[0]?.url ?? null,
+  }));
+}
+
 export async function getProductBySlug(slug: string) {
   const supabase = await createClient();
   const { data } = await supabase

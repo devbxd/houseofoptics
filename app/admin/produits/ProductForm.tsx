@@ -44,12 +44,14 @@ export function ProductForm({
   brands,
   product,
   submitLabel,
+  allProducts,
 }: {
   action: (formData: FormData) => Promise<unknown>;
   categories: Category[];
   brands: Brand[];
   product?: Product;
   submitLabel: string;
+  allProducts: { id: string; name: string }[];
 }) {
   const flatCategories = flattenCategories(categories);
   const [categoryId, setCategoryId] = useState(product?.category_id ?? "");
@@ -168,7 +170,7 @@ export function ProductForm({
         </div>
       </div>
 
-      <VariantsEditor initial={product?.variants ?? []} categoryId={categoryId} />
+      <VariantsEditor initial={product?.variants ?? []} allProducts={allProducts} />
 
       <div>
         <label className="mb-1 block text-sm text-neutral-600">Description</label>

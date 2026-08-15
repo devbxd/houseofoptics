@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { getCategoryImages } from "./actions";
+import { useMemo, useRef, useState } from "react";
+import { getProductImages } from "./actions";
 
 type VariantRow = {
   key: string;
@@ -36,7 +36,13 @@ function emptyRow(): VariantRow {
   };
 }
 
-export function VariantsEditor({ initial, categoryId }: { initial: VariantData[]; categoryId: string }) {
+export function VariantsEditor({
+  initial,
+  allProducts,
+}: {
+  initial: VariantData[];
+  allProducts: { id: string; name: string }[];
+}) {
   const [rows, setRows] = useState<VariantRow[]>(
     initial.length > 0
       ? initial.map((v) => ({
@@ -55,21 +61,40 @@ export function VariantsEditor({ initial, categoryId }: { initial: VariantData[]
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [pickerRowKey, setPickerRowKey] = useState<string | null>(null);
   const [galleryRowKey, setGalleryRowKey] = useState<string | null>(null);
-  const [categoryImages, setCategoryImages] = useState<string[] | null>(null);
+  const [productQuery, setProductQuery] = useState("");
+  const [galleryProduct, setGalleryProduct] = useState<{ id: string; name: string } | null>(null);
+  const [productImages, setProductImages] = useState<string[] | null>(null);
   const [loadingGallery, setLoadingGallery] = useState(false);
+
+  const filteredProducts = useMemo(() => {
+    const q = productQuery.trim().toLowerCase();
+    if (!q) return allProducts.slice(0, 20);
+    return allProducts.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 20);
+  }, [allProducts, productQuery]);
 
   function update(key: string, patch: Partial<VariantRow>) {
     setRows((r) => r.map((row) => (row.key === key ? { ...row, ...patch } : row)));
   }
 
-  async function openGallery(rowKey: string) {
+  function openGallery(rowKey: string) {
     setPickerRowKey(null);
     setGalleryRowKey(rowKey);
-    // Always refetch rather than caching — the category can change between
-    // opens, and this list is small enough that refetching is cheap.
+    setGalleryProduct(null);
+    setProductImages(null);
+    setProductQuery("");
+  }
+
+  function closeGallery() {
+    setGalleryRowKey(null);
+    setGalleryProduct(null);
+    setProductImages(null);
+  }
+
+  async function pickGalleryProduct(product: { id: string; name: string }) {
+    setGalleryProduct(product);
     setLoadingGallery(true);
-    const urls = await getCategoryImages(categoryId || null);
-    setCategoryImages(urls);
+    const urls = await getProductImages(product.id);
+    setProductImages(urls);
     setLoadingGallery(false);
   }
 
@@ -213,7 +238,7 @@ export function VariantsEditor({ initial, categoryId }: { initial: VariantData[]
               onClick={() => openGallery(pickerRowKey)}
               className="block w-full border border-neutral-300 px-3 py-2.5 text-left text-sm hover:border-brand-black"
             >
-              Choose from this category's photos
+              Choose from a product's photos on the site
             </button>
             <button
               type="button"
@@ -227,40 +252,80 @@ export function VariantsEditor({ initial, categoryId }: { initial: VariantData[]
       )}
 
       {galleryRowKey && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => setGalleryRowKey(null)}
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={closeGallery}>
           <div
             className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-md bg-white p-4 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between">
-              <p className="text-sm font-medium">Category photos</p>
-              <button type="button" onClick={() => setGalleryRowKey(null)} className="text-xl leading-none text-neutral-400 hover:text-brand-black">
+              <p className="text-sm font-medium">
+                {galleryProduct ? `${galleryProduct.name}'s photos` : "Choose a product"}
+              </p>
+              <button type="button" onClick={closeGallery} className="text-xl leading-none text-neutral-400 hover:text-brand-black">
                 ×
               </button>
             </div>
-            {loadingGallery && <p className="text-sm text-neutral-500">Loading...</p>}
-            {!loadingGallery && !categoryId && (
-              <p className="text-sm text-neutral-500">Pick a category for this product first.</p>
+
+            {!galleryProduct && (
+              <div>
+                <input
+                  type="text"
+                  autoFocus
+                  value={productQuery}
+                  onChange={(e) => setProductQuery(e.target.value)}
+                  placeholder="Search a product by name..."
+                  className="mb-3 w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+                />
+                <ul className="max-h-64 divide-y divide-neutral-100 overflow-y-auto">
+                  {filteredProducts.map((p) => (
+                    <li key={p.id}>
+                      <button
+                        type="button"
+                        onClick={() => pickGalleryProduct(p)}
+                        className="block w-full px-2 py-2 text-left text-sm hover:bg-neutral-100"
+                      >
+                        {p.name}
+                      </button>
+                    </li>
+                  ))}
+                  {filteredProducts.length === 0 && (
+                    <li className="py-2 text-sm text-neutral-500">No products match.</li>
+                  )}
+                </ul>
+              </div>
             )}
-            {!loadingGallery && categoryId && categoryImages && categoryImages.length === 0 && (
-              <p className="text-sm text-neutral-500">No photos found in this category yet.</p>
-            )}
-            {!loadingGallery && categoryImages && categoryImages.length > 0 && (
-              <div className="grid grid-cols-4 gap-2">
-                {categoryImages.map((url) => (
-                  <button
-                    key={url}
-                    type="button"
-                    onClick={() => chooseFromGallery(url)}
-                    className="relative aspect-square overflow-hidden rounded border border-neutral-200 hover:border-brand-black"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element -- small gallery thumbnail, next/image's fill sizing isn't worth it here */}
-                    <img src={url} alt="" className="h-full w-full object-cover" />
-                  </button>
-                ))}
+
+            {galleryProduct && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGalleryProduct(null);
+                    setProductImages(null);
+                  }}
+                  className="mb-3 text-xs uppercase tracking-wide text-neutral-500 hover:text-brand-black"
+                >
+                  ← Choose a different product
+                </button>
+                {loadingGallery && <p className="text-sm text-neutral-500">Loading...</p>}
+                {!loadingGallery && productImages && productImages.length === 0 && (
+                  <p className="text-sm text-neutral-500">This product has no photos yet.</p>
+                )}
+                {!loadingGallery && productImages && productImages.length > 0 && (
+                  <div className="grid grid-cols-4 gap-2">
+                    {productImages.map((url) => (
+                      <button
+                        key={url}
+                        type="button"
+                        onClick={() => chooseFromGallery(url)}
+                        className="relative aspect-square overflow-hidden rounded border border-neutral-200 hover:border-brand-black"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element -- small gallery thumbnail, next/image's fill sizing isn't worth it here */}
+                        <img src={url} alt="" className="h-full w-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

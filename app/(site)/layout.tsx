@@ -68,7 +68,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           activePopup && <PromoPopup popup={activePopup} />
         )}
         <CartFab />
-        <BottomNav whatsappNumber={settings.whatsapp_number} contactEmail={settings.contact_email} t={t} />
+        <BottomNav whatsappNumber={settings.whatsapp_number} t={t} />
       </CartProvider>
     </WishlistProvider>
   );

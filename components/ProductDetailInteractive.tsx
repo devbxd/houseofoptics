@@ -86,6 +86,7 @@ export function ProductDetailInteractive({
   packagingImageUrl,
   ratingSummary,
   variants,
+  colorSiblings,
   brand,
   category,
   waHref,
@@ -109,6 +110,7 @@ export function ProductDetailInteractive({
   packagingImageUrl: string | null;
   ratingSummary: { average: number; count: number } | null;
   variants: VariantDetail[];
+  colorSiblings: { id: string; name: string; slug: string; image: string | null; base_color: string | null }[];
   brand: { name: string; slug: string } | null;
   category: { name: string; slug: string } | null;
   waHref: string;
@@ -249,6 +251,31 @@ export function ProductDetailInteractive({
           <p className="mt-3 text-sm text-neutral-600">
             {t["product.baseColor"]} <span className="font-medium text-brand-black">{baseColor}</span>
           </p>
+        )}
+
+        {colorSiblings.length > 0 && (
+          <div className="mt-4">
+            <p className="mb-2 text-sm text-neutral-600">{t["product.otherColors"]}</p>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href={`/produit/${slug}`}
+                aria-current="true"
+                className="relative h-14 w-14 shrink-0 overflow-hidden rounded border-2 border-brand-black"
+              >
+                {images[0] && <Image src={images[0].url} alt={name} fill sizes="56px" className="object-cover" />}
+              </Link>
+              {colorSiblings.map((c) => (
+                <Link
+                  key={c.id}
+                  href={`/produit/${c.slug}`}
+                  title={c.base_color ?? c.name}
+                  className="relative h-14 w-14 shrink-0 overflow-hidden rounded border border-neutral-300 hover:border-brand-black"
+                >
+                  {c.image && <Image src={c.image} alt={c.base_color ?? c.name} fill sizes="56px" className="object-cover" />}
+                </Link>
+              ))}
+            </div>
+          </div>
         )}
 
         {variants.length > 0 && (

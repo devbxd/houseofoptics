@@ -3,7 +3,6 @@ import { whatsappLink } from "@/lib/settings";
 
 type Props = {
   whatsappNumber: string;
-  contactEmail: string;
   t: Record<string, string>;
 };
 
@@ -26,11 +25,14 @@ function ProductsIcon() {
   );
 }
 
-function MailIcon() {
+function HeartIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-6 w-6 text-white">
-      <path d="M3 6h18v12H3z" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="m3 7 9 6 9-6" strokeLinecap="round" strokeLinejoin="round" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-6 w-6">
+      <path
+        d="M12 20.5s-7.5-4.8-9.8-9.6C.7 7.4 2.3 4 5.7 3.3c2-.4 4 .5 5.3 2.4 1.3-1.9 3.3-2.8 5.3-2.4 3.4.7 5 4.1 3.5 7.6-2.3 4.8-9.8 9.6-9.8 9.6Z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -47,24 +49,23 @@ function ChatIcon() {
   );
 }
 
-function WhatsAppIcon() {
+function WhatsAppIcon({ className = "h-6 w-6" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6">
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
       <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.7.44 3.35 1.28 4.8L2 22l5.42-1.36a9.9 9.9 0 0 0 4.62 1.15h.01c5.46 0 9.9-4.45 9.9-9.9C21.95 6.45 17.5 2 12.04 2Zm0 18.06h-.01a8.16 8.16 0 0 1-4.15-1.14l-.3-.18-3.08.78.83-3-.2-.3a8.13 8.13 0 0 1-1.25-4.3c0-4.49 3.66-8.15 8.16-8.15 2.18 0 4.22.85 5.76 2.4a8.09 8.09 0 0 1 2.39 5.76c0 4.49-3.66 8.13-8.15 8.13Zm4.47-6.1c-.25-.12-1.44-.71-1.66-.79-.22-.08-.39-.12-.55.12-.16.25-.63.79-.77.95-.14.16-.28.18-.53.06-.25-.12-1.04-.38-1.98-1.22-.73-.65-1.23-1.46-1.37-1.7-.14-.25-.02-.39.11-.51.11-.11.25-.28.37-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.55-1.32-.75-1.81-.2-.48-.4-.41-.55-.42-.14-.01-.3-.01-.46-.01-.16 0-.42.06-.64.3-.22.25-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.7 2.6 4.12 3.64.58.25 1.03.4 1.38.51.58.18 1.11.16 1.53.1.47-.07 1.44-.59 1.64-1.16.2-.57.2-1.06.14-1.16-.06-.1-.22-.16-.47-.28Z" />
     </svg>
   );
 }
 
-export function BottomNav({ whatsappNumber, contactEmail, t }: Props) {
+export function BottomNav({ whatsappNumber, t }: Props) {
   const wa = whatsappNumber ? whatsappLink(whatsappNumber) : "/contact";
-  const mail = contactEmail ? `mailto:${contactEmail}` : "/contact";
 
   const items = [
     { href: "/", label: t["nav.home"], icon: <HomeIcon /> },
     { href: "/produits", label: t["nav.products"], icon: <ProductsIcon /> },
-    { href: mail, label: "", icon: <MailIcon />, center: true },
+    { href: wa, label: "", icon: <WhatsAppIcon className="h-6 w-6 text-white" />, center: true, external: true },
     { href: "/contact", label: t["nav.contact"], icon: <ChatIcon /> },
-    { href: wa, label: t["nav.whatsapp"], icon: <WhatsAppIcon />, external: true },
+    { href: "/wishlist", label: t["nav.wishlist"], icon: <HeartIcon /> },
   ];
 
   return (
@@ -72,10 +73,12 @@ export function BottomNav({ whatsappNumber, contactEmail, t }: Props) {
       {items.map((item) =>
         item.center ? (
           <a
-            key={item.label || "contact-center"}
+            key={item.label || "whatsapp-center"}
             href={item.href}
+            target={item.external ? "_blank" : undefined}
+            rel={item.external ? "noopener noreferrer" : undefined}
             className="-mt-6 flex h-14 w-14 items-center justify-center rounded-full bg-brand-red shadow-lg"
-            aria-label="Contact par email"
+            aria-label="WhatsApp"
           >
             {item.icon}
           </a>

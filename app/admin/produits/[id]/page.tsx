@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { ProductForm } from "../ProductForm";
 import { ProductImageGrid } from "../ProductImageGrid";
 import { RelatedProductsEditor } from "../RelatedProductsEditor";
+import { ColorLinksEditor } from "../ColorLinksEditor";
 import { updateProduct } from "../actions";
 
 export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
@@ -36,6 +37,12 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
     name: (Array.isArray(r.related) ? r.related[0]?.name : r.related?.name) ?? "Deleted product",
   }));
 
+  // color_group_id comes from a migration that may not have run yet — a
+  // missing column just means product.color_group_id is undefined here.
+  const { data: colorGroupRows } = product.color_group_id
+    ? await supabase.from("products").select("id, name").eq("color_group_id", product.color_group_id).neq("id", id)
+    : { data: [] as { id: string; name: string }[] };
+
   const images = (product.images ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order);
   // Falls back to the older label/kind columns for rows saved before the
   // color_label/size_label migration ran, so nothing already entered is lost.
@@ -60,8 +67,19 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
         categories={categories ?? []}
         brands={brands ?? []}
         product={{ ...product, variants }}
+        allProducts={allProducts ?? []}
         submitLabel="Save"
       />
+
+      <div className="mt-8 max-w-lg rounded-md border border-neutral-200 bg-white p-4">
+        <p className="mb-1 text-sm font-medium">Other colors</p>
+        <p className="mb-3 text-xs text-neutral-500">
+          Tag other products as different colors of this same model — each keeps its own name, price, stock,
+          photos and description. Linking works both ways: this product's page will show a color swatch for
+          every product tagged here, and theirs will show this one back.
+        </p>
+        <ColorLinksEditor productId={id} current={colorGroupRows ?? []} candidates={allProducts ?? []} />
+      </div>
 
       <div className="mt-8 max-w-lg rounded-md border border-neutral-200 bg-white p-4">
         <p className="mb-1 text-sm font-medium">Related sunglasses</p>

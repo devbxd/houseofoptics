@@ -7,21 +7,17 @@ import { slugify } from "@/lib/slugify";
 
 const BUCKET = "products";
 
-// Lets the variant photo picker offer "reuse a photo already in this
-// category" instead of only uploading a new file.
-export async function getCategoryImages(categoryId: string | null): Promise<string[]> {
-  if (!categoryId) return [];
+// Lets the variant photo picker reuse a photo already uploaded to some
+// product on the site, instead of only uploading a new file.
+export async function getProductImages(productId: string): Promise<string[]> {
+  if (!productId) return [];
   const supabase = createServiceClient();
   const { data } = await supabase
-    .from("products")
-    .select("images:product_images(url)")
-    .eq("category_id", categoryId);
-
-  const urls = new Set<string>();
-  for (const p of data ?? []) {
-    for (const img of (p as any).images ?? []) urls.add(img.url);
-  }
-  return Array.from(urls);
+    .from("product_images")
+    .select("url")
+    .eq("product_id", productId)
+    .order("sort_order", { ascending: true });
+  return (data ?? []).map((row) => row.url);
 }
 
 function parseVariantRows(formData: FormData) {
@@ -252,21 +248,14 @@ export async function updateGlobalProductInfo(formData: FormData) {
   const shippingInfo = String(formData.get("global_shipping_info") ?? "").trim();
   const returnsInfo = String(formData.get("returns_info") ?? "").trim();
 
-  const fields = {
-    global_shipping_info: shippingInfo,
-    returns_info: returnsInfo,
-  };
-
   const supabase = createServiceClient();
-  // returns_info comes from a migration that may not have run yet — retry
-  // without it so shipping info still saves.
-  const { error } = await supabase.from("site_settings").update(fields).eq("id", true);
-  if (error) {
-    const { returns_info, ...fallback } = fields;
-    await supabase.from("site_settings").update(fallback).eq("id", true);
-  }
+  // Saved as two separate updates so a missing column on either one (e.g. a
+  // migration that hasn't run in this environment) can't stop the other
+  // field from saving — see the same fix on the font settings.
+  await supabase.from("site_settings").update({ global_shipping_info: shippingInfo }).eq("id", true);
+  await supabase.from("site_settings").update({ returns_info: returnsInfo }).eq("id", true);
 
-  revalidatePath("/admin/produits");
+  revalidatePath("/admin/reglages");
   revalidatePath("/", "layout");
 }
 
@@ -288,14 +277,14 @@ export async function uploadPackagingImage(formData: FormData) {
   const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
   await supabase.from("site_settings").update({ packaging_image_url: pub.publicUrl }).eq("id", true);
 
-  revalidatePath("/admin/produits");
+  revalidatePath("/admin/reglages");
   revalidatePath("/", "layout");
 }
 
 export async function removePackagingImage() {
   const supabase = createServiceClient();
   await supabase.from("site_settings").update({ packaging_image_url: null }).eq("id", true);
-  revalidatePath("/admin/produits");
+  revalidatePath("/admin/reglages");
   revalidatePath("/", "layout");
 }
 
@@ -373,6 +362,47 @@ export async function addRelatedProduct(productId: string, relatedProductId: str
 export async function removeRelatedProduct(id: string, productId: string) {
   const supabase = createServiceClient();
   await supabase.from("product_related_products").delete().eq("id", id);
+  revalidatePath(`/admin/produits/${productId}`);
+  revalidatePath("/", "layout");
+}
+
+// "Other colors" — tags two products as different colors of the same model.
+// There's no separate group table: every product sharing the same
+// color_group_id shows up as a swatch on the others' pages, so joining a
+// group is just adopting (or creating) that shared id.
+export async function addColorLink(productId: string, otherProductId: string) {
+  if (productId === otherProductId) return;
+  const supabase = createServiceClient();
+  const { data: rows } = await supabase
+    .from("products")
+    .select("id, color_group_id")
+    .in("id", [productId, otherProductId]);
+
+  const self = rows?.find((r) => r.id === productId);
+  const other = rows?.find((r) => r.id === otherProductId);
+  const groupId: string = self?.color_group_id ?? other?.color_group_id ?? crypto.randomUUID();
+
+  const ids = [productId, otherProductId];
+  // If the other product already belonged to a different group, everyone in
+  // that old group needs to move too, or they'd silently drop out of it.
+  if (other?.color_group_id && other.color_group_id !== groupId) {
+    const { data: siblings } = await supabase.from("products").select("id").eq("color_group_id", other.color_group_id);
+    for (const s of siblings ?? []) ids.push(s.id);
+  }
+  if (self?.color_group_id && self.color_group_id !== groupId) {
+    const { data: siblings } = await supabase.from("products").select("id").eq("color_group_id", self.color_group_id);
+    for (const s of siblings ?? []) ids.push(s.id);
+  }
+
+  await supabase.from("products").update({ color_group_id: groupId }).in("id", Array.from(new Set(ids)));
+
+  revalidatePath(`/admin/produits/${productId}`);
+  revalidatePath("/", "layout");
+}
+
+export async function removeColorLink(productId: string, memberProductId: string) {
+  const supabase = createServiceClient();
+  await supabase.from("products").update({ color_group_id: null }).eq("id", memberProductId);
   revalidatePath(`/admin/produits/${productId}`);
   revalidatePath("/", "layout");
 }

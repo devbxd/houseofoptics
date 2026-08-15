@@ -1,11 +1,14 @@
-import { createClient } from "@/lib/supabase/server";
+import { getSiteSettings } from "@/lib/settings";
 import { updateFonts } from "./actions";
 import { SubmitButton } from "@/components/SubmitButton";
 import { HEADING_FONTS, BODY_FONTS, DEFAULT_HEADING_FONT, DEFAULT_BODY_FONT, DEFAULT_ACCENT_FONT } from "@/lib/fonts";
 
 export default async function FontPage() {
-  const supabase = await createClient();
-  const { data: settings } = await supabase.from("site_settings").select("heading_font, body_font, accent_font").single();
+  // Reads via getSiteSettings() (select("*") merged over defaults) rather
+  // than a column-list select — a select naming a column that doesn't exist
+  // yet on this DB (e.g. accent_font before its migration ran) fails the
+  // whole query, which was silently resetting every field to its default.
+  const settings = await getSiteSettings();
 
   return (
     <div>
