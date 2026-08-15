@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Image from "next/image";
 import { SubmitButton } from "@/components/SubmitButton";
 import { VariantsEditor } from "./VariantsEditor";
 
@@ -28,6 +29,7 @@ type Product = {
   sku?: string | null;
   base_color?: string | null;
   is_active?: boolean;
+  packaging_image_url?: string | null;
   variants?: {
     color_label: string | null;
     size_label: string | null;
@@ -197,6 +199,29 @@ export function ProductForm({
           {product ? "Add more photos" : "Photos"}
         </label>
         <input name="images" type="file" accept="image/*" multiple className="w-full text-sm" />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm text-neutral-600">Packaging photo (optional)</label>
+        <p className="mb-1.5 text-xs text-neutral-500">
+          Shown on this product's page after the description, as an "Included With Every Pair" section — e.g. a
+          photo of the box, pouch and cleaning cloth.
+        </p>
+        {product?.packaging_image_url && (
+          <div className="mb-2 flex items-center gap-3">
+            <Image
+              src={product.packaging_image_url}
+              alt="Packaging"
+              width={80}
+              height={80}
+              className="h-20 w-20 rounded object-cover"
+            />
+            <label className="flex items-center gap-1.5 text-xs text-neutral-500">
+              <input type="checkbox" name="remove_packaging_image" /> Remove this photo
+            </label>
+          </div>
+        )}
+        <input name="packaging_image" type="file" accept="image/*" className="w-full text-sm" />
       </div>
 
       {product && (

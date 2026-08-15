@@ -34,7 +34,6 @@ export type SiteSettings = {
   hero_subtitle_ar: string;
   global_shipping_info: string;
   spin_wheel_enabled: boolean;
-  packaging_image_url: string | null;
   returns_info: string;
 };
 
@@ -72,7 +71,6 @@ const DEFAULT_SETTINGS: SiteSettings = {
   hero_subtitle_ar: "",
   global_shipping_info: "",
   spin_wheel_enabled: false,
-  packaging_image_url: null,
   returns_info: "",
 };
 

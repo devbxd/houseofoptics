@@ -70,7 +70,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         additionalInfo={product.additional_info ?? null}
         shippingInfo={settings.global_shipping_info || null}
         returnsInfo={settings.returns_info || null}
-        packagingImageUrl={settings.packaging_image_url || null}
+        packagingImageUrl={product.packaging_image_url || null}
         ratingSummary={ratingSummary}
         variants={product.variants ?? []}
         colorSiblings={colorSiblings}

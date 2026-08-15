@@ -117,6 +117,23 @@ async function uploadImages(supabase: ReturnType<typeof createServiceClient>, pr
   return urls;
 }
 
+// One packaging photo (box/pouch/cleaning cloth) per product, shown after
+// the description on that product's own page.
+async function savePackagingImage(
+  supabase: ReturnType<typeof createServiceClient>,
+  productId: string,
+  productSlug: string,
+  file: File | null,
+  remove: boolean
+) {
+  if (file && file.size > 0) {
+    const [url] = await uploadImages(supabase, productSlug, [file]);
+    if (url) await supabase.from("products").update({ packaging_image_url: url }).eq("id", productId);
+  } else if (remove) {
+    await supabase.from("products").update({ packaging_image_url: null }).eq("id", productId);
+  }
+}
+
 // base_color comes from a migration that may not have run yet on this
 // deployment — retry without it rather than failing the whole save if
 // Postgres rejects it as an unknown column.
@@ -149,6 +166,7 @@ export async function createProduct(formData: FormData) {
   const sku = String(formData.get("sku") ?? "").trim() || null;
   const baseColor = String(formData.get("base_color") ?? "").trim() || null;
   const files = (formData.getAll("images") as File[]).filter((f) => f.size > 0);
+  const packagingFile = formData.get("packaging_image") as File | null;
 
   if (!name) return;
 
@@ -180,6 +198,8 @@ export async function createProduct(formData: FormData) {
       .insert(urls.map((url, i) => ({ product_id: product.id, url, sort_order: i })));
   }
 
+  await savePackagingImage(supabase, product.id, product.slug, packagingFile, false);
+
   revalidatePath("/admin/produits");
   revalidatePath("/", "layout");
   redirect("/admin/produits");
@@ -201,6 +221,8 @@ export async function updateProduct(productId: string, formData: FormData) {
   const baseColor = String(formData.get("base_color") ?? "").trim() || null;
   const isActive = formData.get("is_active") === "on";
   const files = (formData.getAll("images") as File[]).filter((f) => f.size > 0);
+  const packagingFile = formData.get("packaging_image") as File | null;
+  const removePackaging = formData.get("remove_packaging_image") === "on";
 
   if (!name) return;
 
@@ -235,6 +257,8 @@ export async function updateProduct(productId: string, formData: FormData) {
       .insert(urls.map((url, i) => ({ product_id: productId, url, sort_order: (count ?? 0) + i })));
   }
 
+  await savePackagingImage(supabase, productId, product.slug, packagingFile, removePackaging);
+
   revalidatePath("/admin/produits");
   revalidatePath(`/admin/produits/${productId}`);
   revalidatePath("/", "layout");
@@ -259,34 +283,6 @@ export async function updateGlobalProductInfo(formData: FormData) {
   revalidatePath("/", "layout");
 }
 
-// One packaging photo (box/pouch/case) shown on every product page, between
-// the description and the additional-info/shipping accordions.
-export async function uploadPackagingImage(formData: FormData) {
-  const file = formData.get("image") as File | null;
-  if (!file || file.size === 0) return;
-
-  const supabase = createServiceClient();
-  const ext = file.name.split(".").pop() || "jpg";
-  const path = `packaging/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
-    contentType: file.type || "image/jpeg",
-    upsert: false,
-  });
-  if (error) return;
-
-  const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  await supabase.from("site_settings").update({ packaging_image_url: pub.publicUrl }).eq("id", true);
-
-  revalidatePath("/admin/reglages");
-  revalidatePath("/", "layout");
-}
-
-export async function removePackagingImage() {
-  const supabase = createServiceClient();
-  await supabase.from("site_settings").update({ packaging_image_url: null }).eq("id", true);
-  revalidatePath("/admin/reglages");
-  revalidatePath("/", "layout");
-}
 
 export async function deleteProduct(productId: string) {
   const supabase = createServiceClient();
