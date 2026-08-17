@@ -3,11 +3,17 @@ import { updateFonts } from "./actions";
 import { SubmitButton } from "@/components/SubmitButton";
 import { HEADING_FONTS, BODY_FONTS, DEFAULT_HEADING_FONT, DEFAULT_BODY_FONT, DEFAULT_ACCENT_FONT } from "@/lib/fonts";
 
-export default async function FontPage() {
-  // Reads via getSiteSettings() (select("*") merged over defaults) rather
-  // than a column-list select — a select naming a column that doesn't exist
-  // yet on this DB (e.g. accent_font before its migration ran) fails the
-  // whole query, which was silently resetting every field to its default.
+// Never statically cached — this page must always reflect what's actually
+// in the database, especially right after a save.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+export default async function FontPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ saved?: string; error?: string }>;
+}) {
+  const { saved, error } = await searchParams;
   const settings = await getSiteSettings();
 
   return (
@@ -19,6 +25,17 @@ export default async function FontPage() {
         rebuild needed.
       </p>
 
+      {saved && !error && (
+        <p className="mb-6 max-w-sm rounded bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+          Saved — the values below are freshly reloaded from the database.
+        </p>
+      )}
+      {error && (
+        <p className="mb-6 max-w-sm rounded bg-red-50 px-3 py-2 text-sm text-red-700">
+          Save failed: {error}
+        </p>
+      )}
+
       <form action={updateFonts} className="max-w-sm space-y-6">
         <div>
           <label className="mb-1 block text-sm text-neutral-600">Heading font</label>
@@ -27,10 +44,11 @@ export default async function FontPage() {
             brand names.
           </p>
           <select
+            key={settings.heading_font}
             name="heading_font"
-            defaultValue={settings?.heading_font ?? DEFAULT_HEADING_FONT}
+            defaultValue={settings.heading_font ?? DEFAULT_HEADING_FONT}
             className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
-            style={{ fontFamily: `'${settings?.heading_font ?? DEFAULT_HEADING_FONT}', serif` }}
+            style={{ fontFamily: `'${settings.heading_font ?? DEFAULT_HEADING_FONT}', serif` }}
           >
             {Object.keys(HEADING_FONTS).map((f) => (
               <option key={f} value={f}>
@@ -47,10 +65,11 @@ export default async function FontPage() {
             than glancing at a label.
           </p>
           <select
+            key={settings.body_font}
             name="body_font"
-            defaultValue={settings?.body_font ?? DEFAULT_BODY_FONT}
+            defaultValue={settings.body_font ?? DEFAULT_BODY_FONT}
             className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
-            style={{ fontFamily: `'${settings?.body_font ?? DEFAULT_BODY_FONT}', sans-serif` }}
+            style={{ fontFamily: `'${settings.body_font ?? DEFAULT_BODY_FONT}', sans-serif` }}
           >
             {Object.keys(BODY_FONTS).map((f) => (
               <option key={f} value={f}>
@@ -68,10 +87,11 @@ export default async function FontPage() {
             the site.
           </p>
           <select
+            key={settings.accent_font}
             name="accent_font"
-            defaultValue={settings?.accent_font ?? DEFAULT_ACCENT_FONT}
+            defaultValue={settings.accent_font ?? DEFAULT_ACCENT_FONT}
             className="w-full border border-neutral-300 px-3 py-2 text-sm uppercase tracking-wide focus:border-brand-black focus:outline-none"
-            style={{ fontFamily: `'${settings?.accent_font ?? DEFAULT_ACCENT_FONT}', sans-serif` }}
+            style={{ fontFamily: `'${settings.accent_font ?? DEFAULT_ACCENT_FONT}', sans-serif` }}
           >
             {Object.keys(BODY_FONTS).map((f) => (
               <option key={f} value={f}>
