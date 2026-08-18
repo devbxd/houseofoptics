@@ -1,11 +1,16 @@
+import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
+import { getSiteSettings } from "@/lib/settings";
 import { createPopup } from "./actions";
 import { PopupRow } from "./PopupRow";
 import { SubmitButton } from "@/components/SubmitButton";
 
 export default async function PopupsPage() {
   const supabase = createServiceClient();
-  const { data: popups } = await supabase.from("popups").select("*").order("created_at", { ascending: false });
+  const [{ data: popups }, settings] = await Promise.all([
+    supabase.from("popups").select("*").order("created_at", { ascending: false }),
+    getSiteSettings(),
+  ]);
 
   const rows = await Promise.all(
     (popups ?? []).map(async (p) => {
@@ -28,6 +33,17 @@ export default async function PopupsPage() {
         Show an announcement pop-up on the homepage — a promo, a message, whatever you want. Optionally set an
         order limit and/or a number of days after which it stops showing automatically.
       </p>
+
+      {settings.spin_wheel_enabled && (
+        <p className="mb-6 max-w-lg rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+          The spin-to-win wheel is currently on (Admin → Mode), so pop-ups created here won&apos;t show on the site
+          until it&apos;s turned off — only one of the two shows at a time.{" "}
+          <Link href="/admin/mode" className="underline hover:text-amber-900">
+            Go to Mode
+          </Link>
+          .
+        </p>
+      )}
 
       <form
         action={createPopup}

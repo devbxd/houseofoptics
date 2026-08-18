@@ -24,9 +24,12 @@ export function ModeButtons({ initialMode }: { initialMode: SiteMode }) {
             disabled={pending}
             onClick={async () => {
               setPending(true);
-              await setSiteMode(opt.value);
-              setMode(opt.value);
-              setPending(false);
+              try {
+                await setSiteMode(opt.value);
+                setMode(opt.value);
+              } finally {
+                setPending(false);
+              }
             }}
             className={`flex flex-col items-center gap-2 rounded-md border px-4 py-6 text-sm transition-colors disabled:opacity-50 ${
               active ? opt.activeClass : "border-neutral-300 text-neutral-600 hover:border-brand-black"

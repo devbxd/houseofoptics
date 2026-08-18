@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { createServiceClient } from "@/lib/supabase/server";
-import { deleteProduct } from "./actions";
+import { ProductDeleteButton } from "./ProductDeleteButton";
 import { Pagination } from "@/components/Pagination";
 
 const PAGE_SIZE = 30;
@@ -54,6 +54,26 @@ export default async function AdminProductsPage({
         </form>
       </div>
 
+      {(products?.length ?? 0) === 0 && (
+        <p className="py-16 text-center text-sm text-neutral-500">
+          {/* Reachable by deleting the last product on a page — without this
+              the grid just goes blank with no explanation, while the header
+              count and pagination still reference a page that no longer
+              has anything on it. */}
+          {page > 1 ? (
+            <>
+              Nothing on this page.{" "}
+              <Link href={search ? `/admin/produits?q=${encodeURIComponent(search)}` : "/admin/produits"} className="underline hover:text-brand-black">
+                Go back to page 1
+              </Link>
+              .
+            </>
+          ) : (
+            "No products found."
+          )}
+        </p>
+      )}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {(products as any[] ?? []).map((p) => {
           const img = (p.images ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order)[0];
@@ -78,14 +98,7 @@ export default async function AdminProductsPage({
                 <Link href={`/admin/produits/${p.id}`} className="text-neutral-600 hover:text-brand-black">
                   Edit
                 </Link>
-                <form
-                  action={async () => {
-                    "use server";
-                    await deleteProduct(p.id);
-                  }}
-                >
-                  <button className="text-neutral-600 hover:text-red-600">Delete</button>
-                </form>
+                <ProductDeleteButton productId={p.id} productName={p.name} />
               </div>
             </div>
           );

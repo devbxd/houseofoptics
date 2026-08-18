@@ -29,6 +29,15 @@ export async function submitTestimonial(formData: FormData) {
     }
   }
 
+  // sort_order defaults to 0 and nothing set it explicitly before — see
+  // the same fix in admin/testimonials/actions.ts.
+  const { data: maxRow } = await supabase
+    .from("testimonials")
+    .select("sort_order")
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   // Customer-submitted reviews are never shown immediately — the owner has
   // to approve them from the dashboard first (same is_active flag already
   // used to hide/show any testimonial).
@@ -39,6 +48,7 @@ export async function submitTestimonial(formData: FormData) {
     photo_url: photoUrl,
     product_id: productId,
     is_active: false,
+    sort_order: (maxRow?.sort_order ?? -1) + 1,
   });
 
   if (error) return { error: error.message };

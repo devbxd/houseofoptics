@@ -49,11 +49,22 @@ export async function uploadBrandLogo(id: string, formData: FormData) {
     upsert: false,
     cacheControl: IMMUTABLE_CACHE_CONTROL,
   });
-  if (error) return;
+  // Used to just `return` here on failure — BrandRow's upload handler had
+  // no catch to surface anything to, so a failed logo upload reverted
+  // silently to the placeholder with zero explanation of what happened.
+  if (error) throw new Error(error.message);
 
   const { data: pub } = supabase.storage.from("products").getPublicUrl(path);
   await supabase.from("brands").update({ logo_url: pub.publicUrl }).eq("id", id);
 
+  revalidatePath("/admin/brands");
+  revalidatePath("/", "layout");
+  revalidateTag("products");
+}
+
+export async function removeBrandLogo(id: string) {
+  const supabase = createServiceClient();
+  await supabase.from("brands").update({ logo_url: null }).eq("id", id);
   revalidatePath("/admin/brands");
   revalidatePath("/", "layout");
   revalidateTag("products");

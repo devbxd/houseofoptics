@@ -361,8 +361,11 @@ export default function CheckoutPage() {
               <button
                 type="button"
                 onClick={() => {
+                  // Leaves the typed code in the input — clearing it too
+                  // meant "remove" (meant to un-apply the discount) also
+                  // wiped out the code itself, so re-applying the same one
+                  // required retyping it from scratch.
                   setAppliedPromo(null);
-                  setPromoInput("");
                 }}
                 className="text-xs uppercase text-neutral-400 hover:text-red-600"
               >

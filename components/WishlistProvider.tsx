@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 
 export type WishlistItem = {
   productId: string;
+  variant: string | null;
   slug: string;
   name: string;
   price: number | null;
@@ -13,14 +14,24 @@ export type WishlistItem = {
 
 type WishlistContextValue = {
   items: WishlistItem[];
-  has: (productId: string) => boolean;
+  has: (productId: string, variant: string | null) => boolean;
   toggle: (item: WishlistItem) => void;
-  remove: (productId: string) => void;
+  remove: (productId: string, variant: string | null) => void;
   count: number;
 };
 
 const WishlistContext = createContext<WishlistContextValue | null>(null);
 const STORAGE_KEY = "house-of-optics-wishlist";
+
+// A product's different color/size variants are functionally different
+// items to a shopper (different photo, sometimes different price/stock) —
+// keyed the same way the cart already keys its own lines (see sameLine() in
+// CartProvider.tsx), so wishlisting "Red — Large" and later "Blue — Small"
+// of the same product saves both instead of the second silently replacing
+// (or un-wishlisting) the first.
+function sameLine(a: { productId: string; variant: string | null }, b: { productId: string; variant: string | null }) {
+  return a.productId === b.productId && (a.variant ?? "") === (b.variant ?? "");
+}
 
 export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<WishlistItem[]>([]);
@@ -40,11 +51,14 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
     if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   }, [items, hydrated]);
 
-  const has = useCallback((productId: string) => items.some((i) => i.productId === productId), [items]);
+  const has = useCallback(
+    (productId: string, variant: string | null) => items.some((i) => sameLine(i, { productId, variant })),
+    [items]
+  );
 
   const toggle = useCallback((item: WishlistItem) => {
     setItems((prev) => {
-      const alreadyIn = prev.some((i) => i.productId === item.productId);
+      const alreadyIn = prev.some((i) => sameLine(i, item));
       if (!alreadyIn) {
         // Fire-and-forget: lets the owner see what's being wishlisted most
         // without the wishlist itself needing an account or server round-trip.
@@ -55,12 +69,12 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
           keepalive: true,
         }).catch(() => {});
       }
-      return alreadyIn ? prev.filter((i) => i.productId !== item.productId) : [...prev, item];
+      return alreadyIn ? prev.filter((i) => !sameLine(i, item)) : [...prev, item];
     });
   }, []);
 
-  const remove = useCallback((productId: string) => {
-    setItems((prev) => prev.filter((i) => i.productId !== productId));
+  const remove = useCallback((productId: string, variant: string | null) => {
+    setItems((prev) => prev.filter((i) => !sameLine(i, { productId, variant })));
   }, []);
 
   const value = useMemo(

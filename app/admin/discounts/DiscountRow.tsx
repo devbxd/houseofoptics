@@ -20,8 +20,15 @@ export function DiscountRow({ product }: { product: Product }) {
   async function save() {
     setSaving(true);
     setSaved(false);
-    const percent = value.trim() ? Number(value) : null;
+    // The server clamps to 0-95 too (so a stray "950" can never end up
+    // stored and later shown as a negative price), but it never used to
+    // report the clamped value back — the field kept showing "950" and the
+    // live preview above kept computing off it, looking unsaved/broken
+    // even though 95 was what actually got stored.
+    const rawPercent = value.trim() ? Number(value) : null;
+    const percent = rawPercent == null ? null : Math.min(95, Math.max(0, Math.round(rawPercent)));
     await updateDiscount(product.id, percent);
+    setValue(percent == null ? "" : String(percent));
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 1500);

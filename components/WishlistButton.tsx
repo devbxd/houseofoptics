@@ -12,7 +12,7 @@ export function WishlistButton({
   iconClassName?: string;
 }) {
   const { has, toggle } = useWishlist();
-  const active = has(item.productId);
+  const active = has(item.productId, item.variant);
 
   return (
     <button

@@ -1,8 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import { uploadModelPhoto } from "./actions";
 import { ModelPhotosGrid } from "./ModelPhotosGrid";
-import { ProductPicker } from "./ProductPicker";
-import { SubmitButton } from "@/components/SubmitButton";
+import { AddModelPhotoForm } from "./AddModelPhotoForm";
 
 export default async function ModelPhotosPage() {
   const supabase = createServiceClient();
@@ -29,24 +27,7 @@ export default async function ModelPhotosPage() {
         site to jump straight to the linked product.
       </p>
 
-      <form
-        action={uploadModelPhoto}
-        encType="multipart/form-data"
-        className="mb-8 max-w-md space-y-3 rounded-md border border-neutral-200 bg-white p-4"
-      >
-        <p className="text-sm font-medium">Add a photo</p>
-        <div>
-          <label className="mb-1 block text-sm text-neutral-600">Photo</label>
-          <input name="image" type="file" accept="image/*" required className="w-full text-sm" />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm text-neutral-600">Links to product</label>
-          <ProductPicker products={products ?? []} />
-        </div>
-        <SubmitButton className="border border-brand-black px-4 py-2 text-xs uppercase tracking-wide hover:bg-brand-black hover:text-white">
-          Add
-        </SubmitButton>
-      </form>
+      <AddModelPhotoForm products={products ?? []} />
 
       <ModelPhotosGrid photos={rows} />
       {rows.length === 0 && <p className="text-sm text-neutral-500">No photos yet.</p>}

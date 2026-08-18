@@ -10,12 +10,22 @@ export async function createCategory(formData: FormData) {
   if (!name) return;
 
   const supabase = createServiceClient();
-  const { count } = await supabase.from("categories").select("*", { count: "exact", head: true });
+  // Counting existing rows for the new sort_order breaks the ↑/↓ position
+  // control the moment a category has ever been deleted: two rows can end
+  // up sharing a sort_order (count doesn't account for the gap a deletion
+  // leaves), and setCategoryPosition's swap-based... no — its full-recompute
+  // reorder still silently produces no visible change when two siblings are
+  // tied, so ↑/↓ can look like it's doing nothing. Basing the new row on the
+  // current max instead is immune to gaps. Scoped to siblings (same
+  // parent_id) since that's what the position control itself reorders.
+  let maxQuery = supabase.from("categories").select("sort_order").order("sort_order", { ascending: false }).limit(1);
+  maxQuery = parentId === null ? maxQuery.is("parent_id", null) : maxQuery.eq("parent_id", parentId);
+  const { data: maxRow } = await maxQuery.maybeSingle();
 
   await supabase.from("categories").insert({
     name,
     slug: slugify(name),
-    sort_order: count ?? 0,
+    sort_order: (maxRow?.sort_order ?? -1) + 1,
     parent_id: parentId,
   });
 

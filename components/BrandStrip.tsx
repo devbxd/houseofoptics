@@ -75,6 +75,13 @@ export function BrandStrip({ brands, title }: { brands: Brand[]; title?: string 
       {title && <h2 className="mb-8 text-center text-xs uppercase tracking-[0.35em] text-neutral-500">{title}</h2>}
       <div
         ref={trackRef}
+        // Pinned LTR regardless of the page's language — the scrollLeft math
+        // below (and in the drag handlers) assumes scrollLeft starts at 0 and
+        // increases, which is only true in LTR. Without this, switching the
+        // site to Arabic breaks the auto-scroll and drag entirely (scrollLeft
+        // starts at/near 0 and goes negative in RTL). Pure image strip, no
+        // text content here that needs RTL flow.
+        dir="ltr"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

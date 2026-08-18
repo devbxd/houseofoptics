@@ -40,7 +40,7 @@ export default function WishlistPage() {
             // that was already out of stock when it was saved here.
             const outOfStock = item.stock != null && item.stock <= 0;
             return (
-              <div key={item.productId} className="flex items-center gap-4 py-4">
+              <div key={`${item.productId}-${item.variant ?? ""}`} className="flex items-center gap-4 py-4">
                 <Link href={`/produit/${item.slug}`} className="relative h-20 w-20 shrink-0 overflow-hidden bg-neutral-100">
                   {item.image && <Image src={item.image} alt={item.name} fill sizes="80px" className="object-cover" />}
                 </Link>
@@ -59,13 +59,13 @@ export default function WishlistPage() {
                 <button
                   disabled={item.price == null || outOfStock}
                   onClick={() =>
-                    addItem({ productId: item.productId, variant: null, name: item.name, price: item.price!, image: item.image })
+                    addItem({ productId: item.productId, variant: item.variant, name: item.name, price: item.price!, image: item.image })
                   }
                   className="border border-neutral-300 px-4 py-2 text-xs uppercase tracking-wide hover:border-brand-black disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {t["product.addToCart"]}
                 </button>
-                <button onClick={() => remove(item.productId)} className="text-sm text-neutral-500 hover:text-red-600">
+                <button onClick={() => remove(item.productId, item.variant)} className="text-sm text-neutral-500 hover:text-red-600">
                   {t["cart.remove"]}
                 </button>
               </div>

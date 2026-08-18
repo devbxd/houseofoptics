@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function ContentPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const supabase = await createClient();
-  const { data: page } = await supabase.from("content_pages").select("id, title").eq("slug", slug).single();
+  const { data: page } = await supabase.from("content_pages").select("id, title, body").eq("slug", slug).single();
 
   if (!page) notFound();
 
@@ -23,10 +23,21 @@ export default async function ContentPage({ params }: { params: Promise<{ slug: 
     .eq("page_id", page.id)
     .order("sort_order", { ascending: true });
 
+  // A freshly-created page (via a new footer link) has a placeholder body
+  // ("Content coming soon...") but zero blocks yet — without this fallback
+  // it rendered completely blank below the title until an admin opened
+  // "Page content" and added something, with no visible sign that's why.
+  const hasVisibleBlock = (blocks ?? []).some((b) =>
+    b.type === "text" ? !!b.text?.trim() : ((b.image_urls as string[]) ?? []).length > 0
+  );
+
   return (
     <main className="mx-auto max-w-2xl px-4 py-16">
       <h1 className="font-serif text-2xl">{page.title}</h1>
       <div className="mt-6 space-y-8">
+        {!hasVisibleBlock && page.body?.trim() && (
+          <p className="whitespace-pre-line text-sm leading-relaxed text-neutral-700">{page.body}</p>
+        )}
         {(blocks ?? []).map((b) =>
           b.type === "text" ? (
             b.text?.trim() ? (

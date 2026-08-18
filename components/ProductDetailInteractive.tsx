@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -133,7 +133,11 @@ export function ProductDetailInteractive({
   // Each entry in `variants` is a full version of the product (its own
   // color/size combo, photo, price, stock) — picking one from the dropdown
   // is optional, the base product info shows until something is picked.
-  const [selected, setSelected] = useState<string | null>(baseLabel);
+  // Only default to the base label when there's an actual dropdown/choice
+  // to show (variants.length > 0) — otherwise every product that merely
+  // has a base color set (most of them) would get a redundant "— Yellow"
+  // appended to its cart/wishlist name despite offering no real variant.
+  const [selected, setSelected] = useState<string | null>(variants.length > 0 ? baseLabel : null);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
 
@@ -154,6 +158,15 @@ export function ProductDetailInteractive({
   const activeStock = active?.stock ?? stock;
   const outOfStock = activeStock != null && activeStock <= 0;
   const noPrice = finalPrice == null;
+
+  // Switching to a variant with less stock than the quantity already
+  // dialed in (e.g. picked 5, then switched to a color with only 2 left)
+  // used to leave the quantity stepper past the real limit — "Added ✓"
+  // would still flash and the mismatch only ever surfaced much later, as a
+  // generic out-of-stock error at the very end of checkout.
+  useEffect(() => {
+    if (activeStock != null && quantity > activeStock) setQuantity(Math.max(1, activeStock));
+  }, [activeStock, quantity]);
 
   const cartImage = active?.image_url ?? images[0]?.url ?? null;
 
@@ -327,10 +340,13 @@ export function ProductDetailInteractive({
                   ...variants.filter((v) => v.stock != null && v.stock <= 0).map((v) => variantLabel(v)),
                 ])
               }
-              // Falls back to "tap the same option again to remove it" only
-              // when there's no explicit base entry to tap instead (i.e. the
-              // product has neither a base color nor a base size set).
-              onSelect={(opt) => setSelected((prev) => (prev === opt && baseLabel == null ? null : opt))}
+              // Tapping the already-selected option always reverts to the
+              // base state (the base color/size when the product has one,
+              // otherwise no selection) — this has to stay true for EVERY
+              // product, not just ones without a base color/size, because
+              // the on-screen instruction above ("tap again to remove")
+              // makes that same promise unconditionally.
+              onSelect={(opt) => setSelected((prev) => (prev === opt ? baseLabel : opt))}
             />
           </div>
         )}
@@ -352,8 +368,9 @@ export function ProductDetailInteractive({
             <span className="w-8 text-center text-sm">{quantity}</span>
             <button
               type="button"
-              onClick={() => setQuantity((q) => q + 1)}
-              className="flex h-12 w-10 items-center justify-center text-lg text-neutral-600 hover:text-brand-black"
+              disabled={activeStock != null && quantity >= activeStock}
+              onClick={() => setQuantity((q) => (activeStock != null ? Math.min(activeStock, q + 1) : q + 1))}
+              className="flex h-12 w-10 items-center justify-center text-lg text-neutral-600 hover:text-brand-black disabled:cursor-not-allowed disabled:opacity-30"
               aria-label="Increase quantity"
             >
               +
@@ -411,7 +428,18 @@ export function ProductDetailInteractive({
         </div>
 
         <WishlistButton
-          item={{ productId, slug, name, price: hasPrice ? finalPrice! : null, image: cartImage, stock: activeStock }}
+          item={{
+            productId,
+            variant: selected,
+            slug,
+            // Matches the cart's own naming (see handleAdd) so two
+            // wishlisted variants of the same product show up as two
+            // distinct, identifiable lines instead of duplicate entries.
+            name: selected ? `${name} — ${selected}` : name,
+            price: hasPrice ? finalPrice! : null,
+            image: cartImage,
+            stock: activeStock,
+          }}
           className="mt-4 flex items-center gap-2 text-sm text-neutral-600 hover:text-brand-black"
           iconClassName="h-4 w-4"
         />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Image from "next/image";
 import { SubmitButton } from "@/components/SubmitButton";
 import { VariantsEditor } from "./VariantsEditor";
@@ -60,10 +60,27 @@ export function ProductForm({
   const [categoryId, setCategoryId] = useState(product?.category_id ?? "");
   // create() still redirects on success, so this only ever resolves to true
   // for update() — which now stays on the page instead of navigating away.
-  const [saved, dispatch] = useActionState(async (_prev: boolean, formData: FormData) => {
+  // create() still redirects on success, so this counter only ever moves
+  // for update() — which now stays on the page instead of navigating away.
+  // A counter (not a boolean) so every successful save is a distinct value
+  // the effect below can react to, including the 2nd/3rd/... save in the
+  // same visit, not just the very first.
+  const [saveCount, dispatch] = useActionState(async (prev: number, formData: FormData) => {
     await action(formData);
-    return true;
-  }, false);
+    return prev + 1;
+  }, 0);
+  // "Saved ✓" used to stay glued next to the button for the rest of the
+  // visit once shown, including after further unsaved edits — looking like
+  // confirmation that changes made afterward were saved too, when they
+  // weren't. Auto-clears instead, same pattern as the discount row's own
+  // save flash (DiscountRow.tsx).
+  const [showSaved, setShowSaved] = useState(false);
+  useEffect(() => {
+    if (saveCount === 0) return;
+    setShowSaved(true);
+    const timeout = setTimeout(() => setShowSaved(false), 2500);
+    return () => clearTimeout(timeout);
+  }, [saveCount]);
 
   return (
     <form action={dispatch} className="max-w-lg space-y-4">
@@ -248,7 +265,7 @@ export function ProductForm({
         <SubmitButton className="bg-brand-black px-6 py-2.5 text-sm uppercase tracking-wide text-white hover:opacity-90">
           {submitLabel}
         </SubmitButton>
-        {saved && <span className="text-sm text-emerald-700">Saved ✓</span>}
+        {showSaved && <span className="text-sm text-emerald-700">Saved ✓</span>}
       </div>
     </form>
   );

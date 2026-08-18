@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Image from "next/image";
-import { renameBrand, deleteBrand, uploadBrandLogo, uploadBrandBanner, removeBrandBanner, setBrandFeatured } from "./actions";
+import { renameBrand, deleteBrand, uploadBrandLogo, removeBrandLogo, uploadBrandBanner, removeBrandBanner, setBrandFeatured } from "./actions";
 
 type Brand = {
   id: string;
@@ -53,16 +53,36 @@ export function BrandRow({ brand, productCount }: { brand: Brand; productCount: 
             const file = e.target.files?.[0];
             if (!file) return;
             setUploading(true);
+            setError(null);
             const fd = new FormData();
             fd.set("logo", file);
             try {
               await uploadBrandLogo(brand.id, fd);
+            } catch (err) {
+              setError(err instanceof Error ? err.message : "Logo upload failed");
             } finally {
               setUploading(false);
               if (fileRef.current) fileRef.current.value = "";
             }
           }}
         />
+
+        {brand.logo_url && (
+          <button
+            type="button"
+            onClick={async () => {
+              setError(null);
+              try {
+                await removeBrandLogo(brand.id);
+              } catch (err) {
+                setError(err instanceof Error ? err.message : "Failed to remove logo");
+              }
+            }}
+            className="shrink-0 text-xs text-neutral-400 hover:text-red-600"
+          >
+            Remove logo
+          </button>
+        )}
 
         <div className="min-w-0">
           {editing ? (

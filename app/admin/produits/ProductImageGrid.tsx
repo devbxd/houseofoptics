@@ -8,8 +8,14 @@ type Img = { id: string; url: string };
 
 export function ProductImageGrid({ productId, images }: { productId: string; images: Img[] }) {
   const [movingId, setMovingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  if (images.length === 0) return null;
+  if (images.length === 0) {
+    // Reachable by deleting the last remaining photo — without this the
+    // whole grid (including the reorder controls) just vanishes with no
+    // explanation, leaving only the "add more photos" file input below it.
+    return <p className="mb-6 text-sm text-neutral-500">No photos yet — add one below.</p>;
+  }
 
   return (
     <div className="mb-6 flex max-w-lg flex-wrap gap-3">
@@ -18,12 +24,19 @@ export function ProductImageGrid({ productId, images }: { productId: string; ima
           <Image src={img.url} alt="" fill sizes="96px" className="object-cover" />
           <button
             type="button"
+            disabled={deletingId === img.id}
             onClick={async () => {
-              await deleteProductImage(img.id);
+              if (!confirm("Delete this photo?")) return;
+              setDeletingId(img.id);
+              try {
+                await deleteProductImage(img.id);
+              } finally {
+                setDeletingId(null);
+              }
             }}
-            className="absolute right-0.5 top-0.5 rounded bg-black/60 px-1 text-xs text-white"
+            className="absolute right-0.5 top-0.5 rounded bg-black/60 px-1 text-xs text-white disabled:opacity-50"
           >
-            ✕
+            {deletingId === img.id ? "..." : "✕"}
           </button>
           {images.length > 1 && (
             <select

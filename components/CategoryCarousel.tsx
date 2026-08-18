@@ -39,7 +39,13 @@ export function CategoryCarousel({
 
   return (
     <div>
-      <div ref={trackRef} className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto px-1 pb-2">
+      <div
+        ref={trackRef}
+        // Pinned LTR — see BrandStrip.tsx for why (scrollLeft-based
+        // position tracking here is LTR-only and breaks under Arabic).
+        dir="ltr"
+        className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto px-1 pb-2"
+      >
         {categories.map((c) => (
           <Link
             key={c.id}

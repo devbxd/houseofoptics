@@ -33,8 +33,17 @@ export async function createFooterSection(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return;
   const supabase = createServiceClient();
-  const { count } = await supabase.from("footer_sections").select("*", { count: "exact", head: true });
-  const { error } = await supabase.from("footer_sections").insert({ title, sort_order: count ?? 0 });
+  // Counting existing rows breaks as soon as one has ever been deleted —
+  // count doesn't account for the gap, so a new row can land on the same
+  // sort_order as an existing one. Basing it on the current max is immune
+  // to gaps.
+  const { data: maxRow } = await supabase
+    .from("footer_sections")
+    .select("sort_order")
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const { error } = await supabase.from("footer_sections").insert({ title, sort_order: (maxRow?.sort_order ?? -1) + 1 });
   if (error) throw new Error("Couldn't create the section — the database may need the latest migration applied.");
   refresh();
 }
@@ -52,18 +61,29 @@ export async function deleteFooterSection(id: string) {
   refresh();
 }
 
+// Full-recompute reorder, same approach as setCategoryPosition/
+// setProductImagePosition — swapping raw sort_order values (the old way)
+// silently does nothing when two rows are tied on sort_order, which
+// happened routinely since inserts used to derive sort_order from a row
+// count that doesn't account for deleted rows. This is immune to that: it
+// reorders by *position* in a stably-sorted list and rewrites everyone's
+// sort_order as a clean 0..N-1 sequence, which also heals any existing ties.
 export async function moveFooterSection(id: string, direction: "up" | "down") {
   const supabase = createServiceClient();
-  const { data: sections } = await supabase.from("footer_sections").select("id, sort_order").order("sort_order", { ascending: true });
+  const { data: sections } = await supabase
+    .from("footer_sections")
+    .select("id")
+    .order("sort_order", { ascending: true })
+    .order("id", { ascending: true });
   if (!sections) return;
   const idx = sections.findIndex((s) => s.id === id);
   const swapWith = direction === "up" ? idx - 1 : idx + 1;
   if (idx < 0 || swapWith < 0 || swapWith >= sections.length) return;
 
-  await Promise.all([
-    supabase.from("footer_sections").update({ sort_order: sections[swapWith].sort_order }).eq("id", sections[idx].id),
-    supabase.from("footer_sections").update({ sort_order: sections[idx].sort_order }).eq("id", sections[swapWith].id),
-  ]);
+  const ordered = sections.map((s) => s.id);
+  [ordered[idx], ordered[swapWith]] = [ordered[swapWith], ordered[idx]];
+
+  await Promise.all(ordered.map((sid, i) => supabase.from("footer_sections").update({ sort_order: i }).eq("id", sid)));
   refresh();
 }
 
@@ -84,13 +104,16 @@ export async function addFooterLink(sectionId: string, label: string) {
     .insert({ slug, title: label.trim(), body: "Content coming soon — check back later." });
   if (pageError) throw new Error("Couldn't create the page — the database may need the latest migration applied.");
 
-  const { count } = await supabase
+  const { data: maxRow } = await supabase
     .from("footer_links")
-    .select("*", { count: "exact", head: true })
-    .eq("section_id", sectionId);
+    .select("sort_order")
+    .eq("section_id", sectionId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
   const { error } = await supabase
     .from("footer_links")
-    .insert({ section_id: sectionId, label: label.trim(), url: `/page/${slug}`, sort_order: count ?? 0 });
+    .insert({ section_id: sectionId, label: label.trim(), url: `/page/${slug}`, sort_order: (maxRow?.sort_order ?? -1) + 1 });
   if (error) throw new Error("Couldn't add the link — the database may need the latest migration applied.");
   refresh();
 }
@@ -110,22 +133,24 @@ export async function deleteFooterLink(id: string) {
   refresh();
 }
 
+// Full-recompute reorder — see moveFooterSection above for why.
 export async function moveFooterLink(id: string, sectionId: string, direction: "up" | "down") {
   const supabase = createServiceClient();
   const { data: links } = await supabase
     .from("footer_links")
-    .select("id, sort_order")
+    .select("id")
     .eq("section_id", sectionId)
-    .order("sort_order", { ascending: true });
+    .order("sort_order", { ascending: true })
+    .order("id", { ascending: true });
   if (!links) return;
   const idx = links.findIndex((l) => l.id === id);
   const swapWith = direction === "up" ? idx - 1 : idx + 1;
   if (idx < 0 || swapWith < 0 || swapWith >= links.length) return;
 
-  await Promise.all([
-    supabase.from("footer_links").update({ sort_order: links[swapWith].sort_order }).eq("id", links[idx].id),
-    supabase.from("footer_links").update({ sort_order: links[idx].sort_order }).eq("id", links[swapWith].id),
-  ]);
+  const ordered = links.map((l) => l.id);
+  [ordered[idx], ordered[swapWith]] = [ordered[swapWith], ordered[idx]];
+
+  await Promise.all(ordered.map((lid, i) => supabase.from("footer_links").update({ sort_order: i }).eq("id", lid)));
   refresh();
 }
 
@@ -149,11 +174,14 @@ export async function deleteContentPage(id: string) {
 }
 
 async function nextBlockSortOrder(supabase: ReturnType<typeof createServiceClient>, pageId: string) {
-  const { count } = await supabase
+  const { data: maxRow } = await supabase
     .from("content_page_blocks")
-    .select("*", { count: "exact", head: true })
-    .eq("page_id", pageId);
-  return count ?? 0;
+    .select("sort_order")
+    .eq("page_id", pageId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (maxRow?.sort_order ?? -1) + 1;
 }
 
 export async function addTextBlock(pageId: string) {
@@ -186,22 +214,24 @@ export async function deleteBlock(blockId: string) {
   refresh();
 }
 
+// Full-recompute reorder — see moveFooterSection above for why.
 export async function moveBlock(blockId: string, pageId: string, direction: "up" | "down") {
   const supabase = createServiceClient();
   const { data: blocks } = await supabase
     .from("content_page_blocks")
-    .select("id, sort_order")
+    .select("id")
     .eq("page_id", pageId)
-    .order("sort_order", { ascending: true });
+    .order("sort_order", { ascending: true })
+    .order("id", { ascending: true });
   if (!blocks) return;
   const idx = blocks.findIndex((b) => b.id === blockId);
   const swapWith = direction === "up" ? idx - 1 : idx + 1;
   if (idx < 0 || swapWith < 0 || swapWith >= blocks.length) return;
 
-  await Promise.all([
-    supabase.from("content_page_blocks").update({ sort_order: blocks[swapWith].sort_order }).eq("id", blocks[idx].id),
-    supabase.from("content_page_blocks").update({ sort_order: blocks[idx].sort_order }).eq("id", blocks[swapWith].id),
-  ]);
+  const ordered = blocks.map((b) => b.id);
+  [ordered[idx], ordered[swapWith]] = [ordered[swapWith], ordered[idx]];
+
+  await Promise.all(ordered.map((bid, i) => supabase.from("content_page_blocks").update({ sort_order: i }).eq("id", bid)));
   refresh();
 }
 

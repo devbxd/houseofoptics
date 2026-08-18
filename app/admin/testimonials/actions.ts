@@ -28,12 +28,24 @@ export async function createTestimonial(formData: FormData) {
   const supabase = createServiceClient();
   const photoUrl = photo && photo.size > 0 ? await uploadPhoto(supabase, photo) : null;
 
+  // sort_order defaults to 0 in the schema and nothing ever set it
+  // explicitly — every testimonial tied at 0, so display order (here and
+  // in the homepage carousel) rode entirely on Postgres's undefined
+  // tie-break and could shuffle unpredictably. Newest-last by default.
+  const { data: maxRow } = await supabase
+    .from("testimonials")
+    .select("sort_order")
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   await supabase.from("testimonials").insert({
     author_name: authorName,
     quote,
     rating: ratingRaw ? Number(ratingRaw) : null,
     product_id: productId,
     photo_url: photoUrl,
+    sort_order: (maxRow?.sort_order ?? -1) + 1,
   });
 
   revalidatePath("/admin/testimonials");

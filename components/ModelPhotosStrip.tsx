@@ -98,6 +98,9 @@ export function ModelPhotosStrip({ photos, title }: { photos: ModelPhoto[]; titl
       {title && <h2 className="mb-8 text-center font-serif text-2xl tracking-wide">{title}</h2>}
       <div
         ref={trackRef}
+        // Pinned LTR — see BrandStrip.tsx for why (the scrollLeft-based
+        // auto-scroll/drag math here is LTR-only and breaks under Arabic).
+        dir="ltr"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
