@@ -63,6 +63,14 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
       <ProductImageGrid productId={id} images={images} />
 
       <ProductForm
+        // Forces a remount when navigating client-side from editing one
+        // product straight to another — otherwise ProductForm's internal
+        // category/variants state (seeded once from `product` on first
+        // mount) keeps showing the previous product's values layered over
+        // this one's data, risking a save that overwrites the wrong
+        // category or variants. Same class of bug as the storefront
+        // ProductGallery fix.
+        key={id}
         action={updateWithId}
         categories={categories ?? []}
         brands={brands ?? []}

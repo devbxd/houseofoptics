@@ -123,14 +123,21 @@ export function ProductDetailInteractive({
   const { addItem } = useCart();
   const router = useRouter();
 
+  // The product's own photo/color (e.g. "Yellow") isn't a row in `variants`
+  // — it's just what's already showing. Giving it a label here lets it sit
+  // in the dropdown as a normal, always-clickable option alongside the real
+  // variants, so switching to "Black" and back to "Yellow" is one tap each,
+  // not a special "tap the same option again to remove it" gesture.
+  const baseLabel = variantLabel({ color_label: baseColor, size_label: baseSize }) || null;
+
   // Each entry in `variants` is a full version of the product (its own
   // color/size combo, photo, price, stock) — picking one from the dropdown
   // is optional, the base product info shows until something is picked.
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(baseLabel);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
 
-  const active = selected ? variants.find((v) => variantLabel(v) === selected) ?? null : null;
+  const active = selected && selected !== baseLabel ? variants.find((v) => variantLabel(v) === selected) ?? null : null;
 
   const displayImages = active?.image_url ? [{ url: active.image_url }] : images;
 
@@ -308,10 +315,22 @@ export function ProductDetailInteractive({
             </p>
             <VariantDropdown
               placeholder={t["product.chooseOption"]}
-              options={variants.map((v) => variantLabel(v))}
+              // The base product's own color/size sits in the list as a
+              // normal option too (when set), not just the extra variants
+              // — every color the admin adds shows up here the same way,
+              // each with its own price/stock/photo already wired below.
+              options={[...(baseLabel ? [baseLabel] : []), ...variants.map((v) => variantLabel(v)).filter((l) => l !== baseLabel)]}
               selected={selected}
-              disabledOptions={new Set(variants.filter((v) => v.stock != null && v.stock <= 0).map((v) => variantLabel(v)))}
-              onSelect={setSelected}
+              disabledOptions={
+                new Set([
+                  ...(baseLabel && stock != null && stock <= 0 ? [baseLabel] : []),
+                  ...variants.filter((v) => v.stock != null && v.stock <= 0).map((v) => variantLabel(v)),
+                ])
+              }
+              // Falls back to "tap the same option again to remove it" only
+              // when there's no explicit base entry to tap instead (i.e. the
+              // product has neither a base color nor a base size set).
+              onSelect={(opt) => setSelected((prev) => (prev === opt && baseLabel == null ? null : opt))}
             />
           </div>
         )}
@@ -392,7 +411,7 @@ export function ProductDetailInteractive({
         </div>
 
         <WishlistButton
-          item={{ productId, slug, name, price: hasPrice ? finalPrice! : null, image: images[0]?.url ?? null }}
+          item={{ productId, slug, name, price: hasPrice ? finalPrice! : null, image: cartImage, stock: activeStock }}
           className="mt-4 flex items-center gap-2 text-sm text-neutral-600 hover:text-brand-black"
           iconClassName="h-4 w-4"
         />

@@ -290,7 +290,7 @@ export async function updateGlobalProductInfo(formData: FormData) {
 
   revalidatePath("/admin/reglages");
   revalidatePath("/", "layout");
-  revalidateTag("products");
+  revalidateTag("settings");
 }
 
 
@@ -303,10 +303,14 @@ export async function deleteProduct(productId: string) {
 }
 
 export async function updateDiscount(productId: string, discountPercent: number | null) {
+  // The 0-95 range is only enforced client-side (input min/max) — clamp
+  // here too so a malformed/direct call can't store e.g. 150%, which would
+  // make price * (1 - discount/100) go negative everywhere it's displayed.
+  const clamped = discountPercent == null ? null : Math.min(95, Math.max(0, Math.round(discountPercent)));
   const supabase = createServiceClient();
   const { error } = await supabase
     .from("products")
-    .update({ discount_percent: discountPercent })
+    .update({ discount_percent: clamped })
     .eq("id", productId);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/discounts");
@@ -318,6 +322,7 @@ export async function deleteProductImage(imageId: string) {
   const supabase = createServiceClient();
   await supabase.from("product_images").delete().eq("id", imageId);
   revalidatePath("/admin/produits");
+  revalidateTag("products");
 }
 
 // Same full-recompute approach as category reordering — deterministic

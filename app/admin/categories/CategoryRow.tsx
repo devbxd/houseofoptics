@@ -76,7 +76,14 @@ export function CategoryRow({
             Save
           </button>
         ) : (
-          <button className="text-neutral-600 hover:text-brand-black" onClick={() => setEditing(true)}>
+          <button
+            className="text-neutral-600 hover:text-brand-black"
+            onClick={() => {
+              // Resync from the live prop — see BrandRow.tsx for why.
+              setName(category.name);
+              setEditing(true);
+            }}
+          >
             Edit
           </button>
         )}

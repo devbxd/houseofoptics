@@ -92,7 +92,18 @@ export function BrandRow({ brand, productCount }: { brand: Brand; productCount: 
             Save
           </button>
         ) : (
-          <button className="text-neutral-600 hover:text-brand-black" onClick={() => setEditing(true)}>
+          <button
+            className="text-neutral-600 hover:text-brand-black"
+            onClick={() => {
+              // Resync from the live prop, not whatever `name` was left
+              // over from a previous edit — otherwise a rename made
+              // elsewhere (another tab, revalidated in the background)
+              // gets silently overwritten by stale text the next time
+              // someone clicks Edit here.
+              setName(brand.name);
+              setEditing(true);
+            }}
+          >
             Edit
           </button>
         )}

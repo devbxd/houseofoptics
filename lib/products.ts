@@ -197,3 +197,15 @@ export const getProductReviews = unstable_cache(fetchProductReviews, ["product-r
   tags: ["testimonials"],
   revalidate: REVALIDATE_SECONDS,
 });
+
+// For the sitemap only — every active product's slug, unpaginated.
+async function fetchAllProductSlugs() {
+  const supabase = createPublicClient();
+  const { data } = await supabase.from("products").select("slug, created_at").eq("is_active", true);
+  return (data ?? []) as { slug: string; created_at: string | null }[];
+}
+
+export const getAllProductSlugs = unstable_cache(fetchAllProductSlugs, ["all-product-slugs"], {
+  tags: ["products"],
+  revalidate: REVALIDATE_SECONDS,
+});

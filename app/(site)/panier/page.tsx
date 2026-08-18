@@ -1,9 +1,37 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/components/CartProvider";
 import { useLocale } from "@/lib/locale-client";
+
+// Local draft string so the field can be freely cleared/retyped (e.g.
+// backspacing "1" to type "12") without every keystroke writing straight to
+// cart state — committing on blur only, and reverting to the last valid
+// quantity instead of removing the line if left empty/invalid.
+function QuantityInput({ quantity, onCommit }: { quantity: number; onCommit: (next: number) => void }) {
+  const [draft, setDraft] = useState(String(quantity));
+
+  return (
+    <input
+      type="number"
+      min={1}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onFocus={() => setDraft(String(quantity))}
+      onBlur={() => {
+        const next = Math.floor(Number(draft));
+        if (Number.isFinite(next) && next > 0) {
+          onCommit(next);
+        } else {
+          setDraft(String(quantity));
+        }
+      }}
+      className="w-16 border border-neutral-300 px-2 py-1 text-center text-sm"
+    />
+  );
+}
 
 export default function CartPage() {
   const { items, setQuantity, removeItem, subtotal } = useCart();
@@ -37,12 +65,9 @@ export default function CartPage() {
               <p className="text-sm">{item.name}</p>
               <p className="text-sm text-neutral-500">${item.price.toFixed(2)}</p>
             </div>
-            <input
-              type="number"
-              min={1}
-              value={item.quantity}
-              onChange={(e) => setQuantity(item.productId, item.variant, Number(e.target.value))}
-              className="w-16 border border-neutral-300 px-2 py-1 text-center text-sm"
+            <QuantityInput
+              quantity={item.quantity}
+              onCommit={(next) => setQuantity(item.productId, item.variant, next)}
             />
             <button onClick={() => removeItem(item.productId, item.variant)} className="text-sm text-neutral-500 hover:text-red-600">
               {t["cart.remove"]}

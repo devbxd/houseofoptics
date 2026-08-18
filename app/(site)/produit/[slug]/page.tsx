@@ -52,6 +52,13 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
       <ProductDetailInteractive
+        // Forces a full remount when navigating client-side from one
+        // product to another (e.g. via a related-product card or a color
+        // sibling swatch) — otherwise this component's own state (selected
+        // variant, quantity, "added to cart" flag) survives the swap and
+        // shows stale data over the new product's content. Same class of
+        // bug as the ProductGallery fix — see components/ProductGallery.tsx.
+        key={product.id}
         productId={product.id}
         slug={product.slug}
         name={product.name}

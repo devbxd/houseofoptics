@@ -8,6 +8,7 @@ export type WishlistItem = {
   name: string;
   price: number | null;
   image: string | null;
+  stock: number | null;
 };
 
 type WishlistContextValue = {

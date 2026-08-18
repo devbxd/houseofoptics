@@ -50,7 +50,7 @@ export function ProductGrid({ products, t }: { products: ProductCard[]; t: Recor
                 </span>
               )}
               <WishlistButton
-                item={{ productId: p.id, slug: p.slug, name: p.name, price: p.price, image: p.images[0]?.url ?? null }}
+                item={{ productId: p.id, slug: p.slug, name: p.name, price: p.price, image: p.images[0]?.url ?? null, stock: p.stock }}
                 className="absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-neutral-700 shadow transition-colors hover:text-brand-red"
                 iconClassName="h-4 w-4"
               />

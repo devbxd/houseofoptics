@@ -199,8 +199,12 @@ export default function CheckoutPage() {
       } else {
         cart.clear();
       }
-    } catch {
-      setError(t["checkout.genericError"]);
+    } catch (err) {
+      setError(
+        err instanceof Error && err.message === "OUT_OF_STOCK"
+          ? t["checkout.outOfStockError"]
+          : t["checkout.genericError"]
+      );
     } finally {
       setSubmitting(false);
     }
