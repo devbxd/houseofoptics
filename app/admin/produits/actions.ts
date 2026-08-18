@@ -137,20 +137,20 @@ async function savePackagingImage(
   }
 }
 
-// base_color comes from a migration that may not have run yet on this
-// deployment — retry without it rather than failing the whole save if
-// Postgres rejects it as an unknown column.
+// base_color/base_size come from migrations that may not have run yet on
+// this deployment — retry without them rather than failing the whole save
+// if Postgres rejects them as unknown columns.
 async function insertProductSafe(supabase: ReturnType<typeof createServiceClient>, fields: Record<string, unknown>) {
   const first = await supabase.from("products").insert(fields).select("id, slug").single();
   if (!first.error) return first;
-  const { base_color, ...fallback } = fields;
+  const { base_color, base_size, ...fallback } = fields;
   return supabase.from("products").insert(fallback).select("id, slug").single();
 }
 
 async function updateProductSafe(supabase: ReturnType<typeof createServiceClient>, productId: string, fields: Record<string, unknown>) {
   const { error } = await supabase.from("products").update(fields).eq("id", productId);
   if (!error) return;
-  const { base_color, ...fallback } = fields;
+  const { base_color, base_size, ...fallback } = fields;
   await supabase.from("products").update(fallback).eq("id", productId);
 }
 
@@ -168,6 +168,7 @@ export async function createProduct(formData: FormData) {
   const stock = stockRaw ? Number(stockRaw) : null;
   const sku = String(formData.get("sku") ?? "").trim() || null;
   const baseColor = String(formData.get("base_color") ?? "").trim() || null;
+  const baseSize = String(formData.get("base_size") ?? "").trim() || null;
   const files = (formData.getAll("images") as File[]).filter((f) => f.size > 0);
   const packagingFile = formData.get("packaging_image") as File | null;
 
@@ -188,6 +189,7 @@ export async function createProduct(formData: FormData) {
     stock,
     sku,
     base_color: baseColor,
+    base_size: baseSize,
   });
 
   if (error || !product) throw error;
@@ -222,6 +224,7 @@ export async function updateProduct(productId: string, formData: FormData) {
   const stock = stockRaw ? Number(stockRaw) : null;
   const sku = String(formData.get("sku") ?? "").trim() || null;
   const baseColor = String(formData.get("base_color") ?? "").trim() || null;
+  const baseSize = String(formData.get("base_size") ?? "").trim() || null;
   const isActive = formData.get("is_active") === "on";
   const files = (formData.getAll("images") as File[]).filter((f) => f.size > 0);
   const packagingFile = formData.get("packaging_image") as File | null;
@@ -244,6 +247,7 @@ export async function updateProduct(productId: string, formData: FormData) {
     stock,
     sku,
     base_color: baseColor,
+    base_size: baseSize,
     is_active: isActive,
   });
 

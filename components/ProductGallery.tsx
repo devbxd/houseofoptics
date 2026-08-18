@@ -40,7 +40,11 @@ export function ProductGallery({
           src={images[active].url}
           alt={alt}
           fill
-          quality={95}
+          // Already resized/compressed server-side at upload and served
+          // from Supabase with a long cache lifetime — skip Next's image
+          // optimizer so a brand-new product's photo loads directly on
+          // first view instead of a redundant fetch+resize round trip.
+          unoptimized
           sizes="50vw"
           className="cursor-zoom-in object-cover"
           priority
@@ -90,7 +94,7 @@ export function ProductGallery({
                 active === i ? "border-brand-black" : "border-neutral-200"
               }`}
             >
-              <Image src={img.url} alt="" fill sizes="64px" className="object-cover" />
+              <Image src={img.url} alt="" fill unoptimized sizes="64px" className="object-cover" />
             </button>
           ))}
         </div>

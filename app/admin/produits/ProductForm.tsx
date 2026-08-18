@@ -28,6 +28,7 @@ type Product = {
   brand_id?: string | null;
   sku?: string | null;
   base_color?: string | null;
+  base_size?: string | null;
   is_active?: boolean;
   packaging_image_url?: string | null;
   variants?: {
@@ -170,6 +171,18 @@ export function ProductForm({
             className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
           />
         </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm text-neutral-600">
+          Base size (the size already shown in the main photos)
+        </label>
+        <input
+          name="base_size"
+          defaultValue={product?.base_size ?? ""}
+          placeholder="e.g. 52mm"
+          className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+        />
       </div>
 
       <VariantsEditor initial={product?.variants ?? []} allProducts={allProducts} />
