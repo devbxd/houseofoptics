@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 
 export function ImageLightbox({
@@ -74,13 +75,23 @@ export function ImageLightbox({
         className={`relative max-h-[85vh] max-w-[92vw] md:max-w-3xl ${zoomed ? "overflow-auto" : "flex items-center justify-center overflow-hidden"}`}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element -- zoom/pan needs a plain img, not next/image's fill-based sizing */}
-        <img
-          src={images[index].url}
-          alt=""
+        <div
           onClick={() => setZoomed((z) => !z)}
-          className={zoomed ? "w-[200%] max-w-none cursor-zoom-out" : "max-h-[85vh] max-w-[92vw] cursor-zoom-in object-contain md:max-w-3xl"}
-        />
+          className={
+            zoomed
+              ? "relative h-[85vh] w-[200%] cursor-zoom-out"
+              : "relative h-[85vh] max-h-[85vh] w-[92vw] max-w-[92vw] cursor-zoom-in md:max-w-3xl"
+          }
+        >
+          <Image
+            src={images[index].url}
+            alt=""
+            fill
+            sizes={zoomed ? "200vw" : "(min-width: 768px) 768px, 92vw"}
+            quality={90}
+            className="object-contain"
+          />
+        </div>
       </div>
 
       {hasMultiple && !zoomed && (

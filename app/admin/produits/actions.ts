@@ -2,10 +2,39 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import sharp from "sharp";
 import { createServiceClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/slugify";
 
 const BUCKET = "products";
+const MAX_DIMENSION = 1600;
+// Storage paths are UUID-named and never reused, so uploaded images are
+// immutable — safe to cache for a long time. Without this Supabase defaults
+// to a 1-hour cache, and every re-fetch (e.g. Next's image optimizer
+// re-pulling the original) is billed as Cached Egress.
+const IMMUTABLE_CACHE_CONTROL = "31536000";
+
+// Uploaded photos come straight off phones/cameras at full resolution.
+// Downsizing + recompressing here (instead of only in the manual
+// scripts/enhance-images.mjs pass) keeps every product's originals small
+// from the moment they're added, so egress doesn't creep back up.
+async function processImage(file: File): Promise<{ buffer: Buffer; contentType: string; ext: string }> {
+  const original = Buffer.from(await file.arrayBuffer());
+  const isPng = file.type === "image/png";
+  try {
+    let pipeline = sharp(original)
+      .rotate()
+      .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: "inside", withoutEnlargement: true });
+    pipeline = isPng ? pipeline.png({ quality: 85, compressionLevel: 9 }) : pipeline.jpeg({ quality: 85, mozjpeg: true });
+    const buffer = await pipeline.toBuffer();
+    return { buffer, contentType: isPng ? "image/png" : "image/jpeg", ext: isPng ? "png" : "jpg" };
+  } catch {
+    // Unsupported/corrupt input (e.g. an odd format sharp can't decode) —
+    // fall back to uploading the original rather than failing the save.
+    const ext = file.name.split(".").pop() || "jpg";
+    return { buffer: original, contentType: file.type || "image/jpeg", ext };
+  }
+}
 
 // Lets the variant photo picker reuse a photo already uploaded to some
 // product on the site, instead of only uploading a new file.
@@ -46,11 +75,12 @@ async function uploadVariantImage(
   productSlug: string,
   file: File
 ) {
-  const ext = file.name.split(".").pop() || "jpg";
+  const { buffer, contentType, ext } = await processImage(file);
   const path = `${productSlug}/variants/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
-    contentType: file.type || "image/jpeg",
+  const { error } = await supabase.storage.from(BUCKET).upload(path, buffer, {
+    contentType,
     upsert: false,
+    cacheControl: IMMUTABLE_CACHE_CONTROL,
   });
   if (error) return null;
   const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
@@ -104,11 +134,12 @@ async function uploadImages(supabase: ReturnType<typeof createServiceClient>, pr
   const urls: string[] = [];
   for (const file of files) {
     if (!file || file.size === 0) continue;
-    const ext = file.name.split(".").pop() || "jpg";
+    const { buffer, contentType, ext } = await processImage(file);
     const path = `${productSlug}/${crypto.randomUUID()}.${ext}`;
-    const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
-      contentType: file.type || "image/jpeg",
+    const { error } = await supabase.storage.from(BUCKET).upload(path, buffer, {
+      contentType,
       upsert: false,
+      cacheControl: IMMUTABLE_CACHE_CONTROL,
     });
     if (error) throw error;
     const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
