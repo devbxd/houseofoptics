@@ -4,7 +4,7 @@ import { ProductGrid } from "@/components/ProductGrid";
 import { Pagination } from "@/components/Pagination";
 import { BrandStrip } from "@/components/BrandStrip";
 import { getServerDict } from "@/lib/locale-server";
-import { createClient } from "@/lib/supabase/server";
+import { getBrands } from "@/lib/homepage";
 
 export const metadata: Metadata = {
   title: "Boutique",
@@ -19,11 +19,10 @@ export default async function ProductsPage({
   const { page: pageParam, q } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
 
-  const supabase = await createClient();
-  const [{ products, total, pageSize }, { t }, { data: brands }] = await Promise.all([
+  const [{ products, total, pageSize }, { t }, brands] = await Promise.all([
     listProducts({ search: q }, page),
     getServerDict(),
-    supabase.from("brands").select("id, name, slug, logo_url").order("sort_order", { ascending: true }),
+    getBrands(),
   ]);
 
   const basePath = q ? `/produits?q=${encodeURIComponent(q)}` : "/produits";

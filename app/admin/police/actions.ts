@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { createServiceClient } from "@/lib/supabase/server";
 import { HEADING_FONTS, BODY_FONTS, DEFAULT_HEADING_FONT, DEFAULT_BODY_FONT, DEFAULT_ACCENT_FONT } from "@/lib/fonts";
@@ -50,6 +50,7 @@ export async function updateFonts(formData: FormData) {
 
   revalidatePath("/", "layout");
   revalidatePath("/admin/police");
+  revalidateTag("settings");
 
   if (failures.length > 0) {
     redirect(`/admin/police?error=${encodeURIComponent(failures.join("; "))}`);

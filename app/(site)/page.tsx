@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { listProducts } from "@/lib/products";
 import { getCategories, getSiteSettings, localizedHeroTitle, localizedHeroEyebrow, localizedHeroSubtitle } from "@/lib/settings";
+import { getBrands, getActiveTestimonials, getFeedbackProducts, getModelPhotos, getHeroData, getCategoryPhotoMap } from "@/lib/homepage";
 import { NewsletterForm } from "@/components/NewsletterForm";
 import { TestimonialsCarousel } from "@/components/TestimonialsCarousel";
 import { FeedbackForm } from "@/components/FeedbackForm";
@@ -11,40 +12,23 @@ import { CategoryCarousel } from "@/components/CategoryCarousel";
 import { ModelPhotosStrip } from "@/components/ModelPhotosStrip";
 import { ProductGrid } from "@/components/ProductGrid";
 import { getServerDict } from "@/lib/locale-server";
-import { createClient } from "@/lib/supabase/server";
 
 export default async function HomePage() {
-  const supabase = await createClient();
-  const [heroPool, categories, { data: brands }, { locale, t }, { data: testimonials }, { data: feedbackProducts }, settings, { data: modelPhotos }] =
+  const [heroPool, categories, brands, { locale, t }, testimonials, feedbackProducts, settings, normalizedModelPhotos] =
     await Promise.all([
       listProducts({}, 1, 12),
       getCategories(),
-      // select("*") rather than naming featured_on_homepage/homepage_banner_url
-      // — they come from a migration that may not have run yet.
-      supabase.from("brands").select("*").order("sort_order", { ascending: true }),
+      getBrands(),
       getServerDict(),
-      supabase
-        .from("testimonials")
-        .select("id, author_name, quote, rating, photo_url")
-        .eq("is_active", true)
-        .order("sort_order", { ascending: true }),
-      supabase.from("products").select("id, name").eq("is_active", true).order("name", { ascending: true }),
+      getActiveTestimonials(),
+      getFeedbackProducts(),
       getSiteSettings(),
-      supabase
-        .from("model_photos")
-        .select("id, image_url, product:products(name, slug)")
-        .order("sort_order", { ascending: true }),
+      getModelPhotos(),
     ]);
 
   const heroTitle = localizedHeroTitle(settings, locale) ?? `${t["home.title1"]}\n${t["home.title2"]}`;
   const heroEyebrow = localizedHeroEyebrow(settings, locale) ?? t["home.eyebrow"];
   const heroSubtitle = localizedHeroSubtitle(settings, locale) ?? t["home.subtitle"];
-
-  const normalizedModelPhotos = (modelPhotos ?? []).map((p: any) => ({
-    id: p.id,
-    image_url: p.image_url,
-    product: Array.isArray(p.product) ? p.product[0] ?? null : p.product,
-  }));
 
   // Full-bleed "shop the brand" blocks — one banner photo plus a small
   // product grid per brand — shown lower on the homepage, for whichever
@@ -65,48 +49,14 @@ export default async function HomePage() {
 
   // One representative photo per category tile, best quality first per
   // category so the tile isn't stuck with whatever product was added last.
-  const { data: categoryPhotoRows } = topCategories.length
-    ? await supabase
-        .from("products")
-        .select("category_id, images:product_images(url, sort_order)")
-        .eq("is_active", true)
-        .in(
-          "category_id",
-          topCategories.map((c) => c.id)
-        )
-        .order("image_bytes", { ascending: false, nullsFirst: false })
-    : { data: [] as any[] };
-
-  const categoryImageById = new Map<string, string>();
-  const categoryCountById = new Map<string, number>();
-  for (const row of categoryPhotoRows ?? []) {
-    const r = row as any;
-    if (!r.category_id) continue;
-    categoryCountById.set(r.category_id, (categoryCountById.get(r.category_id) ?? 0) + 1);
-    if (categoryImageById.has(r.category_id)) continue;
-    const img = (r.images ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order)[0];
-    if (img) categoryImageById.set(r.category_id, img.url);
-  }
+  const { imageById: categoryImageById, countById: categoryCountById } = await getCategoryPhotoMap(
+    topCategories.map((c) => c.id)
+  );
 
   // Custom uploaded images (not tied to any product) come first, then
   // manually curated product photos; if the client hasn't picked either,
   // fall back to the sharpest recent product photos.
-  const [{ data: customSlides }, { data: manualHero }] = await Promise.all([
-    supabase.from("hero_slides").select("id, image_url, sort_order").order("sort_order", { ascending: true }),
-    supabase
-      .from("product_images")
-      .select("url, sort_order, hero_order, products(name)")
-      .eq("is_hero", true)
-      .order("hero_order", { ascending: true }),
-  ]);
-
-  const customHeroImages = (customSlides ?? []).map((s) => ({ id: s.id, name: "", url: s.image_url }));
-  const manualHeroImages =
-    manualHero?.map((img: any, i: number) => ({
-      id: `${img.url}-${i}`,
-      name: img.products?.name ?? "",
-      url: img.url,
-    })) ?? [];
+  const { customHeroImages, manualHeroImages } = await getHeroData();
 
   const heroImages =
     customHeroImages.length > 0 || manualHeroImages.length > 0
@@ -151,8 +101,8 @@ export default async function HomePage() {
               id: c.id,
               slug: c.slug,
               name: c.name,
-              image: categoryImageById.get(c.id) ?? null,
-              count: categoryCountById.get(c.id) ?? 0,
+              image: categoryImageById[c.id] ?? null,
+              count: categoryCountById[c.id] ?? 0,
             }))}
             shopNowLabel={t["home.shopNow"]}
             productsLabel={t["home.productsCount"]}

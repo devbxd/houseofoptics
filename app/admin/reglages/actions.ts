@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { processImage, IMMUTABLE_CACHE_CONTROL } from "@/lib/process-image";
 
@@ -40,4 +40,5 @@ export async function updateSettings(formData: FormData) {
   revalidatePath("/", "layout");
   revalidatePath("/admin/reglages");
   revalidatePath("/emplacement");
+  revalidateTag("settings");
 }

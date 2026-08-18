@@ -1,5 +1,8 @@
-import { createClient } from "@/lib/supabase/server";
+import { unstable_cache } from "next/cache";
+import { createPublicClient } from "@/lib/supabase/public";
 import { DEFAULT_HEADING_FONT, DEFAULT_BODY_FONT, DEFAULT_ACCENT_FONT } from "@/lib/fonts";
+
+const REVALIDATE_SECONDS = 60;
 
 export type SiteMode = "noel" | "halloween" | "nouvel_an" | null;
 
@@ -74,8 +77,8 @@ const DEFAULT_SETTINGS: SiteSettings = {
   returns_info: "",
 };
 
-export async function getSiteSettings(): Promise<SiteSettings> {
-  const supabase = await createClient();
+async function fetchSiteSettings(): Promise<SiteSettings> {
+  const supabase = createPublicClient();
   const { data } = await supabase.from("site_settings").select("*").single();
   // Merge over the defaults rather than replace — a column added by a
   // migration the client hasn't run yet is simply absent from `data`,
@@ -83,14 +86,27 @@ export async function getSiteSettings(): Promise<SiteSettings> {
   return { ...DEFAULT_SETTINGS, ...data };
 }
 
-export async function getCategories() {
-  const supabase = await createClient();
+// Read on every single page via the root layout — cached so 100 concurrent
+// visitors share one query instead of one each, invalidated instantly by
+// revalidateTag("settings") whenever the client saves Réglages/Hero text.
+export const getSiteSettings = unstable_cache(fetchSiteSettings, ["site-settings"], {
+  tags: ["settings"],
+  revalidate: REVALIDATE_SECONDS,
+});
+
+async function fetchCategories() {
+  const supabase = createPublicClient();
   const { data } = await supabase
     .from("categories")
     .select("id, name, slug, parent_id")
     .order("sort_order", { ascending: true });
   return data ?? [];
 }
+
+export const getCategories = unstable_cache(fetchCategories, ["categories"], {
+  tags: ["categories"],
+  revalidate: REVALIDATE_SECONDS,
+});
 
 export function whatsappLink(number: string, message?: string) {
   const digits = number.replace(/[^\d]/g, "");

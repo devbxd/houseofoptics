@@ -1,12 +1,11 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getProductBySlug, getRelatedProducts, getColorSiblings } from "@/lib/products";
+import { getProductBySlug, getRelatedProducts, getColorSiblings, getProductReviews } from "@/lib/products";
 import { getSiteSettings, whatsappLink, phoneLink } from "@/lib/settings";
 import { ProductDetailInteractive } from "@/components/ProductDetailInteractive";
 import { ProductGrid } from "@/components/ProductGrid";
 import { ProductReviews } from "@/components/ProductReviews";
 import { getServerDict } from "@/lib/locale-server";
-import { createClient } from "@/lib/supabase/server";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -35,15 +34,11 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const waHref = settings.whatsapp_number ? whatsappLink(settings.whatsapp_number, orderMessage) : "/contact";
   const callHref = settings.whatsapp_number ? phoneLink(settings.whatsapp_number) : "/contact";
 
-  const [related, colorSiblings] = await Promise.all([getRelatedProducts(product), getColorSiblings(product)]);
-
-  const supabase = await createClient();
-  const { data: reviews } = await supabase
-    .from("testimonials")
-    .select("id, author_name, quote, rating, photo_url")
-    .eq("product_id", product.id)
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true });
+  const [related, colorSiblings, reviews] = await Promise.all([
+    getRelatedProducts(product),
+    getColorSiblings(product),
+    getProductReviews(product.id),
+  ]);
 
   const ratedReviews = (reviews ?? []).filter((r) => r.rating != null);
   const ratingSummary =

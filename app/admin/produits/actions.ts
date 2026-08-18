@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { createServiceClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/slugify";
@@ -207,6 +207,7 @@ export async function createProduct(formData: FormData) {
 
   revalidatePath("/admin/produits");
   revalidatePath("/", "layout");
+  revalidateTag("products");
   redirect("/admin/produits");
 }
 
@@ -269,6 +270,7 @@ export async function updateProduct(productId: string, formData: FormData) {
   revalidatePath("/admin/produits");
   revalidatePath(`/admin/produits/${productId}`);
   revalidatePath("/", "layout");
+  revalidateTag("products");
   return { ok: true };
 }
 
@@ -288,6 +290,7 @@ export async function updateGlobalProductInfo(formData: FormData) {
 
   revalidatePath("/admin/reglages");
   revalidatePath("/", "layout");
+  revalidateTag("products");
 }
 
 
@@ -296,6 +299,7 @@ export async function deleteProduct(productId: string) {
   await supabase.from("products").delete().eq("id", productId);
   revalidatePath("/admin/produits");
   revalidatePath("/", "layout");
+  revalidateTag("products");
 }
 
 export async function updateDiscount(productId: string, discountPercent: number | null) {
@@ -307,6 +311,7 @@ export async function updateDiscount(productId: string, discountPercent: number 
   if (error) throw new Error(error.message);
   revalidatePath("/admin/discounts");
   revalidatePath("/", "layout");
+  revalidateTag("products");
 }
 
 export async function deleteProductImage(imageId: string) {
@@ -338,6 +343,7 @@ export async function setProductImagePosition(productId: string, imageId: string
   revalidatePath(`/admin/produits/${productId}`);
   revalidatePath("/admin/produits");
   revalidatePath("/", "layout");
+  revalidateTag("products");
 }
 
 // A manual related-products pick overrides the automatic category/brand
@@ -360,6 +366,7 @@ export async function addRelatedProduct(productId: string, relatedProductId: str
 
   revalidatePath(`/admin/produits/${productId}`);
   revalidatePath("/", "layout");
+  revalidateTag("products");
 }
 
 export async function removeRelatedProduct(id: string, productId: string) {
@@ -367,6 +374,7 @@ export async function removeRelatedProduct(id: string, productId: string) {
   await supabase.from("product_related_products").delete().eq("id", id);
   revalidatePath(`/admin/produits/${productId}`);
   revalidatePath("/", "layout");
+  revalidateTag("products");
 }
 
 // "Other colors" — tags two products as different colors of the same model.
@@ -401,6 +409,7 @@ export async function addColorLink(productId: string, otherProductId: string) {
 
   revalidatePath(`/admin/produits/${productId}`);
   revalidatePath("/", "layout");
+  revalidateTag("products");
 }
 
 export async function removeColorLink(productId: string, memberProductId: string) {
@@ -408,4 +417,5 @@ export async function removeColorLink(productId: string, memberProductId: string
   await supabase.from("products").update({ color_group_id: null }).eq("id", memberProductId);
   revalidatePath(`/admin/produits/${productId}`);
   revalidatePath("/", "layout");
+  revalidateTag("products");
 }

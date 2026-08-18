@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
+import { unstable_cache } from "next/cache";
+import { createPublicClient } from "@/lib/supabase/public";
 
 export type ProductCard = {
   id: string;
@@ -13,14 +14,18 @@ export type ProductCard = {
 };
 
 const PAGE_SIZE = 24;
+// Safety-net TTL — the real invalidation is the `revalidateTag("products")`
+// calls in every admin product mutation, which bust this instantly. This
+// just bounds staleness if a code path ever forgets to tag.
+const REVALIDATE_SECONDS = 60;
 
-export async function listProducts(
+async function fetchProducts(
   opts: { categorySlug?: string; brandSlug?: string; search?: string } = {},
   page = 1,
   pageSize = PAGE_SIZE
 ): Promise<{ products: ProductCard[]; total: number; pageSize: number }> {
   const { categorySlug, brandSlug, search } = opts;
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
@@ -58,13 +63,21 @@ export async function listProducts(
   return { products, total: count ?? 0, pageSize };
 }
 
-export async function getRelatedProducts(
+// Cached so 100 visitors browsing at once share one Supabase query instead
+// of firing one each — invalidated instantly by revalidateTag("products")
+// whenever a product/discount/stock/image changes in the admin.
+export const listProducts = unstable_cache(fetchProducts, ["list-products"], {
+  tags: ["products"],
+  revalidate: REVALIDATE_SECONDS,
+});
+
+async function fetchRelatedProducts(
   product: { id: string; category: { slug: string } | null; brand: { slug: string } | null },
   limit = 8
 ): Promise<ProductCard[]> {
   // A manual pick (Admin > Products > edit product > Related sunglasses)
   // always wins over the automatic category/brand matching below.
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data: manual } = await supabase
     .from("product_related_products")
     .select(
@@ -98,14 +111,19 @@ export async function getRelatedProducts(
   return [];
 }
 
+export const getRelatedProducts = unstable_cache(fetchRelatedProducts, ["related-products"], {
+  tags: ["products"],
+  revalidate: REVALIDATE_SECONDS,
+});
+
 export type ColorSibling = { id: string; name: string; slug: string; image: string | null; base_color: string | null };
 
 // Products tagged as "other colors" of this one (Admin > Products > edit
 // product > Other colors) — shown as swatches so a shopper can jump between
 // colorways without losing their place.
-export async function getColorSiblings(product: { id: string; color_group_id?: string | null }): Promise<ColorSibling[]> {
+async function fetchColorSiblings(product: { id: string; color_group_id?: string | null }): Promise<ColorSibling[]> {
   if (!product.color_group_id) return [];
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data } = await supabase
     .from("products")
     .select("id, name, slug, base_color, images:product_images(url, sort_order)")
@@ -122,8 +140,13 @@ export async function getColorSiblings(product: { id: string; color_group_id?: s
   }));
 }
 
-export async function getProductBySlug(slug: string) {
-  const supabase = await createClient();
+export const getColorSiblings = unstable_cache(fetchColorSiblings, ["color-siblings"], {
+  tags: ["products"],
+  revalidate: REVALIDATE_SECONDS,
+});
+
+async function fetchProductBySlug(slug: string) {
+  const supabase = createPublicClient();
   const { data } = await supabase
     .from("products")
     .select(
@@ -153,3 +176,24 @@ export async function getProductBySlug(slug: string) {
     variants,
   };
 }
+
+export const getProductBySlug = unstable_cache(fetchProductBySlug, ["product-by-slug"], {
+  tags: ["products"],
+  revalidate: REVALIDATE_SECONDS,
+});
+
+async function fetchProductReviews(productId: string) {
+  const supabase = createPublicClient();
+  const { data } = await supabase
+    .from("testimonials")
+    .select("id, author_name, quote, rating, photo_url")
+    .eq("product_id", productId)
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
+  return (data ?? []) as any[];
+}
+
+export const getProductReviews = unstable_cache(fetchProductReviews, ["product-reviews"], {
+  tags: ["testimonials"],
+  revalidate: REVALIDATE_SECONDS,
+});

@@ -3,7 +3,7 @@ import { listProducts } from "@/lib/products";
 import { ProductGrid } from "@/components/ProductGrid";
 import { Pagination } from "@/components/Pagination";
 import { getServerDict } from "@/lib/locale-server";
-import { createClient } from "@/lib/supabase/server";
+import { getBrands } from "@/lib/homepage";
 
 export default async function BrandPage({
   params,
@@ -16,12 +16,8 @@ export default async function BrandPage({
   const { page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
 
-  const supabase = await createClient();
-  const [{ data: brands }, { t }] = await Promise.all([
-    supabase.from("brands").select("id, name, slug"),
-    getServerDict(),
-  ]);
-  const brand = brands?.find((b) => b.slug === slug);
+  const [brands, { t }] = await Promise.all([getBrands(), getServerDict()]);
+  const brand = brands?.find((b: any) => b.slug === slug);
   if (!brand) notFound();
 
   const { products, total, pageSize } = await listProducts({ brandSlug: slug }, page);

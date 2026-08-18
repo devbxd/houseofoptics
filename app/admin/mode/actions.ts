@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { SiteMode } from "@/lib/settings";
 
@@ -10,6 +10,7 @@ export async function setSiteMode(mode: SiteMode) {
 
   revalidatePath("/", "layout");
   revalidatePath("/admin/mode");
+  revalidateTag("settings");
 }
 
 export async function setSpinWheelEnabled(enabled: boolean) {
@@ -18,4 +19,5 @@ export async function setSpinWheelEnabled(enabled: boolean) {
 
   revalidatePath("/", "layout");
   revalidatePath("/admin/mode");
+  revalidateTag("settings");
 }

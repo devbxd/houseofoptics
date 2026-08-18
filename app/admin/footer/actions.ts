@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/slugify";
 import { processImage, IMMUTABLE_CACHE_CONTROL } from "@/lib/process-image";
@@ -8,6 +8,10 @@ import { processImage, IMMUTABLE_CACHE_CONTROL } from "@/lib/process-image";
 function refresh() {
   revalidatePath("/admin/footer");
   revalidatePath("/", "layout");
+  // Harmless no-op for the content-page functions further down this file
+  // that also call refresh() — only the footer_sections/footer_links
+  // functions actually populate this cache entry.
+  revalidateTag("footer");
 }
 
 // Facebook/Instagram/WhatsApp/Email all come from Admin > Settings — this

@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { translateToAllLocales } from "@/lib/translate";
 import { processImage, IMMUTABLE_CACHE_CONTROL } from "@/lib/process-image";
@@ -20,6 +20,7 @@ export async function toggleHeroImage(imageId: string, isHero: boolean) {
 
   revalidatePath("/admin/hero");
   revalidatePath("/", "layout");
+  revalidateTag("products");
 }
 
 export async function uploadHeroSlide(formData: FormData) {
@@ -42,6 +43,7 @@ export async function uploadHeroSlide(formData: FormData) {
 
   revalidatePath("/admin/hero");
   revalidatePath("/", "layout");
+  revalidateTag("products");
 }
 
 export async function deleteHeroSlide(id: string) {
@@ -49,6 +51,7 @@ export async function deleteHeroSlide(id: string) {
   await supabase.from("hero_slides").delete().eq("id", id);
   revalidatePath("/admin/hero");
   revalidatePath("/", "layout");
+  revalidateTag("products");
 }
 
 // The client types each line in whichever language is easiest for them —
@@ -70,6 +73,7 @@ export async function updateAnnouncementText(formData: FormData) {
   revalidatePath("/admin/hero");
   revalidatePath("/admin/reglages");
   revalidatePath("/", "layout");
+  revalidateTag("settings");
 }
 
 export async function updateHeroTexts(formData: FormData) {
@@ -110,4 +114,5 @@ export async function updateHeroTexts(formData: FormData) {
 
   revalidatePath("/admin/hero");
   revalidatePath("/", "layout");
+  revalidateTag("settings");
 }

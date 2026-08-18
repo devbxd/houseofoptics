@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { processImage, IMMUTABLE_CACHE_CONTROL } from "@/lib/process-image";
 
@@ -51,6 +51,7 @@ export async function createPopup(formData: FormData) {
 
   revalidatePath("/admin/popups");
   revalidatePath("/", "layout");
+  revalidateTag("popups");
 }
 
 export async function togglePopup(id: string, isActive: boolean) {
@@ -58,6 +59,7 @@ export async function togglePopup(id: string, isActive: boolean) {
   await supabase.from("popups").update({ is_active: isActive }).eq("id", id);
   revalidatePath("/admin/popups");
   revalidatePath("/", "layout");
+  revalidateTag("popups");
 }
 
 export async function deletePopup(id: string) {
@@ -65,4 +67,5 @@ export async function deletePopup(id: string) {
   await supabase.from("popups").delete().eq("id", id);
   revalidatePath("/admin/popups");
   revalidatePath("/", "layout");
+  revalidateTag("popups");
 }

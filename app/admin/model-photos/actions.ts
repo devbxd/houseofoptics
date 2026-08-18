@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { processImage, IMMUTABLE_CACHE_CONTROL } from "@/lib/process-image";
 
@@ -25,6 +25,7 @@ export async function uploadModelPhoto(formData: FormData) {
 
   revalidatePath("/admin/model-photos");
   revalidatePath("/", "layout");
+  revalidateTag("products");
 }
 
 export async function deleteModelPhoto(id: string) {
@@ -32,4 +33,5 @@ export async function deleteModelPhoto(id: string) {
   await supabase.from("model_photos").delete().eq("id", id);
   revalidatePath("/admin/model-photos");
   revalidatePath("/", "layout");
+  revalidateTag("products");
 }

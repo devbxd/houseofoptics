@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { processImage, IMMUTABLE_CACHE_CONTROL } from "@/lib/process-image";
 
@@ -38,6 +38,7 @@ export async function createTestimonial(formData: FormData) {
 
   revalidatePath("/admin/testimonials");
   revalidatePath("/", "layout");
+  revalidateTag("testimonials");
 }
 
 export async function deleteTestimonial(id: string) {
@@ -45,6 +46,7 @@ export async function deleteTestimonial(id: string) {
   await supabase.from("testimonials").delete().eq("id", id);
   revalidatePath("/admin/testimonials");
   revalidatePath("/", "layout");
+  revalidateTag("testimonials");
 }
 
 export async function toggleTestimonial(id: string, isActive: boolean) {
@@ -52,4 +54,5 @@ export async function toggleTestimonial(id: string, isActive: boolean) {
   await supabase.from("testimonials").update({ is_active: isActive }).eq("id", id);
   revalidatePath("/admin/testimonials");
   revalidatePath("/", "layout");
+  revalidateTag("testimonials");
 }

@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/slugify";
 
@@ -21,6 +21,8 @@ export async function createCategory(formData: FormData) {
 
   revalidatePath("/admin/categories");
   revalidatePath("/", "layout");
+  revalidateTag("categories");
+  revalidateTag("products");
 }
 
 export async function renameCategory(id: string, name: string) {
@@ -29,6 +31,8 @@ export async function renameCategory(id: string, name: string) {
   await supabase.from("categories").update({ name: name.trim(), slug: slugify(name) }).eq("id", id);
   revalidatePath("/admin/categories");
   revalidatePath("/", "layout");
+  revalidateTag("categories");
+  revalidateTag("products");
 }
 
 export async function deleteCategory(id: string) {
@@ -37,6 +41,8 @@ export async function deleteCategory(id: string) {
   if (error) throw new Error(error.message);
   revalidatePath("/admin/categories");
   revalidatePath("/", "layout");
+  revalidateTag("categories");
+  revalidateTag("products");
 }
 
 // Recomputes sort_order for every sibling from scratch instead of swapping
@@ -67,4 +73,6 @@ export async function setCategoryPosition(id: string, newIndex: number) {
 
   revalidatePath("/admin/categories");
   revalidatePath("/", "layout");
+  revalidateTag("categories");
+  revalidateTag("products");
 }

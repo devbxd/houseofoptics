@@ -12,26 +12,16 @@ import { BackButton } from "@/components/BackButton";
 import { getSiteSettings, getCategories, whatsappLink } from "@/lib/settings";
 import { getServerDict } from "@/lib/locale-server";
 import { getActivePopup } from "@/lib/popups";
-import { createClient } from "@/lib/supabase/server";
+import { getFooterSections } from "@/lib/footer";
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient();
-  const [settings, categories, { locale, t }, activePopup, { data: footerSections }] = await Promise.all([
+  const [settings, categories, { locale, t }, activePopup, normalizedFooterSections] = await Promise.all([
     getSiteSettings(),
     getCategories(),
     getServerDict(),
     getActivePopup(),
-    supabase
-      .from("footer_sections")
-      .select("id, title, links:footer_links(id, label, url, sort_order)")
-      .order("sort_order", { ascending: true }),
+    getFooterSections(),
   ]);
-
-  const normalizedFooterSections = (footerSections ?? []).map((s: any) => ({
-    id: s.id,
-    title: s.title,
-    links: (s.links ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order),
-  }));
 
   return (
     <WishlistProvider>

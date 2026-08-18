@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/slugify";
 import { processImage, IMMUTABLE_CACHE_CONTROL } from "@/lib/process-image";
@@ -16,6 +16,7 @@ export async function createBrand(formData: FormData) {
 
   revalidatePath("/admin/brands");
   revalidatePath("/", "layout");
+  revalidateTag("products");
 }
 
 export async function renameBrand(id: string, name: string) {
@@ -24,6 +25,7 @@ export async function renameBrand(id: string, name: string) {
   await supabase.from("brands").update({ name: name.trim(), slug: slugify(name) }).eq("id", id);
   revalidatePath("/admin/brands");
   revalidatePath("/", "layout");
+  revalidateTag("products");
 }
 
 export async function deleteBrand(id: string) {
@@ -32,6 +34,7 @@ export async function deleteBrand(id: string) {
   if (error) throw new Error(error.message);
   revalidatePath("/admin/brands");
   revalidatePath("/", "layout");
+  revalidateTag("products");
 }
 
 export async function uploadBrandLogo(id: string, formData: FormData) {
@@ -53,6 +56,7 @@ export async function uploadBrandLogo(id: string, formData: FormData) {
 
   revalidatePath("/admin/brands");
   revalidatePath("/", "layout");
+  revalidateTag("products");
 }
 
 // The homepage showcase banner is its own photo, deliberately separate
@@ -77,6 +81,7 @@ export async function uploadBrandBanner(id: string, formData: FormData) {
 
   revalidatePath("/admin/brands");
   revalidatePath("/", "layout");
+  revalidateTag("products");
 }
 
 export async function removeBrandBanner(id: string) {
@@ -84,6 +89,7 @@ export async function removeBrandBanner(id: string) {
   await supabase.from("brands").update({ homepage_banner_url: null }).eq("id", id);
   revalidatePath("/admin/brands");
   revalidatePath("/", "layout");
+  revalidateTag("products");
 }
 
 export async function setBrandFeatured(id: string, featured: boolean) {
@@ -92,4 +98,5 @@ export async function setBrandFeatured(id: string, featured: boolean) {
   if (error) throw new Error("Couldn't save — the database may need the latest migration applied.");
   revalidatePath("/admin/brands");
   revalidatePath("/", "layout");
+  revalidateTag("products");
 }

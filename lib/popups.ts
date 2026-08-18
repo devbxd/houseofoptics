@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export type ActivePopup = {
@@ -11,7 +12,11 @@ export type ActivePopup = {
 // Picks the newest active pop-up that's still within its order limit and
 // day window. Both limits are optional and independent — a pop-up with
 // neither just runs until the client turns it off manually.
-export async function getActivePopup(): Promise<ActivePopup | null> {
+//
+// max_uses depends on live order counts, so this intentionally has a short
+// TTL rather than a long one — a promo shouldn't keep showing for the full
+// 60s window after the last redeeming order comes in.
+async function fetchActivePopup(): Promise<ActivePopup | null> {
   const supabase = createServiceClient();
   // select("*") rather than naming columns explicitly — image_url comes from
   // a migration that may not have run yet, and "*" degrades gracefully
@@ -46,3 +51,8 @@ export async function getActivePopup(): Promise<ActivePopup | null> {
   }
   return null;
 }
+
+export const getActivePopup = unstable_cache(fetchActivePopup, ["active-popup"], {
+  tags: ["popups"],
+  revalidate: 30,
+});

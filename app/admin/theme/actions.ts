@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export async function updateTheme(formData: FormData) {
@@ -17,4 +17,5 @@ export async function updateTheme(formData: FormData) {
 
   revalidatePath("/", "layout");
   revalidatePath("/admin/theme");
+  revalidateTag("settings");
 }
