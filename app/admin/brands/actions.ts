@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/slugify";
+import { processImage, IMMUTABLE_CACHE_CONTROL } from "@/lib/process-image";
 
 export async function createBrand(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
@@ -38,13 +39,14 @@ export async function uploadBrandLogo(id: string, formData: FormData) {
   if (!file || file.size === 0) return;
 
   const supabase = createServiceClient();
-  const ext = file.name.split(".").pop() || "png";
+  const { buffer, contentType, ext } = await processImage(file);
   const path = `brands/${id}-${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from("products").upload(path, file, {
-    contentType: file.type || "image/png",
+  const { error } = await supabase.storage.from("products").upload(path, buffer, {
+    contentType,
     upsert: false,
+    cacheControl: IMMUTABLE_CACHE_CONTROL,
   });
-  if (error) throw new Error(error.message);
+  if (error) return;
 
   const { data: pub } = supabase.storage.from("products").getPublicUrl(path);
   await supabase.from("brands").update({ logo_url: pub.publicUrl }).eq("id", id);
@@ -61,20 +63,17 @@ export async function uploadBrandBanner(id: string, formData: FormData) {
   if (!file || file.size === 0) return;
 
   const supabase = createServiceClient();
-  const ext = file.name.split(".").pop() || "jpg";
+  const { buffer, contentType, ext } = await processImage(file);
   const path = `brands/banners/${id}-${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from("products").upload(path, file, {
-    contentType: file.type || "image/jpeg",
+  const { error } = await supabase.storage.from("products").upload(path, buffer, {
+    contentType,
     upsert: false,
+    cacheControl: IMMUTABLE_CACHE_CONTROL,
   });
-  if (error) throw new Error(error.message);
+  if (error) return;
 
   const { data: pub } = supabase.storage.from("products").getPublicUrl(path);
-  const { error: updateError } = await supabase
-    .from("brands")
-    .update({ homepage_banner_url: pub.publicUrl })
-    .eq("id", id);
-  if (updateError) throw new Error("Couldn't save the banner — the database may need the latest migration applied.");
+  await supabase.from("brands").update({ homepage_banner_url: pub.publicUrl }).eq("id", id);
 
   revalidatePath("/admin/brands");
   revalidatePath("/", "layout");

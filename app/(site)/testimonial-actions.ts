@@ -1,6 +1,7 @@
 "use server";
 
 import { createServiceClient } from "@/lib/supabase/server";
+import { processImage, IMMUTABLE_CACHE_CONTROL } from "@/lib/process-image";
 
 export async function submitTestimonial(formData: FormData) {
   const authorName = String(formData.get("author_name") ?? "").trim();
@@ -15,11 +16,12 @@ export async function submitTestimonial(formData: FormData) {
 
   let photoUrl: string | null = null;
   if (photo && photo.size > 0) {
-    const ext = photo.name.split(".").pop() || "jpg";
+    const { buffer, contentType, ext } = await processImage(photo);
     const path = `testimonials/${crypto.randomUUID()}.${ext}`;
-    const { error: uploadError } = await supabase.storage.from("products").upload(path, photo, {
-      contentType: photo.type || "image/jpeg",
+    const { error: uploadError } = await supabase.storage.from("products").upload(path, buffer, {
+      contentType,
       upsert: false,
+      cacheControl: IMMUTABLE_CACHE_CONTROL,
     });
     if (!uploadError) {
       const { data: pub } = supabase.storage.from("products").getPublicUrl(path);

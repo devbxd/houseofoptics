@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
+import { processImage, IMMUTABLE_CACHE_CONTROL } from "@/lib/process-image";
 
 export async function updateSettings(formData: FormData) {
   const supabase = createServiceClient();
@@ -21,11 +22,12 @@ export async function updateSettings(formData: FormData) {
 
   const logo = formData.get("logo") as File | null;
   if (logo && logo.size > 0) {
-    const ext = logo.name.split(".").pop() || "png";
+    const { buffer, contentType, ext } = await processImage(logo);
     const path = `site/logo-${crypto.randomUUID()}.${ext}`;
-    const { error } = await supabase.storage.from("products").upload(path, logo, {
-      contentType: logo.type || "image/png",
+    const { error } = await supabase.storage.from("products").upload(path, buffer, {
+      contentType,
       upsert: false,
+      cacheControl: IMMUTABLE_CACHE_CONTROL,
     });
     if (!error) {
       const { data: pub } = supabase.storage.from("products").getPublicUrl(path);

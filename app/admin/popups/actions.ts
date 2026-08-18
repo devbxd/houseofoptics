@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
+import { processImage, IMMUTABLE_CACHE_CONTROL } from "@/lib/process-image";
 
 export async function createPopup(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
@@ -17,11 +18,12 @@ export async function createPopup(formData: FormData) {
 
   let imageUrl: string | null = null;
   if (image && image.size > 0) {
-    const ext = image.name.split(".").pop() || "jpg";
+    const { buffer, contentType, ext } = await processImage(image);
     const path = `popups/${crypto.randomUUID()}.${ext}`;
-    const { error } = await supabase.storage.from("products").upload(path, image, {
-      contentType: image.type || "image/jpeg",
+    const { error } = await supabase.storage.from("products").upload(path, buffer, {
+      contentType,
       upsert: false,
+      cacheControl: IMMUTABLE_CACHE_CONTROL,
     });
     if (!error) {
       const { data: pub } = supabase.storage.from("products").getPublicUrl(path);

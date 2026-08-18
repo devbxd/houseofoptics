@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/slugify";
+import { processImage, IMMUTABLE_CACHE_CONTROL } from "@/lib/process-image";
 
 function refresh() {
   revalidatePath("/admin/footer");
@@ -210,13 +211,14 @@ export async function uploadBlockImage(blockId: string, formData: FormData) {
   const { data: block } = await supabase.from("content_page_blocks").select("image_urls").eq("id", blockId).single();
   if (!block) return;
 
-  const ext = file.name.split(".").pop() || "jpg";
+  const { buffer, contentType, ext } = await processImage(file);
   const path = `content-pages/${blockId}-${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
-    contentType: file.type || "image/jpeg",
+  const { error } = await supabase.storage.from(BUCKET).upload(path, buffer, {
+    contentType,
     upsert: false,
+    cacheControl: IMMUTABLE_CACHE_CONTROL,
   });
-  if (error) throw new Error(error.message);
+  if (error) return;
 
   const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
   const nextUrls = [...((block.image_urls as string[]) ?? []), pub.publicUrl];

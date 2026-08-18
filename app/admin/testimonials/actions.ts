@@ -2,15 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
+import { processImage, IMMUTABLE_CACHE_CONTROL } from "@/lib/process-image";
 
 async function uploadPhoto(supabase: ReturnType<typeof createServiceClient>, file: File) {
-  const ext = file.name.split(".").pop() || "jpg";
+  const { buffer, contentType, ext } = await processImage(file);
   const path = `testimonials/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from("products").upload(path, file, {
-    contentType: file.type || "image/jpeg",
+  const { error } = await supabase.storage.from("products").upload(path, buffer, {
+    contentType,
     upsert: false,
+    cacheControl: IMMUTABLE_CACHE_CONTROL,
   });
-  if (error) throw new Error(error.message);
+  if (error) return null;
   const { data: pub } = supabase.storage.from("products").getPublicUrl(path);
   return pub.publicUrl;
 }

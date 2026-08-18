@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { translateToAllLocales } from "@/lib/translate";
+import { processImage, IMMUTABLE_CACHE_CONTROL } from "@/lib/process-image";
 
 export async function toggleHeroImage(imageId: string, isHero: boolean) {
   const supabase = createServiceClient();
@@ -26,11 +27,12 @@ export async function uploadHeroSlide(formData: FormData) {
   if (!file || file.size === 0) return;
 
   const supabase = createServiceClient();
-  const ext = file.name.split(".").pop() || "jpg";
+  const { buffer, contentType, ext } = await processImage(file);
   const path = `hero/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from("products").upload(path, file, {
-    contentType: file.type || "image/jpeg",
+  const { error } = await supabase.storage.from("products").upload(path, buffer, {
+    contentType,
     upsert: false,
+    cacheControl: IMMUTABLE_CACHE_CONTROL,
   });
   if (error) return;
 
