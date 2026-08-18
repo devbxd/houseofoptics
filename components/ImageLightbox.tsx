@@ -87,8 +87,10 @@ export function ImageLightbox({
             src={images[index].url}
             alt=""
             fill
+            // Already resized/compressed server-side at upload — skip Next's
+            // image optimizer, same reasoning as ProductGallery/ProductGrid.
+            unoptimized
             sizes={zoomed ? "200vw" : "(min-width: 768px) 768px, 92vw"}
-            quality={90}
             className="object-contain"
           />
         </div>

@@ -67,6 +67,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         stock={product.stock ?? null}
         sku={product.sku ?? null}
         baseColor={product.base_color ?? null}
+        baseSize={product.base_size ?? null}
         additionalInfo={product.additional_info ?? null}
         shippingInfo={settings.global_shipping_info || null}
         returnsInfo={settings.returns_info || null}

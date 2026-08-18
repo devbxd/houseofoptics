@@ -29,7 +29,12 @@ export function ProductGrid({ products, t }: { products: ProductCard[]; t: Recor
                   src={p.images[0].url}
                   alt={p.name}
                   fill
-                  quality={90}
+                  // Product photos are already resized/compressed server-side at
+                  // upload (see lib/process-image.ts) and served from Supabase
+                  // with a long cache lifetime — routing them through Next's
+                  // image optimizer too just adds a redundant fetch+resize hop
+                  // (and extra Supabase egress) on every first view.
+                  unoptimized
                   sizes="(max-width: 768px) 50vw, 25vw"
                   className="object-cover transition-transform duration-500 group-hover:scale-105"
                 />

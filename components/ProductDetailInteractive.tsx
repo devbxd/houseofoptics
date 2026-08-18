@@ -80,6 +80,7 @@ export function ProductDetailInteractive({
   stock,
   sku,
   baseColor,
+  baseSize,
   additionalInfo,
   shippingInfo,
   returnsInfo,
@@ -104,6 +105,7 @@ export function ProductDetailInteractive({
   stock: number | null;
   sku: string | null;
   baseColor: string | null;
+  baseSize: string | null;
   additionalInfo: string | null;
   shippingInfo: string | null;
   returnsInfo: string | null;
@@ -182,7 +184,18 @@ export function ProductDetailInteractive({
   return (
     <div className="grid gap-8 md:grid-cols-2">
       <div>
-        <ProductGallery images={displayImages} alt={name} discountPercent={hasDiscount ? discountPercent : null} zoomLabel={t["product.zoom"]} />
+        <ProductGallery
+          // Remounts the gallery whenever the selected variant's photo
+          // changes — without this, its internal "which photo is showing"
+          // index survives the swap (it also drifts on its own from the
+          // auto-advance carousel), so picking a color could keep showing
+          // whatever photo happened to be active instead of that variant's.
+          key={active?.image_url ?? "base"}
+          images={displayImages}
+          alt={name}
+          discountPercent={hasDiscount ? discountPercent : null}
+          zoomLabel={t["product.zoom"]}
+        />
 
         <nav className="mt-4 text-xs text-neutral-500">
           <Link href="/" className="hover:text-brand-black">
@@ -247,9 +260,18 @@ export function ProductDetailInteractive({
           {outOfStock ? t["product.outOfStock"] : t["product.available"]}
         </p>
 
-        {baseColor && (
-          <p className="mt-3 text-sm text-neutral-600">
-            {t["product.baseColor"]} <span className="font-medium text-brand-black">{baseColor}</span>
+        {(baseColor || baseSize) && (
+          <p className="mt-3 flex flex-wrap gap-x-4 text-sm text-neutral-600">
+            {baseColor && (
+              <span>
+                {t["product.baseColor"]} <span className="font-medium text-brand-black">{baseColor}</span>
+              </span>
+            )}
+            {baseSize && (
+              <span>
+                {t["product.baseSize"]} <span className="font-medium text-brand-black">{baseSize}</span>
+              </span>
+            )}
           </p>
         )}
 
@@ -262,7 +284,7 @@ export function ProductDetailInteractive({
                 aria-current="true"
                 className="relative h-14 w-14 shrink-0 overflow-hidden rounded border-2 border-brand-black"
               >
-                {images[0] && <Image src={images[0].url} alt={name} fill sizes="56px" className="object-cover" />}
+                {images[0] && <Image src={images[0].url} alt={name} fill unoptimized sizes="56px" className="object-cover" />}
               </Link>
               {colorSiblings.map((c) => (
                 <Link
@@ -271,7 +293,7 @@ export function ProductDetailInteractive({
                   title={c.base_color ?? c.name}
                   className="relative h-14 w-14 shrink-0 overflow-hidden rounded border border-neutral-300 hover:border-brand-black"
                 >
-                  {c.image && <Image src={c.image} alt={c.base_color ?? c.name} fill sizes="56px" className="object-cover" />}
+                  {c.image && <Image src={c.image} alt={c.base_color ?? c.name} fill unoptimized sizes="56px" className="object-cover" />}
                 </Link>
               ))}
             </div>
