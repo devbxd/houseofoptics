@@ -5,6 +5,7 @@ import { getSiteSettings, whatsappLink, phoneLink } from "@/lib/settings";
 import { ProductDetailInteractive } from "@/components/ProductDetailInteractive";
 import { ProductGrid } from "@/components/ProductGrid";
 import { ProductReviews } from "@/components/ProductReviews";
+import { RecentlyViewed } from "@/components/RecentlyViewed";
 import { getServerDict } from "@/lib/locale-server";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -93,6 +94,21 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           <ProductGrid products={related} t={t} />
         </section>
       )}
+
+      <RecentlyViewed
+        current={{
+          id: product.id,
+          name: product.name,
+          slug: product.slug,
+          price: product.price,
+          discount_percent: product.discount_percent,
+          stock: product.stock ?? null,
+          category: product.category,
+          brand: product.brand,
+          images: product.images,
+        }}
+        t={t}
+      />
     </main>
   );
 }

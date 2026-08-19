@@ -122,26 +122,54 @@ export function ProductDetailInteractive({
 }) {
   const { addItem } = useCart();
   const router = useRouter();
+  const addToCartRowRef = useRef<HTMLDivElement>(null);
+  const [showStickyBar, setShowStickyBar] = useState(false);
 
-  // The product's own photo/color (e.g. "Yellow") isn't a row in `variants`
-  // — it's just what's already showing. Giving it a label here lets it sit
-  // in the dropdown as a normal, always-clickable option alongside the real
-  // variants, so switching to "Black" and back to "Yellow" is one tap each,
-  // not a special "tap the same option again to remove it" gesture.
-  const baseLabel = variantLabel({ color_label: baseColor, size_label: baseSize }) || null;
+  // Every version of this product — the base photo/color itself plus each
+  // row in `variants` — represented as one flat list of (color, size)
+  // combos. `variant: null` means "the base product", exactly like before;
+  // the difference from the old single combined dropdown is that color and
+  // size are now picked independently (two selects, like the reference
+  // design), so a combo is whichever (color, size) pair is currently
+  // selected together, not a single label a user toggles on/off.
+  const combos = [
+    { color: baseColor, size: baseSize, variant: null as VariantDetail | null },
+    ...variants.map((v) => ({ color: v.color_label, size: v.size_label, variant: v })),
+  ];
+  const uniqueColors = Array.from(new Set(combos.map((c) => c.color).filter((c): c is string => !!c)));
+  const uniqueSizes = Array.from(new Set(combos.map((c) => c.size).filter((s): s is string => !!s)));
 
-  // Each entry in `variants` is a full version of the product (its own
-  // color/size combo, photo, price, stock) — picking one from the dropdown
-  // is optional, the base product info shows until something is picked.
-  // Only default to the base label when there's an actual dropdown/choice
-  // to show (variants.length > 0) — otherwise every product that merely
-  // has a base color set (most of them) would get a redundant "— Yellow"
-  // appended to its cart/wishlist name despite offering no real variant.
-  const [selected, setSelected] = useState<string | null>(variants.length > 0 ? baseLabel : null);
+  const [selectedColor, setSelectedColor] = useState<string | null>(variants.length > 0 ? baseColor : null);
+  const [selectedSize, setSelectedSize] = useState<string | null>(variants.length > 0 ? baseSize : null);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
 
-  const active = selected && selected !== baseLabel ? variants.find((v) => variantLabel(v) === selected) ?? null : null;
+  function selectColor(color: string) {
+    setSelectedColor(color);
+    // Not every color necessarily comes in the size that was showing
+    // (product_variants can be a sparse matrix, not every combo entered) —
+    // jump to a size that actually exists for this color rather than
+    // landing on a made-up combo with no matching row, which used to be
+    // exactly the "pick black, can't get back to yellow" bug.
+    const sizesForColor = combos.filter((c) => c.color === color).map((c) => c.size);
+    if (!sizesForColor.includes(selectedSize)) setSelectedSize(sizesForColor[0] ?? null);
+  }
+  function selectSize(size: string) {
+    setSelectedSize(size);
+    const colorsForSize = combos.filter((c) => c.size === size).map((c) => c.color);
+    if (!colorsForSize.includes(selectedColor)) setSelectedColor(colorsForSize[0] ?? null);
+  }
+
+  const activeCombo =
+    combos.find((c) => (c.color ?? null) === (selectedColor ?? null) && (c.size ?? null) === (selectedSize ?? null)) ??
+    (variants.length > 0 ? combos[0] : null);
+  const active = activeCombo?.variant ?? null;
+
+  // What gets stored on the cart/wishlist/order line — null for the base
+  // combo (there's no product_variants row for it, so checkout must treat
+  // it exactly like a product with no variants at all, not try to match a
+  // "Yellow" label against the variants table and fail).
+  const variantForStorage = active ? variantLabel(active) : null;
 
   const displayImages = active?.image_url ? [{ url: active.image_url }] : images;
 
@@ -168,12 +196,30 @@ export function ProductDetailInteractive({
     if (activeStock != null && quantity > activeStock) setQuantity(Math.max(1, activeStock));
   }, [activeStock, quantity]);
 
+  // Shows a compact "Add to cart" bar pinned to the bottom of the screen
+  // once the real button has scrolled out of view, so it's still one tap
+  // away while reading the description further down — mirrors the sticky
+  // header in the reference design.
+  useEffect(() => {
+    const el = addToCartRowRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([entry]) => setShowStickyBar(!entry.isIntersecting), { threshold: 0 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const cartImage = active?.image_url ?? images[0]?.url ?? null;
 
   function handleAdd() {
     if (finalPrice == null) return;
     addItem(
-      { productId, variant: selected, name: selected ? `${name} — ${selected}` : name, price: finalPrice, image: cartImage },
+      {
+        productId,
+        variant: variantForStorage,
+        name: variantForStorage ? `${name} — ${variantForStorage}` : name,
+        price: finalPrice,
+        image: cartImage,
+      },
       quantity
     );
     setAdded(true);
@@ -184,8 +230,8 @@ export function ProductDetailInteractive({
     if (finalPrice == null || outOfStock) return;
     setBuyNowItem({
       productId,
-      variant: selected,
-      name: selected ? `${name} — ${selected}` : name,
+      variant: variantForStorage,
+      name: variantForStorage ? `${name} — ${variantForStorage}` : name,
       price: finalPrice,
       image: cartImage,
       quantity,
@@ -202,6 +248,7 @@ export function ProductDetailInteractive({
         : t["product.addToCart"];
 
   return (
+    <>
     <div className="grid gap-8 md:grid-cols-2">
       <div>
         <ProductGallery
@@ -280,7 +327,11 @@ export function ProductDetailInteractive({
           {outOfStock ? t["product.outOfStock"] : t["product.available"]}
         </p>
 
-        {(baseColor || baseSize) && (
+        {/* Replaced below by the Size/Color pickers once real variant
+            choices exist — showing both would just duplicate the same
+            info. Products with no extra variants still get this plain,
+            non-interactive line. */}
+        {variants.length === 0 && (baseColor || baseSize) && (
           <p className="mt-3 flex flex-wrap gap-x-4 text-sm text-neutral-600">
             {baseColor && (
               <span>
@@ -320,33 +371,34 @@ export function ProductDetailInteractive({
           </div>
         )}
 
-        {variants.length > 0 && (
-          <div className="mt-4">
-            <p className="mb-2 text-sm text-neutral-600">
-              {t["product.variantOptional"]}
-              {selected && <span className="ml-1 font-medium text-brand-black">{selected}</span>}
+        {variants.length > 0 && uniqueSizes.length > 0 && (
+          <div>
+            <p className="mb-1 mt-4 text-sm text-neutral-600">
+              {t["product.size"]}
+              {selectedSize && <span className="ml-1 font-medium text-brand-black">{selectedSize}</span>}
             </p>
             <VariantDropdown
-              placeholder={t["product.chooseOption"]}
-              // The base product's own color/size sits in the list as a
-              // normal option too (when set), not just the extra variants
-              // — every color the admin adds shows up here the same way,
-              // each with its own price/stock/photo already wired below.
-              options={[...(baseLabel ? [baseLabel] : []), ...variants.map((v) => variantLabel(v)).filter((l) => l !== baseLabel)]}
-              selected={selected}
-              disabledOptions={
-                new Set([
-                  ...(baseLabel && stock != null && stock <= 0 ? [baseLabel] : []),
-                  ...variants.filter((v) => v.stock != null && v.stock <= 0).map((v) => variantLabel(v)),
-                ])
-              }
-              // Tapping the already-selected option always reverts to the
-              // base state (the base color/size when the product has one,
-              // otherwise no selection) — this has to stay true for EVERY
-              // product, not just ones without a base color/size, because
-              // the on-screen instruction above ("tap again to remove")
-              // makes that same promise unconditionally.
-              onSelect={(opt) => setSelected((prev) => (prev === opt ? baseLabel : opt))}
+              placeholder={t["product.chooseSize"]}
+              options={uniqueSizes}
+              selected={selectedSize}
+              disabledOptions={new Set()}
+              onSelect={selectSize}
+            />
+          </div>
+        )}
+
+        {variants.length > 0 && uniqueColors.length > 0 && (
+          <div>
+            <p className="mb-1 mt-4 text-sm text-neutral-600">
+              {t["product.color"]}
+              {selectedColor && <span className="ml-1 font-medium text-brand-black">{selectedColor}</span>}
+            </p>
+            <VariantDropdown
+              placeholder={t["product.chooseColor"]}
+              options={uniqueColors}
+              selected={selectedColor}
+              disabledOptions={new Set()}
+              onSelect={selectColor}
             />
           </div>
         )}
@@ -355,7 +407,7 @@ export function ProductDetailInteractive({
           <p className="mt-3 text-sm font-medium text-brand-red">{t["product.onlyLeft"].replace("{count}", String(activeStock))}</p>
         )}
 
-        <div className="mt-4 flex gap-3">
+        <div ref={addToCartRowRef} className="mt-4 flex gap-3">
           <div className="flex items-center border border-neutral-300">
             <button
               type="button"
@@ -396,6 +448,21 @@ export function ProductDetailInteractive({
           </button>
         )}
 
+        <div className="mt-4 space-y-2 border-y border-neutral-200 py-4 text-sm text-neutral-700">
+          <p className="flex items-center gap-2">
+            <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0 text-emerald-700">
+              <path d="M16.7 5.3a1 1 0 0 1 0 1.4l-8 8a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.4L8 12.6l7.3-7.3a1 1 0 0 1 1.4 0Z" />
+            </svg>
+            {t["product.trustGuarantee"]}
+          </p>
+          <p className="flex items-center gap-2">
+            <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0 text-emerald-700">
+              <path d="M16.7 5.3a1 1 0 0 1 0 1.4l-8 8a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.4L8 12.6l7.3-7.3a1 1 0 0 1 1.4 0Z" />
+            </svg>
+            {t["product.trustShipping"]}
+          </p>
+        </div>
+
         <div className="mt-3 grid grid-cols-2 gap-2">
           <a
             href={waHref}
@@ -430,12 +497,12 @@ export function ProductDetailInteractive({
         <WishlistButton
           item={{
             productId,
-            variant: selected,
+            variant: variantForStorage,
             slug,
             // Matches the cart's own naming (see handleAdd) so two
             // wishlisted variants of the same product show up as two
             // distinct, identifiable lines instead of duplicate entries.
-            name: selected ? `${name} — ${selected}` : name,
+            name: variantForStorage ? `${name} — ${variantForStorage}` : name,
             price: hasPrice ? finalPrice! : null,
             image: cartImage,
             stock: activeStock,
@@ -498,5 +565,27 @@ export function ProductDetailInteractive({
         </div>
       </div>
     </div>
+
+    {showStickyBar && (
+      <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-neutral-200 bg-white p-3 shadow-[0_-2px_10px_rgba(0,0,0,0.06)] md:hidden">
+        {cartImage && (
+          <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded bg-neutral-100">
+            <Image src={cartImage} alt="" fill unoptimized sizes="44px" className="object-cover" />
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xs text-neutral-700">{variantForStorage ? `${name} — ${variantForStorage}` : name}</p>
+          {hasPrice && <p className="text-sm font-medium">${finalPrice!.toFixed(2)}</p>}
+        </div>
+        <button
+          onClick={handleAdd}
+          disabled={outOfStock || noPrice}
+          className="shrink-0 bg-brand-black px-4 py-2.5 text-xs uppercase tracking-widest text-white disabled:cursor-not-allowed disabled:bg-neutral-300"
+        >
+          {addLabel}
+        </button>
+      </div>
+    )}
+    </>
   );
 }

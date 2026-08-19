@@ -9,6 +9,8 @@ import { createOrder } from "./actions";
 import { getBuyNowItem, clearBuyNowItem, type BuyNowItem } from "@/lib/buy-now";
 import { addOrderToHistory } from "@/lib/order-history";
 import { validatePromoCode } from "../spin-wheel-actions";
+import { getActiveGiftCard, clearActiveGiftCard } from "@/lib/gift-card-client";
+import { previewGiftCard, type GiftCardPreview } from "../carte-cadeau/actions";
 
 const SHIPPING_COST = { beirut: 4, outside_beirut: 6 } as const;
 const EXPRESS_WHATSAPP_NUMBER = "96181701556";
@@ -25,6 +27,8 @@ type ConfirmedOrder = {
   shippingCost: number;
   promoCode: string | null;
   discountAmount: number;
+  giftCardCode: string | null;
+  giftCardAmount: number;
   items: { name: string; variant: string | null; quantity: number; price: number }[];
   subtotal: number;
   total: number;
@@ -49,6 +53,7 @@ function buildWhatsAppOrderMessage(orderId: string, o: ConfirmedOrder) {
     "",
     `Subtotal: $${o.subtotal.toFixed(2)}`,
     o.promoCode ? `Promo code ${o.promoCode}: -$${o.discountAmount.toFixed(2)}` : null,
+    o.giftCardCode ? `Gift card ${o.giftCardCode}${o.giftCardAmount > 0 ? `: -$${o.giftCardAmount.toFixed(2)}` : ""}` : null,
     `Shipping (${o.shippingZone === "beirut" ? "Beirut" : "Outside Beirut"}): $${o.shippingCost.toFixed(2)}`,
     `Total: $${o.total.toFixed(2)}`,
     `Payment: ${o.paymentMethod === "cod" ? "Cash on delivery" : "Card"}`,
@@ -92,6 +97,8 @@ export default function CheckoutPage() {
   const [promoError, setPromoError] = useState<string | null>(null);
   const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountPercent: number } | null>(null);
 
+  const [giftCardPreview, setGiftCardPreview] = useState<GiftCardPreview | null>(null);
+
   useEffect(() => {
     const supabase = createClient();
     supabase
@@ -101,9 +108,46 @@ export default function CheckoutPage() {
       .then(({ data }) => setOwnerWhatsapp(data?.whatsapp_number || null));
   }, []);
 
+  useEffect(() => {
+    const active = getActiveGiftCard();
+    if (!active) return;
+    // Re-check against the database rather than trusting whatever was
+    // remembered from the /carte-cadeau reveal — it could have been
+    // redeemed elsewhere (another tab, another device) since then. This is
+    // still just a preview for display purposes; the actual claim happens
+    // atomically inside createOrder below.
+    previewGiftCard(active.code).then((result) => {
+      if (!result.valid) {
+        clearActiveGiftCard();
+        return;
+      }
+      setGiftCardPreview(result);
+    });
+  }, []);
+
+  // A "free item" gift card is tied to one specific cart line, not the
+  // order as a whole — if the customer removes that line from their cart
+  // (changed their mind, or was just browsing), the applied indicator
+  // needs to disappear too, otherwise checkout would still try to claim
+  // the code for a gift they no longer have in their cart.
+  useEffect(() => {
+    if (giftCardPreview?.valid && giftCardPreview.type === "product") {
+      const stillPresent = items.some((i) => i.productId === giftCardPreview.product.id && i.price === 0);
+      if (!stillPresent) {
+        clearActiveGiftCard();
+        setGiftCardPreview(null);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, giftCardPreview]);
+
   const shippingCost = SHIPPING_COST[shippingZone];
   const discountAmount = appliedPromo ? subtotal * (appliedPromo.discountPercent / 100) : 0;
-  const total = subtotal - discountAmount + shippingCost;
+  const giftCardDiscountAmount =
+    giftCardPreview?.valid && giftCardPreview.type === "discount" ? subtotal * (giftCardPreview.discountPercent / 100) : 0;
+  const giftCardCreditAmount =
+    giftCardPreview?.valid && giftCardPreview.type === "credit" ? Math.min(giftCardPreview.creditAmount, subtotal + shippingCost) : 0;
+  const total = Math.max(0, subtotal - discountAmount - giftCardDiscountAmount - giftCardCreditAmount + shippingCost);
 
   function update(field: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -159,6 +203,12 @@ export default function CheckoutPage() {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
+    // Belt-and-braces mirror of the effect above — a product-type gift
+    // card only ever gets sent to the server if its free item is still
+    // actually in the cart being submitted.
+    const giftCardStillClaimable =
+      giftCardPreview?.valid &&
+      (giftCardPreview.type !== "product" || items.some((i) => i.productId === giftCardPreview.product.id && i.price === 0));
     try {
       const { orderId } = await createOrder({
         ...form,
@@ -168,6 +218,7 @@ export default function CheckoutPage() {
         shippingZone,
         shippingCost,
         promoCode: appliedPromo?.code ?? null,
+        giftCardCode: giftCardStillClaimable && giftCardPreview?.valid ? giftCardPreview.code : null,
         items: items.map((i) => ({
           productId: i.productId,
           variant: i.variant,
@@ -177,6 +228,7 @@ export default function CheckoutPage() {
         })),
       });
       addOrderToHistory(orderId);
+      clearActiveGiftCard();
       setConfirmedOrderId(orderId);
       setConfirmedSnapshot({
         name: form.name,
@@ -190,6 +242,8 @@ export default function CheckoutPage() {
         shippingCost,
         promoCode: appliedPromo?.code ?? null,
         discountAmount,
+        giftCardCode: giftCardStillClaimable && giftCardPreview?.valid ? giftCardPreview.code : null,
+        giftCardAmount: giftCardDiscountAmount + giftCardCreditAmount,
         items: items.map((i) => ({ name: i.name, variant: i.variant, quantity: i.quantity, price: i.price })),
         subtotal,
         total,
@@ -200,10 +254,16 @@ export default function CheckoutPage() {
         cart.clear();
       }
     } catch (err) {
+      if (err instanceof Error && err.message === "GIFT_CARD_INVALID") {
+        clearActiveGiftCard();
+        setGiftCardPreview(null);
+      }
       setError(
         err instanceof Error && err.message === "OUT_OF_STOCK"
           ? t["checkout.outOfStockError"]
-          : t["checkout.genericError"]
+          : err instanceof Error && err.message === "GIFT_CARD_INVALID"
+            ? t["checkout.giftCardInvalid"]
+            : t["checkout.genericError"]
       );
     } finally {
       setSubmitting(false);
@@ -393,6 +453,27 @@ export default function CheckoutPage() {
           {promoError && <p className="mt-1 text-xs text-brand-red">{promoError}</p>}
         </div>
 
+        {giftCardPreview?.valid && (
+          <div>
+            <label className="mb-1 block text-sm text-neutral-600">{t["checkout.giftCardCode"]}</label>
+            <div className="flex items-center justify-between border border-brand-black px-4 py-2.5 text-sm">
+              <span>
+                {giftCardPreview.code} — {t["giftCard.alreadyApplied"]}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  clearActiveGiftCard();
+                  setGiftCardPreview(null);
+                }}
+                className="text-xs uppercase text-neutral-400 hover:text-red-600"
+              >
+                {t["cart.remove"]}
+              </button>
+            </div>
+          </div>
+        )}
+
         <div>
           <label className="mb-2 block text-sm text-neutral-600">{t["checkout.payment"]}</label>
           <div className="space-y-2">
@@ -431,6 +512,12 @@ export default function CheckoutPage() {
             <div className="flex items-center justify-between text-sm text-brand-red">
               <p>{t["checkout.promoDiscount"]}</p>
               <p>-${discountAmount.toFixed(2)}</p>
+            </div>
+          )}
+          {(giftCardDiscountAmount > 0 || giftCardCreditAmount > 0) && (
+            <div className="flex items-center justify-between text-sm text-brand-red">
+              <p>{t["checkout.giftCardCredit"]}</p>
+              <p>-${(giftCardDiscountAmount + giftCardCreditAmount).toFixed(2)}</p>
             </div>
           )}
           <div className="flex items-center justify-between text-sm text-neutral-500">

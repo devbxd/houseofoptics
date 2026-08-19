@@ -26,6 +26,7 @@ type CheckoutInput = {
   shippingZone: "beirut" | "outside_beirut";
   shippingCost: number;
   promoCode: string | null;
+  giftCardCode: string | null;
   items: { productId: string; variant: string | null; name: string; price: number; quantity: number }[];
 };
 
@@ -112,8 +113,63 @@ export async function createOrder(input: CheckoutInput) {
     }
   }
 
+  // Gift cards are claimed the same atomic, race-free way as the promo
+  // code above (UPDATE ... WHERE redeemed_at IS NULL) — but unlike a promo
+  // code, an invalid/already-used one here isn't silently ignored: the
+  // customer explicitly chose to redeem this specific gift, so they get a
+  // clear error and a chance to remove it and try again, never a
+  // discount/credit that quietly fails to apply.
+  let giftCardDiscountAmount = 0;
+  let giftCardCreditAmount = 0;
+  let claimedGiftCardCode: string | null = null;
+
+  async function releaseReservations() {
+    await supabase.rpc("checkout_restore_stock", { items: stockItems });
+    if (redeemedCode) await supabase.from("spin_wheel_wins").update({ used_at: null }).eq("code", redeemedCode);
+  }
+
+  if (input.giftCardCode) {
+    const normalizedGiftCode = input.giftCardCode.trim().toUpperCase();
+    const { data: giftCard } = await supabase
+      .from("gift_cards")
+      .select("code, type, discount_percent, credit_amount")
+      .eq("code", normalizedGiftCode)
+      .is("redeemed_at", null)
+      .maybeSingle();
+
+    if (!giftCard) {
+      await releaseReservations();
+      throw new Error("GIFT_CARD_INVALID");
+    }
+
+    const { data: claimedGift } = await supabase
+      .from("gift_cards")
+      .update({ redeemed_at: new Date().toISOString() })
+      .eq("code", normalizedGiftCode)
+      .is("redeemed_at", null)
+      .select("code")
+      .maybeSingle();
+
+    // Lost the race — someone else's checkout claimed this exact code in
+    // the gap between the read above and this update.
+    if (!claimedGift) {
+      await releaseReservations();
+      throw new Error("GIFT_CARD_INVALID");
+    }
+
+    claimedGiftCardCode = normalizedGiftCode;
+    if (giftCard.type === "discount" && giftCard.discount_percent) {
+      giftCardDiscountAmount = Math.round(itemsTotal * (giftCard.discount_percent / 100) * 100) / 100;
+    } else if (giftCard.type === "credit" && giftCard.credit_amount) {
+      giftCardCreditAmount = Math.min(Number(giftCard.credit_amount), itemsTotal + input.shippingCost);
+    }
+    // type === "product": nothing to compute here — the gifted item was
+    // already added to the cart at $0 on the /carte-cadeau reveal page, so
+    // it's already reflected in itemsTotal like any other line.
+  }
+
   const discountAmount = Math.round(itemsTotal * (discountPercent / 100) * 100) / 100;
-  const total = itemsTotal - discountAmount + input.shippingCost;
+  const total = Math.max(0, itemsTotal - discountAmount - giftCardDiscountAmount - giftCardCreditAmount + input.shippingCost);
 
   const orderFields = {
     customer_name: input.name,
@@ -128,28 +184,34 @@ export async function createOrder(input: CheckoutInput) {
     shipping_cost: input.shippingCost,
     promo_code: redeemedCode,
     discount_amount: discountAmount,
+    gift_card_code: claimedGiftCardCode,
     total,
     status: "pending_payment",
   };
 
-  // promo_code/discount_amount come from a migration that may not have run
-  // yet — retry without them rather than breaking checkout entirely.
+  // promo_code/discount_amount/gift_card_code come from migrations that may
+  // not have run yet — retry without them rather than breaking checkout
+  // entirely.
   let { data: order, error } = await supabase.from("orders").insert(orderFields).select("id").single();
   if (error) {
-    const { promo_code, discount_amount, ...fallback } = orderFields;
+    const { promo_code, discount_amount, gift_card_code, ...fallback } = orderFields;
     ({ data: order, error } = await supabase.from("orders").insert(fallback).select("id").single());
   }
 
   if (error || !order) {
-    // Stock was already decremented and the promo code (if any) already
-    // claimed above — if the order itself never got created, give both
-    // back rather than burning a customer's discount and inventory on an
-    // order they don't actually have.
-    await supabase.rpc("checkout_restore_stock", { items: stockItems });
-    if (redeemedCode) {
-      await supabase.from("spin_wheel_wins").update({ used_at: null }).eq("code", redeemedCode);
+    // Stock, the promo code, and the gift card were all already
+    // claimed/decremented above — if the order itself never got created,
+    // give everything back rather than burning a customer's discount,
+    // gift, and inventory on an order they don't actually have.
+    await releaseReservations();
+    if (claimedGiftCardCode) {
+      await supabase.from("gift_cards").update({ redeemed_at: null }).eq("code", claimedGiftCardCode);
     }
     throw error;
+  }
+
+  if (claimedGiftCardCode) {
+    await supabase.from("gift_cards").update({ order_id: order.id }).eq("code", claimedGiftCardCode);
   }
 
   await supabase.from("order_items").insert(
