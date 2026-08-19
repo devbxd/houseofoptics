@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useGiftCard } from "./GiftCardProvider";
 import { previewGiftCard, type GiftCardPreview } from "@/app/(site)/carte-cadeau/actions";
 
@@ -12,6 +13,7 @@ import { previewGiftCard, type GiftCardPreview } from "@/app/(site)/carte-cadeau
 export function GiftCardReminder({ t }: { t: Record<string, string> }) {
   const { giftCard, clearGiftCard } = useGiftCard();
   const [preview, setPreview] = useState<GiftCardPreview | null>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!giftCard) {
@@ -35,7 +37,11 @@ export function GiftCardReminder({ t }: { t: Record<string, string> }) {
     };
   }, [giftCard, clearGiftCard]);
 
-  if (!preview || !preview.valid) return null;
+  // Both /checkout and /carte-cadeau already show this exact gift card's
+  // status inline — showing the floating pill on top of that reads as a
+  // second, conflicting signal ("is it applied, or do I still need to do
+  // something with this pill?").
+  if (!preview || !preview.valid || pathname === "/checkout" || pathname === "/carte-cadeau") return null;
 
   const summary =
     preview.type === "product"

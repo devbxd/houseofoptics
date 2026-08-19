@@ -204,6 +204,13 @@ export default function CheckoutPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // The gift card is only ever actually consumed by createOrder below —
+    // nothing before this point touches the database — but that's not
+    // obvious just from seeing "applied ✓" on screen, so this is the one
+    // explicit, unmistakable "yes, use it now" moment before it happens.
+    if (giftCardPreview?.valid) {
+      if (!confirm(t["checkout.giftCardConfirm"])) return;
+    }
     setSubmitting(true);
     setError(null);
     // Belt-and-braces mirror of the effect above — a product-type gift
@@ -474,6 +481,7 @@ export default function CheckoutPage() {
                 {t["cart.remove"]}
               </button>
             </div>
+            <p className="mt-1 text-xs text-neutral-500">{t["checkout.giftCardPendingNote"]}</p>
           </div>
         )}
 
