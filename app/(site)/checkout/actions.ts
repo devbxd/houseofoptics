@@ -122,6 +122,8 @@ export async function createOrder(input: CheckoutInput) {
   let giftCardDiscountAmount = 0;
   let giftCardCreditAmount = 0;
   let claimedGiftCardCode: string | null = null;
+  let claimedGiftCardType: "product" | "discount" | "credit" | null = null;
+  let claimedGiftCardProductName: string | null = null;
 
   async function releaseReservations() {
     await supabase.rpc("checkout_restore_stock", { items: stockItems });
@@ -132,7 +134,7 @@ export async function createOrder(input: CheckoutInput) {
     const normalizedGiftCode = input.giftCardCode.trim().toUpperCase();
     const { data: giftCard } = await supabase
       .from("gift_cards")
-      .select("code, type, discount_percent, credit_amount")
+      .select("code, type, discount_percent, credit_amount, product:products(name)")
       .eq("code", normalizedGiftCode)
       .is("redeemed_at", null)
       .maybeSingle();
@@ -158,14 +160,20 @@ export async function createOrder(input: CheckoutInput) {
     }
 
     claimedGiftCardCode = normalizedGiftCode;
+    claimedGiftCardType = giftCard.type as "product" | "discount" | "credit";
     if (giftCard.type === "discount" && giftCard.discount_percent) {
       giftCardDiscountAmount = Math.round(itemsTotal * (giftCard.discount_percent / 100) * 100) / 100;
     } else if (giftCard.type === "credit" && giftCard.credit_amount) {
       giftCardCreditAmount = Math.min(Number(giftCard.credit_amount), itemsTotal + input.shippingCost);
+    } else if (giftCard.type === "product") {
+      // The gifted item was already added to the cart at $0 on the
+      // /carte-cadeau reveal page, so it's already reflected in itemsTotal
+      // like any other line — this is only recorded so the invoice/admin
+      // dashboard can say "this line was a free gift", not left guessing
+      // why one line happens to be priced at $0.
+      const p = Array.isArray(giftCard.product) ? giftCard.product[0] : giftCard.product;
+      claimedGiftCardProductName = p?.name ?? null;
     }
-    // type === "product": nothing to compute here — the gifted item was
-    // already added to the cart at $0 on the /carte-cadeau reveal page, so
-    // it's already reflected in itemsTotal like any other line.
   }
 
   const discountAmount = Math.round(itemsTotal * (discountPercent / 100) * 100) / 100;
@@ -185,16 +193,20 @@ export async function createOrder(input: CheckoutInput) {
     promo_code: redeemedCode,
     discount_amount: discountAmount,
     gift_card_code: claimedGiftCardCode,
+    gift_card_type: claimedGiftCardType,
+    gift_card_amount: giftCardDiscountAmount + giftCardCreditAmount,
+    gift_card_product_name: claimedGiftCardProductName,
     total,
     status: "pending_payment",
   };
 
-  // promo_code/discount_amount/gift_card_code come from migrations that may
+  // promo_code/discount_amount/gift_card_* come from migrations that may
   // not have run yet — retry without them rather than breaking checkout
   // entirely.
   let { data: order, error } = await supabase.from("orders").insert(orderFields).select("id").single();
   if (error) {
-    const { promo_code, discount_amount, gift_card_code, ...fallback } = orderFields;
+    const { promo_code, discount_amount, gift_card_code, gift_card_type, gift_card_amount, gift_card_product_name, ...fallback } =
+      orderFields;
     ({ data: order, error } = await supabase.from("orders").insert(fallback).select("id").single());
   }
 
@@ -227,7 +239,18 @@ export async function createOrder(input: CheckoutInput) {
 
   try {
     const { notifyNewOrder } = await import("@/lib/notify-order");
-    await notifyNewOrder({ orderId: order.id, ...input, total });
+    await notifyNewOrder({
+      orderId: order.id,
+      ...input,
+      total,
+      subtotal: itemsTotal,
+      promoCode: redeemedCode,
+      discountAmount,
+      giftCardCode: claimedGiftCardCode,
+      giftCardType: claimedGiftCardType,
+      giftCardAmount: giftCardDiscountAmount + giftCardCreditAmount,
+      giftCardProductName: claimedGiftCardProductName,
+    });
   } catch {
     // notification failure must never block the customer's order from succeeding
   }

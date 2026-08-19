@@ -36,7 +36,12 @@ type ConfirmedOrder = {
 
 function buildWhatsAppOrderMessage(orderId: string, o: ConfirmedOrder) {
   const itemsText = o.items
-    .map((i) => `${i.quantity}x ${i.name}${i.variant ? ` (${i.variant})` : ""} — $${(i.price * i.quantity).toFixed(2)}`)
+    .map(
+      (i) =>
+        `${i.quantity}x ${i.name}${i.variant ? ` (${i.variant})` : ""} — $${(i.price * i.quantity).toFixed(2)}${
+          i.price === 0 ? " (Gift — Free)" : ""
+        }`
+    )
     .join("\n");
   const mapsLink = o.coords ? `https://www.google.com/maps?q=${o.coords.lat},${o.coords.lng}` : null;
 
@@ -53,7 +58,9 @@ function buildWhatsAppOrderMessage(orderId: string, o: ConfirmedOrder) {
     "",
     `Subtotal: $${o.subtotal.toFixed(2)}`,
     o.promoCode ? `Promo code ${o.promoCode}: -$${o.discountAmount.toFixed(2)}` : null,
-    o.giftCardCode ? `Gift card ${o.giftCardCode}${o.giftCardAmount > 0 ? `: -$${o.giftCardAmount.toFixed(2)}` : ""}` : null,
+    o.giftCardCode
+      ? `🎁 Gift card ${o.giftCardCode}${o.giftCardAmount > 0 ? `: -$${o.giftCardAmount.toFixed(2)}` : " (Free item)"}`
+      : null,
     `Shipping (${o.shippingZone === "beirut" ? "Beirut" : "Outside Beirut"}): $${o.shippingCost.toFixed(2)}`,
     `Total: $${o.total.toFixed(2)}`,
     `Payment: ${o.paymentMethod === "cod" ? "Cash on delivery" : "Card"}`,

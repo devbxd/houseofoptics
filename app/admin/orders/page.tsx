@@ -10,11 +10,13 @@ export default async function AdminOrdersPage({
   const { from, to } = await searchParams;
   const supabase = createServiceClient();
 
+  // select("*") rather than naming every column — promo_code/discount_amount
+  // and the gift_card_* columns come from migrations that may not have run
+  // yet on this deployment, and "*" degrades gracefully instead of erroring
+  // the whole page over a missing column.
   let query = supabase
     .from("orders")
-    .select(
-      "id, customer_name, customer_phone, customer_email, address, city, payment_method, shipping_zone, shipping_cost, total, status, created_at, items:order_items(product_name, variant_label, quantity, unit_price)"
-    )
+    .select("*, items:order_items(product_name, variant_label, quantity, unit_price)")
     .order("created_at", { ascending: false });
 
   if (from) query = query.gte("created_at", from);
@@ -93,9 +95,27 @@ export default async function AdminOrdersPage({
                   <li key={i}>
                     {it.quantity} × {it.product_name}
                     {it.variant_label ? ` (${it.variant_label})` : ""} — ${Number(it.unit_price).toFixed(2)}
+                    {Number(it.unit_price) === 0 && <span className="ml-1 text-brand-red">(Gift — Free)</span>}
                   </li>
                 ))}
               </ul>
+              {(o.promo_code || o.gift_card_code) && (
+                <div className="mt-2 space-y-0.5 border-t border-dashed border-neutral-100 pt-2 text-xs text-brand-red">
+                  {o.promo_code && (
+                    <p>
+                      Promo code {o.promo_code}: -${Number(o.discount_amount ?? 0).toFixed(2)}
+                    </p>
+                  )}
+                  {o.gift_card_code && (
+                    <p>
+                      🎁 Gift card {o.gift_card_code}
+                      {o.gift_card_type === "product"
+                        ? ` — ${o.gift_card_product_name ?? "free item"} (FREE)`
+                        : `: -$${Number(o.gift_card_amount ?? 0).toFixed(2)}`}
+                    </p>
+                  )}
+                </div>
+              )}
               {settings.whatsapp_number && (
                 <a
                   href={whatsappLink(settings.whatsapp_number, notifyMessage)}

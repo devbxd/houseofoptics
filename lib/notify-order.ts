@@ -20,7 +20,15 @@ type OrderNotification = {
   city: string;
   paymentMethod: string;
   shippingZone: string;
+  shippingCost: number;
   total: number;
+  subtotal: number;
+  promoCode: string | null;
+  discountAmount: number;
+  giftCardCode: string | null;
+  giftCardType: "product" | "discount" | "credit" | null;
+  giftCardAmount: number;
+  giftCardProductName: string | null;
   items: { name: string; variant: string | null; price: number; quantity: number }[];
 };
 
@@ -50,12 +58,43 @@ function itemsList(items: OrderNotification["items"]) {
     .map(
       (i) =>
         `<tr>
-          <td style="padding:6px 0;border-bottom:1px solid #f0f0f0;">${i.quantity} × ${i.name}${i.variant ? ` (${i.variant})` : ""}</td>
+          <td style="padding:6px 0;border-bottom:1px solid #f0f0f0;">${i.quantity} × ${i.name}${i.variant ? ` (${i.variant})` : ""}${
+            i.price === 0 ? ' <span style="color:#c8102e;">(Gift — Free)</span>' : ""
+          }</td>
           <td style="padding:6px 0;border-bottom:1px solid #f0f0f0;text-align:right;">$${i.price.toFixed(2)}</td>
         </tr>`
     )
     .join("");
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;margin:16px 0;">${rows}</table>`;
+}
+
+// So a discounted/gifted total is never shown as just a smaller number
+// with no explanation — every line that changed it (promo code, gift
+// card, shipping) is spelled out, right down to which specific gift card
+// code was used.
+function totalsBreakdown(o: OrderNotification) {
+  const lines = [`<tr><td style="padding:3px 0;">Subtotal</td><td style="padding:3px 0;text-align:right;">$${o.subtotal.toFixed(2)}</td></tr>`];
+
+  if (o.promoCode) {
+    lines.push(
+      `<tr><td style="padding:3px 0;color:#c8102e;">Promo code ${o.promoCode}</td><td style="padding:3px 0;text-align:right;color:#c8102e;">-$${o.discountAmount.toFixed(2)}</td></tr>`
+    );
+  }
+
+  if (o.giftCardCode && o.giftCardType === "product") {
+    lines.push(
+      `<tr><td style="padding:3px 0;color:#c8102e;">🎁 Gift card ${o.giftCardCode}</td><td style="padding:3px 0;text-align:right;color:#c8102e;">${o.giftCardProductName ?? "Free item"} — FREE</td></tr>`
+    );
+  } else if (o.giftCardCode) {
+    lines.push(
+      `<tr><td style="padding:3px 0;color:#c8102e;">🎁 Gift card ${o.giftCardCode} (${o.giftCardType})</td><td style="padding:3px 0;text-align:right;color:#c8102e;">-$${o.giftCardAmount.toFixed(2)}</td></tr>`
+    );
+  }
+
+  lines.push(`<tr><td style="padding:3px 0;">Shipping (${o.shippingZone === "beirut" ? "Beirut" : "Outside Beirut"})</td><td style="padding:3px 0;text-align:right;">$${o.shippingCost.toFixed(2)}</td></tr>`);
+  lines.push(`<tr><td style="padding:6px 0 0;font-size:16px;"><strong>Total</strong></td><td style="padding:6px 0 0;text-align:right;font-size:16px;"><strong>$${o.total.toFixed(2)}</strong></td></tr>`);
+
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;margin:8px 0 0;">${lines.join("")}</table>`;
 }
 
 export async function notifyNewOrder(order: OrderNotification) {
@@ -77,7 +116,7 @@ export async function notifyNewOrder(order: OrderNotification) {
           <p style="margin:0 0 4px;">${order.address}, ${order.city} (${order.shippingZone})</p>
           <p style="margin:0;">Payment: ${paymentLabel}</p>
           ${itemsList(order.items)}
-          <p style="margin:0;font-size:16px;"><strong>Total: $${order.total.toFixed(2)}</strong></p>
+          ${totalsBreakdown(order)}
           <p style="margin:8px 0 0;font-size:12px;color:#999;">Order ref: ${order.orderId.slice(0, 8)}</p>
         `,
         ctaLabel: "Open dashboard",
@@ -95,7 +134,7 @@ export async function notifyNewOrder(order: OrderNotification) {
       bodyHtml: `
         <p>We've received your order and will be in touch shortly to confirm.</p>
         ${itemsList(order.items)}
-        <p style="margin:0;font-size:16px;"><strong>Total: $${order.total.toFixed(2)}</strong></p>
+        ${totalsBreakdown(order)}
         <p style="margin:16px 0 0;">Shipping to: ${order.address}, ${order.city}</p>
         <p style="margin:4px 0 0;">Payment: ${paymentLabel}</p>
         <p style="margin:12px 0 0;font-size:12px;color:#999;">Order ref: ${order.orderId.slice(0, 8)}</p>
