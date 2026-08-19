@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { generateProductGiftCard, generateDiscountGiftCard, generateCreditGiftCard } from "./actions";
 import { ProductGiftPicker, type GiftableProduct } from "./ProductGiftPicker";
+import { GiftCardVisual } from "@/components/GiftCardVisual";
 import type { GiftCardType } from "@/lib/gift-cards";
 
 const TYPE_OPTIONS: { value: GiftCardType; label: string; emoji: string; activeClass: string }[] = [
@@ -67,30 +68,50 @@ export function GiftCardTypePicker({ products }: { products: GiftableProduct[] }
 
   if (generated) {
     return (
-      <div className="max-w-md rounded-lg border border-neutral-200 bg-gradient-to-br from-neutral-900 to-neutral-700 p-6 text-white shadow-lg">
-        <p className="text-xs uppercase tracking-widest text-neutral-300">House of Optics — Gift Card</p>
-        <p className="mt-3 text-sm text-neutral-200">For {recipientName}</p>
-        <p className="mt-1 text-lg font-medium">{generated.summary}</p>
-        <div className="mt-4 flex items-center justify-between rounded-md bg-white/10 px-4 py-3">
-          <span className="font-mono text-xl tracking-wider">{generated.code}</span>
-          <button
-            type="button"
-            onClick={() => {
-              navigator.clipboard.writeText(generated.code).then(() => {
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1500);
-              });
-            }}
-            className="shrink-0 rounded border border-white/30 px-3 py-1 text-xs uppercase tracking-wide hover:bg-white/10"
-          >
-            {copied ? "Copied ✓" : "Copy"}
-          </button>
-        </div>
-        {message && <p className="mt-3 text-sm italic text-neutral-300">"{message}"</p>}
+      <div className="max-w-md">
+        {/* Deliberately not the browser-history "Back" button at the top of
+            every admin page — that goes wherever the admin happened to
+            come from (often the Products page), not back to a fresh Gift
+            Cards screen. This always lands right here, ready to generate
+            another one. */}
         <button
           type="button"
           onClick={reset}
-          className="mt-6 w-full rounded border border-white/30 py-2 text-xs uppercase tracking-wide hover:bg-white/10"
+          className="mb-4 flex items-center gap-1.5 text-sm text-neutral-500 hover:text-brand-black"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+            <path d="m15 18-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Back to Gift Cards
+        </button>
+
+        <GiftCardVisual>
+          <p className="text-sm text-neutral-600">For {recipientName}</p>
+          <p className="mt-1 font-serif text-xl text-brand-black">{generated.summary}</p>
+
+          <div className="mt-5 flex items-center justify-between gap-3 rounded-lg border border-brand-black/20 bg-white px-4 py-3">
+            <span className="font-mono text-lg tracking-widest text-brand-black">{generated.code}</span>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(generated.code).then(() => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1500);
+                });
+              }}
+              className="shrink-0 rounded border border-brand-black px-3 py-1.5 text-xs uppercase tracking-wide text-brand-black hover:bg-brand-black hover:text-white"
+            >
+              {copied ? "Copied ✓" : "Copy"}
+            </button>
+          </div>
+
+          {message && <p className="mt-4 text-sm italic text-neutral-500">"{message}"</p>}
+        </GiftCardVisual>
+
+        <button
+          type="button"
+          onClick={reset}
+          className="mt-4 w-full border border-brand-black py-3 text-center text-xs uppercase tracking-wide text-brand-black hover:bg-brand-black hover:text-white"
         >
           Generate another
         </button>

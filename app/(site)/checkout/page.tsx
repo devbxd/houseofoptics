@@ -9,7 +9,7 @@ import { createOrder } from "./actions";
 import { getBuyNowItem, clearBuyNowItem, type BuyNowItem } from "@/lib/buy-now";
 import { addOrderToHistory } from "@/lib/order-history";
 import { validatePromoCode } from "../spin-wheel-actions";
-import { getActiveGiftCard, clearActiveGiftCard } from "@/lib/gift-card-client";
+import { useGiftCard } from "@/components/GiftCardProvider";
 import { previewGiftCard, type GiftCardPreview } from "../carte-cadeau/actions";
 
 const SHIPPING_COST = { beirut: 4, outside_beirut: 6 } as const;
@@ -66,6 +66,7 @@ export default function CheckoutPage() {
   const cart = useCart();
   const router = useRouter();
   const { t } = useLocale();
+  const { giftCard, clearGiftCard } = useGiftCard();
 
   const [buyNowItem, setBuyNowItemState] = useState<BuyNowItem | null>(null);
   const [buyNowChecked, setBuyNowChecked] = useState(false);
@@ -109,21 +110,23 @@ export default function CheckoutPage() {
   }, []);
 
   useEffect(() => {
-    const active = getActiveGiftCard();
-    if (!active) return;
+    if (!giftCard) {
+      setGiftCardPreview(null);
+      return;
+    }
     // Re-check against the database rather than trusting whatever was
     // remembered from the /carte-cadeau reveal — it could have been
     // redeemed elsewhere (another tab, another device) since then. This is
     // still just a preview for display purposes; the actual claim happens
     // atomically inside createOrder below.
-    previewGiftCard(active.code).then((result) => {
+    previewGiftCard(giftCard.code).then((result) => {
       if (!result.valid) {
-        clearActiveGiftCard();
+        clearGiftCard();
         return;
       }
       setGiftCardPreview(result);
     });
-  }, []);
+  }, [giftCard, clearGiftCard]);
 
   // A "free item" gift card is tied to one specific cart line, not the
   // order as a whole — if the customer removes that line from their cart
@@ -134,7 +137,7 @@ export default function CheckoutPage() {
     if (giftCardPreview?.valid && giftCardPreview.type === "product") {
       const stillPresent = items.some((i) => i.productId === giftCardPreview.product.id && i.price === 0);
       if (!stillPresent) {
-        clearActiveGiftCard();
+        clearGiftCard();
         setGiftCardPreview(null);
       }
     }
@@ -228,7 +231,7 @@ export default function CheckoutPage() {
         })),
       });
       addOrderToHistory(orderId);
-      clearActiveGiftCard();
+      clearGiftCard();
       setConfirmedOrderId(orderId);
       setConfirmedSnapshot({
         name: form.name,
@@ -255,7 +258,7 @@ export default function CheckoutPage() {
       }
     } catch (err) {
       if (err instanceof Error && err.message === "GIFT_CARD_INVALID") {
-        clearActiveGiftCard();
+        clearGiftCard();
         setGiftCardPreview(null);
       }
       setError(
@@ -463,7 +466,7 @@ export default function CheckoutPage() {
               <button
                 type="button"
                 onClick={() => {
-                  clearActiveGiftCard();
+                  clearGiftCard();
                   setGiftCardPreview(null);
                 }}
                 className="text-xs uppercase text-neutral-400 hover:text-red-600"

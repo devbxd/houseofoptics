@@ -8,6 +8,7 @@ const NAV = [
   { href: "/admin/categories", label: "Categories" },
   { href: "/admin/brands", label: "Brands" },
   { href: "/admin/model-photos", label: "Photos of models" },
+  { href: "/admin/photos-en-masse", label: "Bulk Photo Upload" },
   { href: "/admin/produits", label: "Products" },
   { href: "/admin/discounts", label: "Discounts" },
   { href: "/admin/gift-cards", label: "Gift Cards" },

@@ -172,6 +172,7 @@ export const dictionaries: Record<Locale, Record<string, string>> = {
     "checkout.giftCardApplied": "Carte cadeau appliquée",
     "checkout.giftCardCredit": "Crédit carte cadeau",
     "checkout.giftCardInvalid": "Ce code carte cadeau est invalide ou déjà utilisé.",
+    "giftCard.reminder": "Vous avez encore un cadeau : {summary}",
   },
   en: {
     "nav.home": "Home",
@@ -342,6 +343,7 @@ export const dictionaries: Record<Locale, Record<string, string>> = {
     "checkout.giftCardApplied": "Gift card applied",
     "checkout.giftCardCredit": "Gift card credit",
     "checkout.giftCardInvalid": "This gift card code is invalid or already used.",
+    "giftCard.reminder": "You still have a gift: {summary}",
   },
   ar: {
     "nav.home": "الرئيسية",
@@ -511,6 +513,7 @@ export const dictionaries: Record<Locale, Record<string, string>> = {
     "checkout.giftCardApplied": "تم تطبيق بطاقة الهدية",
     "checkout.giftCardCredit": "رصيد بطاقة الهدية",
     "checkout.giftCardInvalid": "رمز بطاقة الهدية غير صالح أو تم استخدامه بالفعل.",
+    "giftCard.reminder": "لا يزال لديك هدية: {summary}",
   },
 };
 
