@@ -13,16 +13,22 @@ export const IMMUTABLE_CACHE_CONTROL = "31536000";
 // full-resolution phone photo: that both bloats Supabase egress and risks
 // exceeding the Server Actions body size limit before this code even runs
 // for the *next* upload on the same page.
+//
+// WebP instead of JPEG/PNG — typically 25-35% smaller than a JPEG at the
+// same visual quality, and (unlike JPEG) still supports transparency, so
+// one codepath now covers what used to need a PNG branch. Every browser
+// this site needs to support has read WebP for years. This only shrinks
+// *new* uploads going forward — it doesn't shrink images already sitting
+// in storage from before this change.
 export async function processImage(file: File): Promise<{ buffer: Buffer; contentType: string; ext: string }> {
   const original = Buffer.from(await file.arrayBuffer());
-  const isPng = file.type === "image/png";
   try {
-    let pipeline = sharp(original)
+    const buffer = await sharp(original)
       .rotate()
-      .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: "inside", withoutEnlargement: true });
-    pipeline = isPng ? pipeline.png({ quality: 85, compressionLevel: 9 }) : pipeline.jpeg({ quality: 85, mozjpeg: true });
-    const buffer = await pipeline.toBuffer();
-    return { buffer, contentType: isPng ? "image/png" : "image/jpeg", ext: isPng ? "png" : "jpg" };
+      .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toBuffer();
+    return { buffer, contentType: "image/webp", ext: "webp" };
   } catch {
     // Unsupported/corrupt input (e.g. an odd format sharp can't decode) —
     // fall back to uploading the original rather than failing the save.

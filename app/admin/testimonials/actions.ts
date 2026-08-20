@@ -2,19 +2,17 @@
 
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
-import { processImage, IMMUTABLE_CACHE_CONTROL } from "@/lib/process-image";
+import { processImage } from "@/lib/process-image";
+import { uploadToR2 } from "@/lib/r2";
 
-async function uploadPhoto(supabase: ReturnType<typeof createServiceClient>, file: File) {
+async function uploadPhoto(file: File) {
   const { buffer, contentType, ext } = await processImage(file);
   const path = `testimonials/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from("products").upload(path, buffer, {
-    contentType,
-    upsert: false,
-    cacheControl: IMMUTABLE_CACHE_CONTROL,
-  });
-  if (error) return null;
-  const { data: pub } = supabase.storage.from("products").getPublicUrl(path);
-  return pub.publicUrl;
+  try {
+    return await uploadToR2(path, buffer, contentType);
+  } catch {
+    return null;
+  }
 }
 
 export async function createTestimonial(formData: FormData) {
@@ -26,7 +24,7 @@ export async function createTestimonial(formData: FormData) {
   if (!authorName || !quote) return;
 
   const supabase = createServiceClient();
-  const photoUrl = photo && photo.size > 0 ? await uploadPhoto(supabase, photo) : null;
+  const photoUrl = photo && photo.size > 0 ? await uploadPhoto(photo) : null;
 
   // sort_order defaults to 0 in the schema and nothing ever set it
   // explicitly — every testimonial tied at 0, so display order (here and

@@ -2,7 +2,8 @@
 
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
-import { processImage, IMMUTABLE_CACHE_CONTROL } from "@/lib/process-image";
+import { processImage } from "@/lib/process-image";
+import { uploadToR2 } from "@/lib/r2";
 
 export async function uploadModelPhoto(formData: FormData) {
   const productId = String(formData.get("product_id") ?? "").trim();
@@ -12,16 +13,15 @@ export async function uploadModelPhoto(formData: FormData) {
   const supabase = createServiceClient();
   const { buffer, contentType, ext } = await processImage(file);
   const path = `model-photos/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from("products").upload(path, buffer, {
-    contentType,
-    upsert: false,
-    cacheControl: IMMUTABLE_CACHE_CONTROL,
-  });
-  if (error) return;
+  let url: string;
+  try {
+    url = await uploadToR2(path, buffer, contentType);
+  } catch {
+    return;
+  }
 
-  const { data: pub } = supabase.storage.from("products").getPublicUrl(path);
   const { count } = await supabase.from("model_photos").select("*", { count: "exact", head: true });
-  await supabase.from("model_photos").insert({ image_url: pub.publicUrl, product_id: productId, sort_order: count ?? 0 });
+  await supabase.from("model_photos").insert({ image_url: url, product_id: productId, sort_order: count ?? 0 });
 
   revalidatePath("/admin/model-photos");
   revalidatePath("/", "layout");

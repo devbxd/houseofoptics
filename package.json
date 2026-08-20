@@ -12,6 +12,7 @@
     "rank:images": "node scripts/rank-image-quality.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1114.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.45.4",
     "next": "^15.0.3",

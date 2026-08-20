@@ -3,7 +3,8 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { translateToAllLocales } from "@/lib/translate";
-import { processImage, IMMUTABLE_CACHE_CONTROL } from "@/lib/process-image";
+import { processImage } from "@/lib/process-image";
+import { uploadToR2 } from "@/lib/r2";
 
 export async function toggleHeroImage(imageId: string, isHero: boolean) {
   const supabase = createServiceClient();
@@ -30,16 +31,15 @@ export async function uploadHeroSlide(formData: FormData) {
   const supabase = createServiceClient();
   const { buffer, contentType, ext } = await processImage(file);
   const path = `hero/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from("products").upload(path, buffer, {
-    contentType,
-    upsert: false,
-    cacheControl: IMMUTABLE_CACHE_CONTROL,
-  });
-  if (error) return;
+  let url: string;
+  try {
+    url = await uploadToR2(path, buffer, contentType);
+  } catch {
+    return;
+  }
 
-  const { data: pub } = supabase.storage.from("products").getPublicUrl(path);
   const { count } = await supabase.from("hero_slides").select("*", { count: "exact", head: true });
-  await supabase.from("hero_slides").insert({ image_url: pub.publicUrl, sort_order: count ?? 0 });
+  await supabase.from("hero_slides").insert({ image_url: url, sort_order: count ?? 0 });
 
   revalidatePath("/admin/hero");
   revalidatePath("/", "layout");

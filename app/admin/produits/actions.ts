@@ -4,9 +4,8 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { createServiceClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/slugify";
-import { processImage, IMMUTABLE_CACHE_CONTROL } from "@/lib/process-image";
-
-const BUCKET = "products";
+import { processImage } from "@/lib/process-image";
+import { uploadToR2 } from "@/lib/r2";
 
 // Lets the variant photo picker reuse a photo already uploaded to some
 // product on the site, instead of only uploading a new file.
@@ -42,21 +41,14 @@ function parseVariantRows(formData: FormData) {
     .filter((v) => v.colorLabel || v.sizeLabel);
 }
 
-async function uploadVariantImage(
-  supabase: ReturnType<typeof createServiceClient>,
-  productSlug: string,
-  file: File
-) {
+async function uploadVariantImage(productSlug: string, file: File) {
   const { buffer, contentType, ext } = await processImage(file);
   const path = `${productSlug}/variants/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from(BUCKET).upload(path, buffer, {
-    contentType,
-    upsert: false,
-    cacheControl: IMMUTABLE_CACHE_CONTROL,
-  });
-  if (error) return null;
-  const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return pub.publicUrl;
+  try {
+    return await uploadToR2(path, buffer, contentType);
+  } catch {
+    return null;
+  }
 }
 
 async function saveVariants(
@@ -75,7 +67,7 @@ async function saveVariants(
       stock: v.stock,
       price: v.price,
       description: v.description,
-      image_url: v.imageFile ? await uploadVariantImage(supabase, productSlug, v.imageFile) : v.existingImageUrl,
+      image_url: v.imageFile ? await uploadVariantImage(productSlug, v.imageFile) : v.existingImageUrl,
     }))
   );
 
@@ -102,20 +94,13 @@ async function saveVariants(
   }
 }
 
-async function uploadImages(supabase: ReturnType<typeof createServiceClient>, productSlug: string, files: File[]) {
+async function uploadImages(productSlug: string, files: File[]) {
   const urls: string[] = [];
   for (const file of files) {
     if (!file || file.size === 0) continue;
     const { buffer, contentType, ext } = await processImage(file);
     const path = `${productSlug}/${crypto.randomUUID()}.${ext}`;
-    const { error } = await supabase.storage.from(BUCKET).upload(path, buffer, {
-      contentType,
-      upsert: false,
-      cacheControl: IMMUTABLE_CACHE_CONTROL,
-    });
-    if (error) throw error;
-    const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
-    urls.push(pub.publicUrl);
+    urls.push(await uploadToR2(path, buffer, contentType));
   }
   return urls;
 }
@@ -130,7 +115,7 @@ async function savePackagingImage(
   remove: boolean
 ) {
   if (file && file.size > 0) {
-    const [url] = await uploadImages(supabase, productSlug, [file]);
+    const [url] = await uploadImages(productSlug, [file]);
     if (url) await supabase.from("products").update({ packaging_image_url: url }).eq("id", productId);
   } else if (remove) {
     await supabase.from("products").update({ packaging_image_url: null }).eq("id", productId);
@@ -196,7 +181,7 @@ export async function createProduct(formData: FormData) {
 
   await saveVariants(supabase, product.id, product.slug, formData);
 
-  const urls = await uploadImages(supabase, product.slug, files);
+  const urls = await uploadImages(product.slug, files);
   if (urls.length > 0) {
     await supabase
       .from("product_images")
@@ -254,7 +239,7 @@ export async function updateProduct(productId: string, formData: FormData) {
 
   await saveVariants(supabase, productId, product.slug, formData);
 
-  const urls = await uploadImages(supabase, product.slug, files);
+  const urls = await uploadImages(product.slug, files);
   if (urls.length > 0) {
     const { count } = await supabase
       .from("product_images")

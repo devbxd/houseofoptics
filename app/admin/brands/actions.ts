@@ -3,7 +3,8 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/slugify";
-import { processImage, IMMUTABLE_CACHE_CONTROL } from "@/lib/process-image";
+import { processImage } from "@/lib/process-image";
+import { uploadToR2 } from "@/lib/r2";
 
 export async function createBrand(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
@@ -44,18 +45,11 @@ export async function uploadBrandLogo(id: string, formData: FormData) {
   const supabase = createServiceClient();
   const { buffer, contentType, ext } = await processImage(file);
   const path = `brands/${id}-${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from("products").upload(path, buffer, {
-    contentType,
-    upsert: false,
-    cacheControl: IMMUTABLE_CACHE_CONTROL,
-  });
   // Used to just `return` here on failure — BrandRow's upload handler had
   // no catch to surface anything to, so a failed logo upload reverted
   // silently to the placeholder with zero explanation of what happened.
-  if (error) throw new Error(error.message);
-
-  const { data: pub } = supabase.storage.from("products").getPublicUrl(path);
-  await supabase.from("brands").update({ logo_url: pub.publicUrl }).eq("id", id);
+  const url = await uploadToR2(path, buffer, contentType);
+  await supabase.from("brands").update({ logo_url: url }).eq("id", id);
 
   revalidatePath("/admin/brands");
   revalidatePath("/", "layout");
@@ -80,15 +74,14 @@ export async function uploadBrandBanner(id: string, formData: FormData) {
   const supabase = createServiceClient();
   const { buffer, contentType, ext } = await processImage(file);
   const path = `brands/banners/${id}-${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from("products").upload(path, buffer, {
-    contentType,
-    upsert: false,
-    cacheControl: IMMUTABLE_CACHE_CONTROL,
-  });
-  if (error) return;
+  let url: string;
+  try {
+    url = await uploadToR2(path, buffer, contentType);
+  } catch {
+    return;
+  }
 
-  const { data: pub } = supabase.storage.from("products").getPublicUrl(path);
-  await supabase.from("brands").update({ homepage_banner_url: pub.publicUrl }).eq("id", id);
+  await supabase.from("brands").update({ homepage_banner_url: url }).eq("id", id);
 
   revalidatePath("/admin/brands");
   revalidatePath("/", "layout");
