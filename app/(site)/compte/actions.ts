@@ -50,8 +50,11 @@ export async function signUpCustomer(formData: FormData) {
     redirect(`/compte/inscription?error=${encodeURIComponent(friendlySignUpError(error?.message))}&next=${encodeURIComponent(next)}`);
   }
 
+  // customer_profiles is now created automatically by a database trigger on
+  // auth.users (see supabase/migrations/0050) — inserting it here too used
+  // to race the new auth.users row becoming visible to this follow-up
+  // call and intermittently fail with a foreign key violation.
   const service = createServiceClient();
-  await service.from("customer_profiles").insert({ id: data.user.id, name, phone: phone || null });
 
   // Anything they ordered as a guest with this same email, before creating
   // an account, becomes visible in their new account too — nothing about
