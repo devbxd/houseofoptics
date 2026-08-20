@@ -14,7 +14,7 @@ export default async function GiftCardsPage() {
     supabase
       .from("gift_cards")
       .select(
-        "id, code, type, discount_percent, credit_amount, recipient_name, message, redeemed_at, created_at, product:products(name)"
+        "id, code, type, discount_percent, credit_amount, remaining_amount, recipient_name, message, redeemed_at, created_at, product:products(name)"
       )
       .order("created_at", { ascending: false }),
   ]);
@@ -26,19 +26,30 @@ export default async function GiftCardsPage() {
     images: (p.images ?? []).slice().sort((a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order),
   }));
 
-  const rows = (cards ?? []).map((c: any) => ({
-    id: c.id,
-    code: c.code,
-    recipientName: c.recipient_name,
-    redeemed: !!c.redeemed_at,
-    createdAt: c.created_at,
-    summary:
-      c.type === "product"
-        ? ((Array.isArray(c.product) ? c.product[0]?.name : c.product?.name) ?? "Deleted product")
-        : c.type === "discount"
-          ? `${c.discount_percent}% off`
-          : `$${Number(c.credit_amount).toFixed(2)} credit`,
-  }));
+  const rows = (cards ?? []).map((c: any) => {
+    const remaining = c.type === "credit" ? Number(c.remaining_amount ?? c.credit_amount) : null;
+    const original = c.type === "credit" ? Number(c.credit_amount) : null;
+    const partiallyUsed = remaining != null && original != null && remaining > 0 && remaining < original;
+
+    return {
+      id: c.id,
+      code: c.code,
+      recipientName: c.recipient_name,
+      // A credit card with money still on it isn't "unused" once partially
+      // spent, but it isn't "redeemed" (fully gone) either — a distinct
+      // status keeps the admin from misreading either as the full picture.
+      status: (c.redeemed_at ? "redeemed" : partiallyUsed ? "partial" : "unused") as "redeemed" | "partial" | "unused",
+      createdAt: c.created_at,
+      summary:
+        c.type === "product"
+          ? ((Array.isArray(c.product) ? c.product[0]?.name : c.product?.name) ?? "Deleted product")
+          : c.type === "discount"
+            ? `${c.discount_percent}% off`
+            : partiallyUsed
+              ? `$${remaining!.toFixed(2)} left of $${original!.toFixed(2)} credit`
+              : `$${original!.toFixed(2)} credit`,
+    };
+  });
 
   return (
     <div>

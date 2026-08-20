@@ -6,7 +6,14 @@ import { deleteGiftCard } from "./actions";
 export function GiftCardRow({
   card,
 }: {
-  card: { id: string; code: string; recipientName: string; summary: string; redeemed: boolean; createdAt: string };
+  card: {
+    id: string;
+    code: string;
+    recipientName: string;
+    summary: string;
+    status: "unused" | "partial" | "redeemed";
+    createdAt: string;
+  };
 }) {
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,10 +26,14 @@ export function GiftCardRow({
       <td className="py-2 pr-4">
         <span
           className={`rounded-full px-2 py-0.5 text-xs ${
-            card.redeemed ? "bg-neutral-100 text-neutral-500" : "bg-emerald-50 text-emerald-700"
+            card.status === "redeemed"
+              ? "bg-neutral-100 text-neutral-500"
+              : card.status === "partial"
+                ? "bg-amber-50 text-amber-700"
+                : "bg-emerald-50 text-emerald-700"
           }`}
         >
-          {card.redeemed ? "Redeemed" : "Unused"}
+          {card.status === "redeemed" ? "Redeemed" : card.status === "partial" ? "Partially used" : "Unused"}
         </span>
       </td>
       <td className="py-2 pr-4 text-xs text-neutral-500">{new Date(card.createdAt).toLocaleDateString()}</td>

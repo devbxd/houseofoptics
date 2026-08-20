@@ -36,7 +36,7 @@ export async function previewGiftCard(rawCode: string): Promise<GiftCardPreview>
   const { data } = await supabase
     .from("gift_cards")
     .select(
-      "code, type, discount_percent, credit_amount, recipient_name, message, redeemed_at, product:products(id, name, slug, price, discount_percent, stock, images:product_images(url, sort_order))"
+      "code, type, discount_percent, credit_amount, remaining_amount, recipient_name, message, redeemed_at, product:products(id, name, slug, price, discount_percent, stock, images:product_images(url, sort_order))"
     )
     .eq("code", code)
     .maybeSingle();
@@ -87,6 +87,8 @@ export async function previewGiftCard(rawCode: string): Promise<GiftCardPreview>
     type: "credit",
     recipientName: data.recipient_name,
     message: data.message,
-    creditAmount: Number(data.credit_amount),
+    // remaining_amount, not credit_amount — the current balance after any
+    // earlier partial spend, not the card's original face value.
+    creditAmount: Number(data.remaining_amount ?? data.credit_amount),
   };
 }

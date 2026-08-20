@@ -61,9 +61,13 @@ export async function generateCreditGiftCard(input: { creditAmount: number; reci
   }
 
   const supabase = createServiceClient();
+  const amount = Math.round(input.creditAmount * 100) / 100;
   const code = await insertWithUniqueCode(supabase, {
     type: "credit",
-    credit_amount: Math.round(input.creditAmount * 100) / 100,
+    credit_amount: amount,
+    // Starts equal to the full amount — decremented order by order as the
+    // customer spends it, so a card doesn't have to be used up in one go.
+    remaining_amount: amount,
     recipient_name: recipientName,
     message: input.message.trim() || null,
   });

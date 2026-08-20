@@ -73,7 +73,7 @@ export default function CheckoutPage() {
   const cart = useCart();
   const router = useRouter();
   const { t } = useLocale();
-  const { giftCard, clearGiftCard } = useGiftCard();
+  const { giftCard, setGiftCard, clearGiftCard } = useGiftCard();
 
   const [buyNowItem, setBuyNowItemState] = useState<BuyNowItem | null>(null);
   const [buyNowChecked, setBuyNowChecked] = useState(false);
@@ -216,7 +216,9 @@ export default function CheckoutPage() {
     // obvious just from seeing "applied ✓" on screen, so this is the one
     // explicit, unmistakable "yes, use it now" moment before it happens.
     if (giftCardPreview?.valid) {
-      if (!confirm(t["checkout.giftCardConfirm"])) return;
+      const confirmMessage =
+        giftCardPreview.type === "credit" ? t["checkout.giftCardConfirmCredit"] : t["checkout.giftCardConfirm"];
+      if (!confirm(confirmMessage)) return;
     }
     setSubmitting(true);
     setError(null);
@@ -227,7 +229,7 @@ export default function CheckoutPage() {
       giftCardPreview?.valid &&
       (giftCardPreview.type !== "product" || items.some((i) => i.productId === giftCardPreview.product.id && i.price === 0));
     try {
-      const { orderId } = await createOrder({
+      const { orderId, giftCardRemainingAmount } = await createOrder({
         ...form,
         latitude: coords?.lat ?? null,
         longitude: coords?.lng ?? null,
@@ -245,7 +247,16 @@ export default function CheckoutPage() {
         })),
       });
       addOrderToHistory(orderId);
-      clearGiftCard();
+      // A credit gift card with money still on it stays active — re-set it
+      // (with a fresh object reference) so both this page's own preview
+      // effect and the site-wide reminder pill re-fetch and pick up the
+      // new, lower balance instead of the gift just disappearing or
+      // showing a stale amount elsewhere on the site.
+      if (giftCardRemainingAmount != null && giftCard) {
+        setGiftCard({ code: giftCard.code, type: giftCard.type });
+      } else {
+        clearGiftCard();
+      }
       setConfirmedOrderId(orderId);
       setConfirmedSnapshot({
         name: form.name,

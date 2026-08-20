@@ -174,6 +174,7 @@ export const dictionaries: Record<Locale, Record<string, string>> = {
     "checkout.giftCardInvalid": "Ce code carte cadeau est invalide ou déjà utilisé.",
     "checkout.giftCardPendingNote": "Elle ne sera débitée qu'au moment où vous validez la commande ci-dessous — pas avant.",
     "checkout.giftCardConfirm": "Cette carte cadeau sera utilisée pour cette commande et ne pourra plus être réutilisée ensuite. Confirmer la commande ?",
+    "checkout.giftCardConfirmCredit": "Le montant nécessaire sera déduit de votre carte cadeau (le solde restant, s'il y en a, reste utilisable). Confirmer la commande ?",
     "giftCard.reminder": "Vous avez encore un cadeau : {summary}",
   },
   en: {
@@ -347,6 +348,7 @@ export const dictionaries: Record<Locale, Record<string, string>> = {
     "checkout.giftCardInvalid": "This gift card code is invalid or already used.",
     "checkout.giftCardPendingNote": "It will only be charged when you place the order below — not before.",
     "checkout.giftCardConfirm": "This gift card will be used for this order and can't be reused afterward. Place the order?",
+    "checkout.giftCardConfirmCredit": "The amount needed will be deducted from your gift card (any leftover balance stays usable). Place the order?",
     "giftCard.reminder": "You still have a gift: {summary}",
   },
   ar: {
@@ -519,6 +521,7 @@ export const dictionaries: Record<Locale, Record<string, string>> = {
     "checkout.giftCardInvalid": "رمز بطاقة الهدية غير صالح أو تم استخدامه بالفعل.",
     "checkout.giftCardPendingNote": "لن يتم خصمها إلا عند تأكيد الطلب أدناه — وليس قبل ذلك.",
     "checkout.giftCardConfirm": "سيتم استخدام بطاقة الهدية هذه لهذا الطلب ولن يمكن إعادة استخدامها بعد ذلك. هل تريد تأكيد الطلب؟",
+    "checkout.giftCardConfirmCredit": "سيتم خصم المبلغ اللازم من بطاقة الهدية الخاصة بك (أي رصيد متبقٍ يبقى قابلاً للاستخدام). هل تريد تأكيد الطلب؟",
     "giftCard.reminder": "لا يزال لديك هدية: {summary}",
   },
 };

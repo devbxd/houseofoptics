@@ -124,17 +124,30 @@ export async function createOrder(input: CheckoutInput) {
   let claimedGiftCardCode: string | null = null;
   let claimedGiftCardType: "product" | "discount" | "credit" | null = null;
   let claimedGiftCardProductName: string | null = null;
+  // Only meaningful for type "credit" — how much was left on the card
+  // right after this order spent from it, so the customer can be told
+  // "you still have $30" instead of the gift just quietly vanishing.
+  let giftCardRemainingAfter: number | null = null;
 
   async function releaseReservations() {
     await supabase.rpc("checkout_restore_stock", { items: stockItems });
     if (redeemedCode) await supabase.from("spin_wheel_wins").update({ used_at: null }).eq("code", redeemedCode);
   }
 
+  async function releaseGiftCard() {
+    if (!claimedGiftCardCode) return;
+    if (claimedGiftCardType === "credit") {
+      await supabase.rpc("restore_gift_card_credit", { p_code: claimedGiftCardCode, p_amount: giftCardCreditAmount });
+    } else {
+      await supabase.from("gift_cards").update({ redeemed_at: null }).eq("code", claimedGiftCardCode);
+    }
+  }
+
   if (input.giftCardCode) {
     const normalizedGiftCode = input.giftCardCode.trim().toUpperCase();
     const { data: giftCard } = await supabase
       .from("gift_cards")
-      .select("code, type, discount_percent, credit_amount, product:products(name)")
+      .select("code, type, discount_percent, credit_amount, remaining_amount, product:products(name)")
       .eq("code", normalizedGiftCode)
       .is("redeemed_at", null)
       .maybeSingle();
@@ -144,35 +157,63 @@ export async function createOrder(input: CheckoutInput) {
       throw new Error("GIFT_CARD_INVALID");
     }
 
-    const { data: claimedGift } = await supabase
-      .from("gift_cards")
-      .update({ redeemed_at: new Date().toISOString() })
-      .eq("code", normalizedGiftCode)
-      .is("redeemed_at", null)
-      .select("code")
-      .maybeSingle();
+    if (giftCard.type === "credit") {
+      // remaining_amount is only null for a card generated before this
+      // column existed — treat it as never having been spent yet.
+      const balance = Number(giftCard.remaining_amount ?? giftCard.credit_amount ?? 0);
+      const amountToUse = Math.min(balance, itemsTotal + input.shippingCost);
+      if (amountToUse <= 0) {
+        await releaseReservations();
+        throw new Error("GIFT_CARD_INVALID");
+      }
 
-    // Lost the race — someone else's checkout claimed this exact code in
-    // the gap between the read above and this update.
-    if (!claimedGift) {
-      await releaseReservations();
-      throw new Error("GIFT_CARD_INVALID");
-    }
+      const { data: remainingAfter, error: creditError } = await supabase.rpc("redeem_gift_card_credit", {
+        p_code: normalizedGiftCode,
+        p_amount: amountToUse,
+      });
+      // Either the migration for this function hasn't been applied yet, or
+      // (extremely rare) another checkout spent from this exact balance in
+      // the same instant and left less than amountToUse — either way this
+      // must block rather than silently apply a discount that was never
+      // actually deducted from the card.
+      if (creditError) {
+        await releaseReservations();
+        throw new Error("GIFT_CARD_INVALID");
+      }
 
-    claimedGiftCardCode = normalizedGiftCode;
-    claimedGiftCardType = giftCard.type as "product" | "discount" | "credit";
-    if (giftCard.type === "discount" && giftCard.discount_percent) {
-      giftCardDiscountAmount = Math.round(itemsTotal * (giftCard.discount_percent / 100) * 100) / 100;
-    } else if (giftCard.type === "credit" && giftCard.credit_amount) {
-      giftCardCreditAmount = Math.min(Number(giftCard.credit_amount), itemsTotal + input.shippingCost);
-    } else if (giftCard.type === "product") {
-      // The gifted item was already added to the cart at $0 on the
-      // /carte-cadeau reveal page, so it's already reflected in itemsTotal
-      // like any other line — this is only recorded so the invoice/admin
-      // dashboard can say "this line was a free gift", not left guessing
-      // why one line happens to be priced at $0.
-      const p = Array.isArray(giftCard.product) ? giftCard.product[0] : giftCard.product;
-      claimedGiftCardProductName = p?.name ?? null;
+      claimedGiftCardCode = normalizedGiftCode;
+      claimedGiftCardType = "credit";
+      giftCardCreditAmount = amountToUse;
+      giftCardRemainingAfter = Number(remainingAfter);
+    } else {
+      const { data: claimedGift } = await supabase
+        .from("gift_cards")
+        .update({ redeemed_at: new Date().toISOString() })
+        .eq("code", normalizedGiftCode)
+        .is("redeemed_at", null)
+        .select("code")
+        .maybeSingle();
+
+      // Lost the race — someone else's checkout claimed this exact code in
+      // the gap between the read above and this update.
+      if (!claimedGift) {
+        await releaseReservations();
+        throw new Error("GIFT_CARD_INVALID");
+      }
+
+      claimedGiftCardCode = normalizedGiftCode;
+      claimedGiftCardType = giftCard.type as "product" | "discount";
+      if (giftCard.type === "discount" && giftCard.discount_percent) {
+        giftCardDiscountAmount = Math.round(itemsTotal * (giftCard.discount_percent / 100) * 100) / 100;
+      } else if (giftCard.type === "product") {
+        // The gifted item was already added to the cart at $0 on the
+        // /carte-cadeau reveal page, so it's already reflected in
+        // itemsTotal like any other line — this is only recorded so the
+        // invoice/admin dashboard can say "this line was a free gift",
+        // not left guessing why one line happens to be priced at $0.
+        const p = Array.isArray(giftCard.product) ? giftCard.product[0] : giftCard.product;
+        claimedGiftCardProductName = p?.name ?? null;
+      }
     }
   }
 
@@ -216,9 +257,7 @@ export async function createOrder(input: CheckoutInput) {
     // give everything back rather than burning a customer's discount,
     // gift, and inventory on an order they don't actually have.
     await releaseReservations();
-    if (claimedGiftCardCode) {
-      await supabase.from("gift_cards").update({ redeemed_at: null }).eq("code", claimedGiftCardCode);
-    }
+    await releaseGiftCard();
     throw error;
   }
 
@@ -260,5 +299,12 @@ export async function createOrder(input: CheckoutInput) {
   // to the cache's TTL after it actually sold out.
   revalidateTag("products");
 
-  return { orderId: order.id as string, total };
+  return {
+    orderId: order.id as string,
+    total,
+    // Only set when a credit gift card was used and money is still left on
+    // it — tells the client to keep showing it as active (with the new
+    // balance) instead of clearing it like a fully-spent one-time code.
+    giftCardRemainingAmount: claimedGiftCardType === "credit" && giftCardRemainingAfter && giftCardRemainingAfter > 0 ? giftCardRemainingAfter : null,
+  };
 }
