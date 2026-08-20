@@ -256,6 +256,7 @@ export default function CheckoutPage() {
           name: i.name,
           price: i.price,
           quantity: i.quantity,
+          image: i.image,
         })),
       });
       addOrderToHistory(orderId);

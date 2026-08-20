@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getSiteSettings, whatsappLink } from "@/lib/settings";
 import { OrderDeleteButton } from "./OrderDeleteButton";
@@ -16,7 +17,7 @@ export default async function AdminOrdersPage({
   // the whole page over a missing column.
   let query = supabase
     .from("orders")
-    .select("*, items:order_items(product_name, variant_label, quantity, unit_price)")
+    .select("*, items:order_items(product_name, variant_label, quantity, unit_price, image_url)")
     .order("created_at", { ascending: false });
 
   if (from) query = query.gte("created_at", from);
@@ -90,12 +91,21 @@ export default async function AdminOrdersPage({
               <p className="mt-2 text-xs uppercase tracking-wide text-neutral-400">
                 {o.payment_method === "cod" ? "Cash on delivery" : "Card payment"} · Shipping: {o.shipping_zone === "beirut" ? "Beirut" : "Outside Beirut"} (${Number(o.shipping_cost).toFixed(2)})
               </p>
-              <ul className="mt-3 space-y-1 border-t border-neutral-100 pt-3 text-sm text-neutral-600">
+              <ul className="mt-3 space-y-2 border-t border-neutral-100 pt-3 text-sm text-neutral-600">
                 {(o.items ?? []).map((it: any, i: number) => (
-                  <li key={i}>
-                    {it.quantity} × {it.product_name}
-                    {it.variant_label ? ` (${it.variant_label})` : ""} — ${Number(it.unit_price).toFixed(2)}
-                    {Number(it.unit_price) === 0 && <span className="ml-1 text-brand-red">(Gift — Free)</span>}
+                  <li key={i} className="flex items-center gap-2">
+                    {it.image_url ? (
+                      <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded bg-neutral-100">
+                        <Image src={it.image_url} alt="" fill unoptimized sizes="40px" className="object-cover" />
+                      </div>
+                    ) : (
+                      <div className="h-10 w-10 shrink-0 rounded bg-neutral-100" />
+                    )}
+                    <span>
+                      {it.quantity} × {it.product_name}
+                      {it.variant_label ? ` (${it.variant_label})` : ""} — ${Number(it.unit_price).toFixed(2)}
+                      {Number(it.unit_price) === 0 && <span className="ml-1 text-brand-red">(Gift — Free)</span>}
+                    </span>
                   </li>
                 ))}
               </ul>

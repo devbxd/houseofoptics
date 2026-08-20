@@ -3,7 +3,6 @@ import Image from "next/image";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { HamburgerMenu } from "./HamburgerMenu";
 import { SocialIcons } from "./SocialIcons";
-import { AccountMenuLink } from "./AccountMenuLink";
 import { CategoryLinks, type Category } from "./CategoryLinks";
 import { whatsappLink, phoneLink } from "@/lib/settings";
 import type { Locale } from "@/lib/i18n";
@@ -54,12 +53,6 @@ export function Header({
               mailUrl={contactEmail ? `mailto:${contactEmail}` : ""}
               t={t}
             />
-            <Link href="/recherche" aria-label="Search">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-5 w-5">
-                <circle cx="11" cy="11" r="7" />
-                <path d="m21 21-4.3-4.3" strokeLinecap="round" />
-              </svg>
-            </Link>
           </div>
 
           <Link href="/" className="flex min-w-0 shrink items-center gap-1.5 md:gap-2.5">
@@ -109,8 +102,6 @@ export function Header({
               facebookUrl={facebookUrl}
               instagramUrl={instagramHandle ? `https://instagram.com/${instagramHandle}` : ""}
             />
-
-            <AccountMenuLink t={t} className="hidden text-xs uppercase tracking-[0.15em] transition-colors hover:text-brand-red md:block" />
 
             <LanguageSwitcher />
           </div>

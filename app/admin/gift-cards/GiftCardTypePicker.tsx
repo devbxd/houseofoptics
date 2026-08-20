@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { generateProductGiftCard, generateDiscountGiftCard, generateCreditGiftCard } from "./actions";
 import { ProductGiftPicker, type GiftableProduct } from "./ProductGiftPicker";
+import { SendGiftCardPanel } from "./SendGiftCardPanel";
 import { GiftCardVisual } from "@/components/GiftCardVisual";
 import type { GiftCardType } from "@/lib/gift-cards";
 
@@ -107,6 +108,8 @@ export function GiftCardTypePicker({ products }: { products: GiftableProduct[] }
 
           {message && <p className="mt-4 text-sm italic text-neutral-500">"{message}"</p>}
         </GiftCardVisual>
+
+        <SendGiftCardPanel code={generated.code} summary={generated.summary} />
 
         <button
           type="button"

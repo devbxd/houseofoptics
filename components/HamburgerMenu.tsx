@@ -60,6 +60,18 @@ export function HamburgerMenu({
           </div>
 
           <nav className="flex-1 overflow-y-auto px-5 py-4 text-sm">
+            <form action="/recherche" className="mb-4 flex items-center gap-2 border-b border-neutral-100 pb-4">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4 shrink-0 text-neutral-500">
+                <circle cx="11" cy="11" r="7" />
+                <path d="m21 21-4.3-4.3" strokeLinecap="round" />
+              </svg>
+              <input
+                type="text"
+                name="q"
+                placeholder={t["search.placeholder"]}
+                className="min-w-0 flex-1 border-0 bg-transparent p-0 text-sm normal-case tracking-normal placeholder:text-neutral-400 focus:outline-none"
+              />
+            </form>
             <Link
               href={user ? "/compte" : "/compte/connexion"}
               onClick={() => setOpen(false)}

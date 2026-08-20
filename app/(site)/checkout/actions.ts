@@ -27,7 +27,7 @@ type CheckoutInput = {
   shippingCost: number;
   promoCode: string | null;
   giftCardCode: string | null;
-  items: { productId: string; variant: string | null; name: string; price: number; quantity: number }[];
+  items: { productId: string; variant: string | null; name: string; price: number; quantity: number; image: string | null }[];
 };
 
 export async function createOrder(input: CheckoutInput) {
@@ -286,16 +286,23 @@ export async function createOrder(input: CheckoutInput) {
       .eq("code", claimedGiftCardCode);
   }
 
-  await supabase.from("order_items").insert(
-    input.items.map((i) => ({
-      order_id: order.id,
-      product_id: i.productId,
-      product_name: i.name,
-      variant_label: i.variant,
-      unit_price: i.price,
-      quantity: i.quantity,
-    }))
-  );
+  const orderItemFields = input.items.map((i) => ({
+    order_id: order.id,
+    product_id: i.productId,
+    product_name: i.name,
+    variant_label: i.variant,
+    unit_price: i.price,
+    quantity: i.quantity,
+    image_url: i.image,
+  }));
+  // image_url comes from a migration that may not have run yet — retry
+  // without it rather than failing the whole order over a missing column.
+  const { error: itemsError } = await supabase.from("order_items").insert(orderItemFields);
+  if (itemsError) {
+    await supabase
+      .from("order_items")
+      .insert(orderItemFields.map(({ image_url, ...rest }) => rest));
+  }
 
   try {
     const { notifyNewOrder } = await import("@/lib/notify-order");

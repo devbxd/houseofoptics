@@ -37,8 +37,10 @@ const FROM = "House of Optics <orders@houseofoptics.net>";
 // Never throws — a hiccup sending one email (network blip, Resend rate
 // limit, etc.) must never take down the checkout/newsletter form that
 // triggered it. Failures are logged so they're visible in the server logs
-// instead of silently vanishing.
-async function sendEmail(apiKey: string, to: string, subject: string, html: string) {
+// instead of silently vanishing. Returns whether it actually went out —
+// callers that need to tell the admin "sent" vs "failed" (e.g. emailing a
+// gift card) use this; fire-and-forget callers just ignore it.
+export async function sendEmail(apiKey: string, to: string, subject: string, html: string): Promise<boolean> {
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -47,9 +49,12 @@ async function sendEmail(apiKey: string, to: string, subject: string, html: stri
     });
     if (!res.ok) {
       console.error(`Resend email to ${to} failed (${res.status}): ${await res.text()}`);
+      return false;
     }
+    return true;
   } catch (err) {
     console.error(`Resend email to ${to} threw:`, err);
+    return false;
   }
 }
 
