@@ -3,6 +3,7 @@ import Image from "next/image";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { HamburgerMenu } from "./HamburgerMenu";
 import { SocialIcons } from "./SocialIcons";
+import { AccountMenuLink } from "./AccountMenuLink";
 import { CategoryLinks, type Category } from "./CategoryLinks";
 import { whatsappLink, phoneLink } from "@/lib/settings";
 import type { Locale } from "@/lib/i18n";
@@ -108,6 +109,8 @@ export function Header({
               facebookUrl={facebookUrl}
               instagramUrl={instagramHandle ? `https://instagram.com/${instagramHandle}` : ""}
             />
+
+            <AccountMenuLink t={t} className="hidden text-xs uppercase tracking-[0.15em] transition-colors hover:text-brand-red md:block" />
 
             <LanguageSwitcher />
           </div>

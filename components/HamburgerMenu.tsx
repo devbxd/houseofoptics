@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { CategoryLinks, type Category } from "./CategoryLinks";
 import { useWishlist } from "./WishlistProvider";
+import { useCustomerAuth } from "./CustomerAuthProvider";
 
 export function HamburgerMenu({
   categories,
@@ -24,6 +25,7 @@ export function HamburgerMenu({
 }) {
   const [open, setOpen] = useState(false);
   const { count: wishlistCount } = useWishlist();
+  const { user, name } = useCustomerAuth();
 
   return (
     <>
@@ -58,6 +60,23 @@ export function HamburgerMenu({
           </div>
 
           <nav className="flex-1 overflow-y-auto px-5 py-4 text-sm">
+            <Link
+              href={user ? "/compte" : "/compte/connexion"}
+              onClick={() => setOpen(false)}
+              className="mb-2 flex items-center gap-2 border-b border-neutral-100 py-2.5 pb-4 uppercase tracking-wide"
+            >
+              {user ? (
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-black text-[11px] font-medium text-white">
+                  {(name || "?").trim().charAt(0).toUpperCase()}
+                </span>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
+                  <circle cx="12" cy="8" r="3.5" />
+                  <path d="M4.5 20c1.5-4 4.5-6 7.5-6s6 2 7.5 6" strokeLinecap="round" />
+                </svg>
+              )}
+              {user ? t["nav.account"] : t["nav.login"]}
+            </Link>
             <Link href="/" onClick={() => setOpen(false)} className="block py-2.5 uppercase tracking-wide">
               {t["nav.home"]}
             </Link>

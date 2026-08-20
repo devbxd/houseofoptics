@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidateTag } from "next/cache";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 // Mirrors the client-side variantLabel() in ProductDetailInteractive.tsx —
 // falls back to the older label/kind columns for rows saved before the
@@ -33,6 +33,20 @@ type CheckoutInput = {
 export async function createOrder(input: CheckoutInput) {
   if (!input.name || !input.email || !input.phone || !input.address || input.items.length === 0) {
     throw new Error("Missing required checkout fields");
+  }
+
+  // Read from the session cookie, never trust a client-supplied customer
+  // id — that would let anyone attribute an order (or a gift card
+  // redemption) to a different account just by forging the request.
+  const cookieClient = await createClient();
+  const {
+    data: { user: sessionUser },
+  } = await cookieClient.auth.getUser();
+  const customerId = sessionUser?.id ?? null;
+
+  const totalQuantity = input.items.reduce((a, i) => a + i.quantity, 0);
+  if (totalQuantity > 1 && !customerId) {
+    throw new Error("ACCOUNT_REQUIRED");
   }
 
   const supabase = createServiceClient();
@@ -224,6 +238,7 @@ export async function createOrder(input: CheckoutInput) {
     customer_name: input.name,
     customer_email: input.email,
     customer_phone: input.phone,
+    customer_id: customerId,
     address: input.address,
     city: input.city,
     latitude: input.latitude,
@@ -241,12 +256,12 @@ export async function createOrder(input: CheckoutInput) {
     status: "pending_payment",
   };
 
-  // promo_code/discount_amount/gift_card_* come from migrations that may
-  // not have run yet — retry without them rather than breaking checkout
-  // entirely.
+  // customer_id/promo_code/discount_amount/gift_card_* come from
+  // migrations that may not have run yet — retry without them rather than
+  // breaking checkout entirely.
   let { data: order, error } = await supabase.from("orders").insert(orderFields).select("id").single();
   if (error) {
-    const { promo_code, discount_amount, gift_card_code, gift_card_type, gift_card_amount, gift_card_product_name, ...fallback } =
+    const { customer_id, promo_code, discount_amount, gift_card_code, gift_card_type, gift_card_amount, gift_card_product_name, ...fallback } =
       orderFields;
     ({ data: order, error } = await supabase.from("orders").insert(fallback).select("id").single());
   }
@@ -262,7 +277,13 @@ export async function createOrder(input: CheckoutInput) {
   }
 
   if (claimedGiftCardCode) {
-    await supabase.from("gift_cards").update({ order_id: order.id }).eq("code", claimedGiftCardCode);
+    // Gift card redemption already requires being logged in (see
+    // middleware.ts on /carte-cadeau) — customerId is always set here, but
+    // guarded anyway rather than assumed.
+    await supabase
+      .from("gift_cards")
+      .update({ order_id: order.id, ...(customerId ? { customer_id: customerId } : {}) })
+      .eq("code", claimedGiftCardCode);
   }
 
   await supabase.from("order_items").insert(

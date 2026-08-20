@@ -4,6 +4,7 @@ import { Footer } from "@/components/Footer";
 import { CartProvider } from "@/components/CartProvider";
 import { WishlistProvider } from "@/components/WishlistProvider";
 import { GiftCardProvider } from "@/components/GiftCardProvider";
+import { CustomerAuthProvider } from "@/components/CustomerAuthProvider";
 import { CartFab } from "@/components/CartFab";
 import { GiftCardReminder } from "@/components/GiftCardReminder";
 import { PageViewTracker } from "@/components/PageViewTracker";
@@ -26,6 +27,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
   ]);
 
   return (
+    <CustomerAuthProvider>
     <WishlistProvider>
       <CartProvider>
         <GiftCardProvider>
@@ -66,5 +68,6 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         </GiftCardProvider>
       </CartProvider>
     </WishlistProvider>
+    </CustomerAuthProvider>
   );
 }

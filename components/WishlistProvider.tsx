@@ -1,6 +1,9 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { useCustomerAuth } from "./CustomerAuthProvider";
 
 export type WishlistItem = {
   productId: string;
@@ -21,7 +24,6 @@ type WishlistContextValue = {
 };
 
 const WishlistContext = createContext<WishlistContextValue | null>(null);
-const STORAGE_KEY = "house-of-optics-wishlist";
 
 // A product's different color/size variants are functionally different
 // items to a shopper (different photo, sometimes different price/stock) —
@@ -33,35 +35,82 @@ function sameLine(a: { productId: string; variant: string | null }, b: { product
   return a.productId === b.productId && (a.variant ?? "") === (b.variant ?? "");
 }
 
+// The wishlist now lives entirely in the customer's account (wishlist_items,
+// RLS-scoped to their own rows) instead of localStorage — it needs an
+// account so it follows the customer across phones/devices instead of
+// disappearing the moment they clear their browser or switch phones.
 export function WishlistProvider({ children }: { children: React.ReactNode }) {
+  const { user, loading: authLoading } = useCustomerAuth();
+  const router = useRouter();
+  const pathname = usePathname();
   const [items, setItems] = useState<WishlistItem[]>([]);
-  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setItems(JSON.parse(raw));
-    } catch {
-      // ignore corrupted storage
+    if (authLoading) return;
+    if (!user) {
+      setItems([]);
+      return;
     }
-    setHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  }, [items, hydrated]);
+    const supabase = createClient();
+    supabase
+      .from("wishlist_items")
+      .select("product_id, variant, slug, name, price, image, stock")
+      .eq("customer_id", user.id)
+      .then(({ data }) => {
+        setItems(
+          (data ?? []).map((row) => ({
+            productId: row.product_id,
+            variant: row.variant || null,
+            slug: row.slug,
+            name: row.name,
+            price: row.price,
+            image: row.image,
+            stock: row.stock,
+          }))
+        );
+      });
+  }, [user, authLoading]);
 
   const has = useCallback(
     (productId: string, variant: string | null) => items.some((i) => sameLine(i, { productId, variant })),
     [items]
   );
 
-  const toggle = useCallback((item: WishlistItem) => {
-    setItems((prev) => {
-      const alreadyIn = prev.some((i) => sameLine(i, item));
-      if (!alreadyIn) {
+  const toggle = useCallback(
+    (item: WishlistItem) => {
+      if (!user) {
+        router.push(`/compte/connexion?next=${encodeURIComponent(pathname || "/wishlist")}`);
+        return;
+      }
+      const supabase = createClient();
+      const alreadyIn = items.some((i) => sameLine(i, item));
+
+      if (alreadyIn) {
+        setItems((prev) => prev.filter((i) => !sameLine(i, item)));
+        supabase
+          .from("wishlist_items")
+          .delete()
+          .eq("customer_id", user.id)
+          .eq("product_id", item.productId)
+          .eq("variant", item.variant ?? "")
+          .then(() => {});
+      } else {
+        setItems((prev) => [...prev, item]);
+        supabase
+          .from("wishlist_items")
+          .insert({
+            customer_id: user.id,
+            product_id: item.productId,
+            variant: item.variant ?? "",
+            slug: item.slug,
+            name: item.name,
+            price: item.price,
+            image: item.image,
+            stock: item.stock,
+          })
+          .then(() => {});
         // Fire-and-forget: lets the owner see what's being wishlisted most
-        // without the wishlist itself needing an account or server round-trip.
+        // without blocking on it.
         fetch("/api/track-wishlist", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -69,18 +118,27 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
           keepalive: true,
         }).catch(() => {});
       }
-      return alreadyIn ? prev.filter((i) => !sameLine(i, item)) : [...prev, item];
-    });
-  }, []);
-
-  const remove = useCallback((productId: string, variant: string | null) => {
-    setItems((prev) => prev.filter((i) => !sameLine(i, { productId, variant })));
-  }, []);
-
-  const value = useMemo(
-    () => ({ items, has, toggle, remove, count: items.length }),
-    [items, has, toggle, remove]
+    },
+    [items, user, router, pathname]
   );
+
+  const remove = useCallback(
+    (productId: string, variant: string | null) => {
+      if (!user) return;
+      setItems((prev) => prev.filter((i) => !sameLine(i, { productId, variant })));
+      const supabase = createClient();
+      supabase
+        .from("wishlist_items")
+        .delete()
+        .eq("customer_id", user.id)
+        .eq("product_id", productId)
+        .eq("variant", variant ?? "")
+        .then(() => {});
+    },
+    [user]
+  );
+
+  const value = useMemo(() => ({ items, has, toggle, remove, count: items.length }), [items, has, toggle, remove]);
 
   return <WishlistContext.Provider value={value}>{children}</WishlistContext.Provider>;
 }

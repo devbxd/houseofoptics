@@ -10,6 +10,7 @@ import { getBuyNowItem, clearBuyNowItem, type BuyNowItem } from "@/lib/buy-now";
 import { addOrderToHistory } from "@/lib/order-history";
 import { validatePromoCode } from "../spin-wheel-actions";
 import { useGiftCard } from "@/components/GiftCardProvider";
+import { useCustomerAuth } from "@/components/CustomerAuthProvider";
 import { previewGiftCard, type GiftCardPreview } from "../carte-cadeau/actions";
 
 const SHIPPING_COST = { beirut: 4, outside_beirut: 6 } as const;
@@ -88,6 +89,8 @@ export default function CheckoutPage() {
 
   const items = buyNowItem ? [buyNowItem] : cart.items;
   const subtotal = buyNowItem ? buyNowItem.price * buyNowItem.quantity : cart.subtotal;
+  const totalQuantity = items.reduce((a, i) => a + i.quantity, 0);
+  const { user, name: customerName, loading: authLoading } = useCustomerAuth();
 
   const [form, setForm] = useState({ name: "", email: "", phone: "", address: "", city: "" });
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -115,6 +118,29 @@ export default function CheckoutPage() {
       .single()
       .then(({ data }) => setOwnerWhatsapp(data?.whatsapp_number || null));
   }, []);
+
+  // Ordering more than one item at once requires an account — waits for
+  // both the cart and the auth check to be settled first so this can't
+  // fire on the brief "don't know yet" state and bounce someone who's
+  // actually already logged in.
+  useEffect(() => {
+    if (!buyNowChecked || authLoading || confirmedOrderId) return;
+    if (totalQuantity > 1 && !user) {
+      router.replace(`/compte/connexion?next=${encodeURIComponent("/checkout")}`);
+    }
+  }, [buyNowChecked, authLoading, user, totalQuantity, confirmedOrderId, router]);
+
+  // Prefills from the account instead of asking a logged-in customer to
+  // retype what's already on file — only fills fields still empty, so it
+  // never clobbers something they've already started typing.
+  useEffect(() => {
+    if (!user) return;
+    setForm((f) => ({
+      ...f,
+      name: f.name || customerName || "",
+      email: f.email || user.email || "",
+    }));
+  }, [user, customerName]);
 
   useEffect(() => {
     if (!giftCard) {
@@ -285,6 +311,10 @@ export default function CheckoutPage() {
       if (err instanceof Error && err.message === "GIFT_CARD_INVALID") {
         clearGiftCard();
         setGiftCardPreview(null);
+      }
+      if (err instanceof Error && err.message === "ACCOUNT_REQUIRED") {
+        router.replace(`/compte/connexion?next=${encodeURIComponent("/checkout")}`);
+        return;
       }
       setError(
         err instanceof Error && err.message === "OUT_OF_STOCK"
