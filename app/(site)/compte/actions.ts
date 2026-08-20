@@ -9,6 +9,22 @@ function safeNext(next: string | null) {
   return next && next.startsWith("/") && !next.startsWith("//") ? next : "/compte";
 }
 
+// Supabase's own error.message is always in English, regardless of the
+// site's locale, and sometimes reads as raw technical text ("email rate
+// limit exceeded") — never shown to a customer as-is. Known cases get a
+// clear French message; anything unrecognized falls back to a generic one
+// rather than leaking Supabase's wording.
+function friendlySignUpError(message: string | undefined): string {
+  const m = (message ?? "").toLowerCase();
+  if (m.includes("rate limit")) return "Trop de tentatives pour le moment — réessaie dans quelques minutes.";
+  if (m.includes("already registered") || m.includes("already exists")) {
+    return "Un compte existe déjà avec cet email — connecte-toi à la place.";
+  }
+  if (m.includes("password")) return "Mot de passe invalide — 6 caractères minimum.";
+  if (m.includes("email")) return "Adresse email invalide.";
+  return "Erreur d'inscription — réessaie dans quelques instants.";
+}
+
 export async function signUpCustomer(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
@@ -31,7 +47,7 @@ export async function signUpCustomer(formData: FormData) {
   });
 
   if (error || !data.user) {
-    redirect(`/compte/inscription?error=${encodeURIComponent(error?.message ?? "Erreur d'inscription")}&next=${encodeURIComponent(next)}`);
+    redirect(`/compte/inscription?error=${encodeURIComponent(friendlySignUpError(error?.message))}&next=${encodeURIComponent(next)}`);
   }
 
   const service = createServiceClient();
