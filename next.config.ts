@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
   ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
   : undefined;
+const r2Host = process.env.R2_PUBLIC_URL ? new URL(process.env.R2_PUBLIC_URL).hostname : undefined;
 
 const nextConfig: NextConfig = {
   experimental: {
@@ -14,9 +15,12 @@ const nextConfig: NextConfig = {
     },
   },
   images: {
-    remotePatterns: supabaseHost
-      ? [{ protocol: "https", hostname: supabaseHost, pathname: "/storage/v1/object/public/**" }]
-      : [],
+    remotePatterns: [
+      // Existing images already uploaded before the move to R2 are still
+      // served from Supabase — this stays until they're migrated too.
+      ...(supabaseHost ? [{ protocol: "https" as const, hostname: supabaseHost, pathname: "/storage/v1/object/public/**" }] : []),
+      ...(r2Host ? [{ protocol: "https" as const, hostname: r2Host }] : []),
+    ],
     qualities: [75, 90, 95],
     // Storage paths are UUID-named and never overwritten in place, so a
     // resized/optimized variant is safe to cache for a long time — without

@@ -11,7 +11,6 @@ import { addOrderToHistory } from "@/lib/order-history";
 import { validatePromoCode } from "../spin-wheel-actions";
 import { useGiftCard } from "@/components/GiftCardProvider";
 import { useCustomerAuth } from "@/components/CustomerAuthProvider";
-import { previewGiftCard, type GiftCardPreview } from "../carte-cadeau/actions";
 
 const SHIPPING_COST = { beirut: 4, outside_beirut: 6 } as const;
 const EXPRESS_WHATSAPP_NUMBER = "96181701556";
@@ -74,7 +73,7 @@ export default function CheckoutPage() {
   const cart = useCart();
   const router = useRouter();
   const { t } = useLocale();
-  const { giftCard, setGiftCard, clearGiftCard } = useGiftCard();
+  const { giftCard, clearGiftCard, refreshGiftCard } = useGiftCard();
 
   const [buyNowItem, setBuyNowItemState] = useState<BuyNowItem | null>(null);
   const [buyNowChecked, setBuyNowChecked] = useState(false);
@@ -108,8 +107,6 @@ export default function CheckoutPage() {
   const [promoError, setPromoError] = useState<string | null>(null);
   const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountPercent: number } | null>(null);
 
-  const [giftCardPreview, setGiftCardPreview] = useState<GiftCardPreview | null>(null);
-
   useEffect(() => {
     const supabase = createClient();
     supabase
@@ -142,24 +139,16 @@ export default function CheckoutPage() {
     }));
   }, [user, customerName]);
 
+  // Re-checks against the database on arrival rather than trusting
+  // whatever GiftCardProvider last fetched (possibly on a much earlier
+  // page load) — it could have been redeemed elsewhere (another tab,
+  // another device) since then. Still just a refresh of the displayed
+  // preview; the actual claim happens atomically inside createOrder below
+  // regardless of what's shown here.
   useEffect(() => {
-    if (!giftCard) {
-      setGiftCardPreview(null);
-      return;
-    }
-    // Re-check against the database rather than trusting whatever was
-    // remembered from the /carte-cadeau reveal — it could have been
-    // redeemed elsewhere (another tab, another device) since then. This is
-    // still just a preview for display purposes; the actual claim happens
-    // atomically inside createOrder below.
-    previewGiftCard(giftCard.code).then((result) => {
-      if (!result.valid) {
-        clearGiftCard();
-        return;
-      }
-      setGiftCardPreview(result);
-    });
-  }, [giftCard, clearGiftCard]);
+    refreshGiftCard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // A "free item" gift card is tied to one specific cart line, not the
   // order as a whole — if the customer removes that line from their cart
@@ -167,22 +156,19 @@ export default function CheckoutPage() {
   // needs to disappear too, otherwise checkout would still try to claim
   // the code for a gift they no longer have in their cart.
   useEffect(() => {
-    if (giftCardPreview?.valid && giftCardPreview.type === "product") {
-      const stillPresent = items.some((i) => i.productId === giftCardPreview.product.id && i.price === 0);
-      if (!stillPresent) {
-        clearGiftCard();
-        setGiftCardPreview(null);
-      }
+    if (giftCard?.valid && giftCard.type === "product") {
+      const stillPresent = items.some((i) => i.productId === giftCard.product.id && i.price === 0);
+      if (!stillPresent) clearGiftCard();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, giftCardPreview]);
+  }, [items, giftCard]);
 
   const shippingCost = SHIPPING_COST[shippingZone];
   const discountAmount = appliedPromo ? subtotal * (appliedPromo.discountPercent / 100) : 0;
   const giftCardDiscountAmount =
-    giftCardPreview?.valid && giftCardPreview.type === "discount" ? subtotal * (giftCardPreview.discountPercent / 100) : 0;
+    giftCard?.valid && giftCard.type === "discount" ? subtotal * (giftCard.discountPercent / 100) : 0;
   const giftCardCreditAmount =
-    giftCardPreview?.valid && giftCardPreview.type === "credit" ? Math.min(giftCardPreview.creditAmount, subtotal + shippingCost) : 0;
+    giftCard?.valid && giftCard.type === "credit" ? Math.min(giftCard.creditAmount, subtotal + shippingCost) : 0;
   const total = Math.max(0, subtotal - discountAmount - giftCardDiscountAmount - giftCardCreditAmount + shippingCost);
 
   function update(field: keyof typeof form, value: string) {
@@ -241,9 +227,9 @@ export default function CheckoutPage() {
     // nothing before this point touches the database — but that's not
     // obvious just from seeing "applied ✓" on screen, so this is the one
     // explicit, unmistakable "yes, use it now" moment before it happens.
-    if (giftCardPreview?.valid) {
+    if (giftCard?.valid) {
       const confirmMessage =
-        giftCardPreview.type === "credit" ? t["checkout.giftCardConfirmCredit"] : t["checkout.giftCardConfirm"];
+        giftCard.type === "credit" ? t["checkout.giftCardConfirmCredit"] : t["checkout.giftCardConfirm"];
       if (!confirm(confirmMessage)) return;
     }
     setSubmitting(true);
@@ -252,8 +238,8 @@ export default function CheckoutPage() {
     // card only ever gets sent to the server if its free item is still
     // actually in the cart being submitted.
     const giftCardStillClaimable =
-      giftCardPreview?.valid &&
-      (giftCardPreview.type !== "product" || items.some((i) => i.productId === giftCardPreview.product.id && i.price === 0));
+      giftCard?.valid &&
+      (giftCard.type !== "product" || items.some((i) => i.productId === giftCard.product.id && i.price === 0));
     try {
       const { orderId, giftCardRemainingAmount } = await createOrder({
         ...form,
@@ -263,7 +249,7 @@ export default function CheckoutPage() {
         shippingZone,
         shippingCost,
         promoCode: appliedPromo?.code ?? null,
-        giftCardCode: giftCardStillClaimable && giftCardPreview?.valid ? giftCardPreview.code : null,
+        giftCardCode: giftCardStillClaimable && giftCard?.valid ? giftCard.code : null,
         items: items.map((i) => ({
           productId: i.productId,
           variant: i.variant,
@@ -273,13 +259,12 @@ export default function CheckoutPage() {
         })),
       });
       addOrderToHistory(orderId);
-      // A credit gift card with money still on it stays active — re-set it
-      // (with a fresh object reference) so both this page's own preview
-      // effect and the site-wide reminder pill re-fetch and pick up the
-      // new, lower balance instead of the gift just disappearing or
-      // showing a stale amount elsewhere on the site.
+      // A credit gift card with money still on it stays active — refresh
+      // from the account so both this page and the site-wide reminder pill
+      // pick up the new, lower balance instead of the gift just
+      // disappearing or showing a stale amount elsewhere on the site.
       if (giftCardRemainingAmount != null && giftCard) {
-        setGiftCard({ code: giftCard.code, type: giftCard.type });
+        refreshGiftCard();
       } else {
         clearGiftCard();
       }
@@ -296,7 +281,7 @@ export default function CheckoutPage() {
         shippingCost,
         promoCode: appliedPromo?.code ?? null,
         discountAmount,
-        giftCardCode: giftCardStillClaimable && giftCardPreview?.valid ? giftCardPreview.code : null,
+        giftCardCode: giftCardStillClaimable && giftCard?.valid ? giftCard.code : null,
         giftCardAmount: giftCardDiscountAmount + giftCardCreditAmount,
         items: items.map((i) => ({ name: i.name, variant: i.variant, quantity: i.quantity, price: i.price })),
         subtotal,
@@ -310,7 +295,6 @@ export default function CheckoutPage() {
     } catch (err) {
       if (err instanceof Error && err.message === "GIFT_CARD_INVALID") {
         clearGiftCard();
-        setGiftCardPreview(null);
       }
       if (err instanceof Error && err.message === "ACCOUNT_REQUIRED") {
         router.replace(`/compte/connexion?next=${encodeURIComponent("/checkout")}`);
@@ -511,19 +495,16 @@ export default function CheckoutPage() {
           {promoError && <p className="mt-1 text-xs text-brand-red">{promoError}</p>}
         </div>
 
-        {giftCardPreview?.valid && (
+        {giftCard?.valid && (
           <div>
             <label className="mb-1 block text-sm text-neutral-600">{t["checkout.giftCardCode"]}</label>
             <div className="flex items-center justify-between border border-brand-black px-4 py-2.5 text-sm">
               <span>
-                {giftCardPreview.code} — {t["giftCard.alreadyApplied"]}
+                {giftCard.code} — {t["giftCard.alreadyApplied"]}
               </span>
               <button
                 type="button"
-                onClick={() => {
-                  clearGiftCard();
-                  setGiftCardPreview(null);
-                }}
+                onClick={() => clearGiftCard()}
                 className="text-xs uppercase text-neutral-400 hover:text-red-600"
               >
                 {t["cart.remove"]}

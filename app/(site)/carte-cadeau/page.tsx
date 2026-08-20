@@ -14,7 +14,7 @@ export default function GiftCardPage() {
   const { t } = useLocale();
   const router = useRouter();
   const { addItem } = useCart();
-  const { setGiftCard } = useGiftCard();
+  const { claim } = useGiftCard();
 
   const [code, setCode] = useState("");
   const [checking, setChecking] = useState(false);
@@ -44,15 +44,15 @@ export default function GiftCardPage() {
     }
   }
 
-  function goRedeemAtCheckout() {
+  async function goRedeemAtCheckout() {
     if (!revealed || revealed.type === "product") return;
-    setGiftCard({ code: revealed.code, type: revealed.type });
+    await claim(revealed.code);
     router.push("/checkout");
   }
 
-  function addFreeProduct() {
+  async function addFreeProduct() {
     if (!revealed || revealed.type !== "product") return;
-    setGiftCard({ code: revealed.code, type: "product" });
+    await claim(revealed.code);
     addItem(
       { productId: revealed.product.id, variant: null, name: revealed.product.name, price: 0, image: revealed.product.image },
       1

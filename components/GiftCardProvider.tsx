@@ -1,49 +1,58 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCustomerAuth } from "./CustomerAuthProvider";
+import { claimGiftCard, releaseGiftCard, getMyActiveGiftCard, type GiftCardPreview } from "@/app/(site)/carte-cadeau/actions";
 
-// The gift card is "claimed" for real (redeemed_at set, atomically) only at
-// checkout — see createOrder in app/(site)/checkout/actions.ts — same as
-// the spin-wheel promo code. This just remembers which code the customer
-// picked on the /carte-cadeau reveal page, the same way CartProvider
-// remembers cart lines — as a context (not a plain localStorage helper) so
-// every mounted component reacts the instant it changes, e.g. the
-// site-wide reminder pill appearing right after the code is revealed
-// without needing a page reload.
-export type ActiveGiftCard = { code: string; type: "product" | "discount" | "credit" };
-
+// Which unredeemed gift card (if any) the logged-in customer currently
+// holds — tied to their account (gift_cards.customer_id) instead of one
+// browser's local storage, so it follows them if they switch phones. Gift
+// cards require an account to redeem at all (see middleware.ts on
+// /carte-cadeau), so there's nothing to track for a signed-out visitor.
 type GiftCardContextValue = {
-  giftCard: ActiveGiftCard | null;
-  setGiftCard: (gc: ActiveGiftCard) => void;
-  clearGiftCard: () => void;
+  giftCard: GiftCardPreview | null;
+  claim: (code: string) => Promise<GiftCardPreview>;
+  clearGiftCard: () => Promise<void>;
+  refreshGiftCard: () => Promise<void>;
 };
 
 const GiftCardContext = createContext<GiftCardContextValue | null>(null);
-const STORAGE_KEY = "house-of-optics-active-gift-card";
 
 export function GiftCardProvider({ children }: { children: React.ReactNode }) {
-  const [giftCard, setGiftCardState] = useState<ActiveGiftCard | null>(null);
+  const { user, loading: authLoading } = useCustomerAuth();
+  const [giftCard, setGiftCardState] = useState<GiftCardPreview | null>(null);
+
+  const refreshGiftCard = useCallback(async () => {
+    if (!user) {
+      setGiftCardState(null);
+      return;
+    }
+    const result = await getMyActiveGiftCard();
+    setGiftCardState(result.valid ? result : null);
+  }, [user]);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setGiftCardState(JSON.parse(raw));
-    } catch {
-      // ignore corrupted storage
+    if (authLoading) return;
+    refreshGiftCard();
+  }, [authLoading, refreshGiftCard]);
+
+  const claim = useCallback(async (code: string) => {
+    const result = await claimGiftCard(code);
+    setGiftCardState(result.valid ? result : null);
+    return result;
+  }, []);
+
+  const clearGiftCard = useCallback(async () => {
+    if (giftCard && giftCard.valid) {
+      await releaseGiftCard(giftCard.code);
     }
-  }, []);
-
-  const setGiftCard = useCallback((gc: ActiveGiftCard) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(gc));
-    setGiftCardState(gc);
-  }, []);
-
-  const clearGiftCard = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
     setGiftCardState(null);
-  }, []);
+  }, [giftCard]);
 
-  const value = useMemo(() => ({ giftCard, setGiftCard, clearGiftCard }), [giftCard, setGiftCard, clearGiftCard]);
+  const value = useMemo(
+    () => ({ giftCard, claim, clearGiftCard, refreshGiftCard }),
+    [giftCard, claim, clearGiftCard, refreshGiftCard]
+  );
 
   return <GiftCardContext.Provider value={value}>{children}</GiftCardContext.Provider>;
 }

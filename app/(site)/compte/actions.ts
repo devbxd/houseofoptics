@@ -50,6 +50,18 @@ export async function signUpCustomer(formData: FormData) {
     redirect(`/compte/inscription?error=${encodeURIComponent(friendlySignUpError(error?.message))}&next=${encodeURIComponent(next)}`);
   }
 
+  // Supabase deliberately doesn't return an error for an email that's
+  // already registered (anti-enumeration — it would let an attacker probe
+  // which emails have accounts) — it returns 200 with a user object but an
+  // *empty* identities array, since no new identity was actually created.
+  // That's the one reliable way to tell "this just silently matched an
+  // existing account" apart from a genuine new signup.
+  if (data.user.identities && data.user.identities.length === 0) {
+    redirect(
+      `/compte/connexion?error=${encodeURIComponent("Un compte existe déjà avec cet email — connecte-toi.")}&next=${encodeURIComponent(next)}`
+    );
+  }
+
   // customer_profiles is now created automatically by a database trigger on
   // auth.users (see supabase/migrations/0050) — inserting it here too used
   // to race the new auth.users row becoming visible to this follow-up
