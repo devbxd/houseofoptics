@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useLocale } from "@/lib/locale-client";
 import { getOrderHistoryIds } from "@/lib/order-history";
+import { CancelOrderButton } from "@/components/CancelOrderButton";
 import { getOrderHistory, type HistoryOrder } from "./actions";
 
 export default function OrderHistoryPage() {
@@ -51,7 +52,15 @@ export default function OrderHistoryPage() {
                   </li>
                 ))}
               </ul>
-              <p className="mt-3 text-sm font-medium">Total: ${o.total.toFixed(2)}</p>
+              <div className="mt-3 flex items-center justify-between">
+                <p className="text-sm font-medium">Total: ${o.total.toFixed(2)}</p>
+                <CancelOrderButton
+                  orderId={o.id}
+                  status={o.status}
+                  onCancelled={() => setOrders((prev) => prev?.map((x) => (x.id === o.id ? { ...x, status: "cancelled" } : x)) ?? null)}
+                  t={t}
+                />
+              </div>
             </div>
           ))}
         </div>

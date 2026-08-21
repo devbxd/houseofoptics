@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getServerDict } from "@/lib/locale-server";
 import { signOutCustomer } from "./actions";
+import { OrdersList } from "./OrdersList";
 
 export default async function AccountPage() {
   const supabase = await createClient();
@@ -55,30 +56,7 @@ export default async function AccountPage() {
 
       <section className="mt-10">
         <h2 className="mb-3 font-serif text-xl text-brand-black">{t["account.dashboard.ordersTitle"]}</h2>
-        {!orders || orders.length === 0 ? (
-          <p className="text-sm text-neutral-500">{t["account.dashboard.ordersEmpty"]}</p>
-        ) : (
-          <div className="space-y-3">
-            {(orders as any[]).map((o) => (
-              <div key={o.id} className="rounded-md border border-neutral-200 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                  <span className="font-mono text-neutral-500">#{o.id.slice(0, 8)}</span>
-                  <span className="text-neutral-500">{new Date(o.created_at).toLocaleDateString()}</span>
-                  <span className="text-xs uppercase tracking-wide text-neutral-500">{o.status}</span>
-                </div>
-                <ul className="mt-3 space-y-1 text-sm text-neutral-700">
-                  {(o.items ?? []).map((i: any, idx: number) => (
-                    <li key={idx}>
-                      {i.quantity} × {i.product_name}
-                      {i.variant_label ? ` (${i.variant_label})` : ""} — ${Number(i.unit_price).toFixed(2)}
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-3 text-sm font-medium">Total: ${Number(o.total).toFixed(2)}</p>
-              </div>
-            ))}
-          </div>
-        )}
+        <OrdersList orders={(orders as any[]) ?? []} t={t} />
       </section>
 
       <section className="mt-10">
