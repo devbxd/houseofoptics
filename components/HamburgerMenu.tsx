@@ -141,6 +141,18 @@ export function HamburgerMenu({
               </svg>
               {t["nav.giftCard"]}
             </Link>
+            <Link
+              href="/demande-speciale"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 py-2.5 uppercase tracking-wide"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.5-2.5 2-2.5 3.5" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="12" cy="16.5" r="0.6" fill="currentColor" stroke="none" />
+              </svg>
+              {t["nav.specialRequest"]}
+            </Link>
             {categories.length > 0 && (
               <div className="mt-2 border-t border-neutral-100 pt-2">
                 <CategoryLinks

@@ -1,7 +1,8 @@
-import Image from "next/image";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getSiteSettings, whatsappLink } from "@/lib/settings";
 import { OrderDeleteButton } from "./OrderDeleteButton";
+import { OrderCancelButton } from "./OrderCancelButton";
+import { OrderItemsList } from "./OrderItemsList";
 
 export default async function AdminOrdersPage({
   searchParams,
@@ -83,7 +84,8 @@ export default async function AdminOrdersPage({
                 <div className="text-right">
                   <p className="text-sm">${Number(o.total).toFixed(2)}</p>
                   <span className="rounded bg-neutral-100 px-2 py-0.5 text-xs uppercase text-neutral-600">{o.status}</span>
-                  <div className="mt-2">
+                  <div className="mt-2 flex items-center justify-end gap-3">
+                    <OrderCancelButton orderId={o.id} status={o.status} />
                     <OrderDeleteButton orderId={o.id} />
                   </div>
                 </div>
@@ -91,24 +93,7 @@ export default async function AdminOrdersPage({
               <p className="mt-2 text-xs uppercase tracking-wide text-neutral-400">
                 {o.payment_method === "cod" ? "Cash on delivery" : "Card payment"} · Shipping: {o.shipping_zone === "beirut" ? "Beirut" : "Outside Beirut"} (${Number(o.shipping_cost).toFixed(2)})
               </p>
-              <ul className="mt-3 space-y-2 border-t border-neutral-100 pt-3 text-sm text-neutral-600">
-                {(o.items ?? []).map((it: any, i: number) => (
-                  <li key={i} className="flex items-center gap-2">
-                    {it.image_url ? (
-                      <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded bg-neutral-100">
-                        <Image src={it.image_url} alt="" fill unoptimized sizes="40px" className="object-cover" />
-                      </div>
-                    ) : (
-                      <div className="h-10 w-10 shrink-0 rounded bg-neutral-100" />
-                    )}
-                    <span>
-                      {it.quantity} × {it.product_name}
-                      {it.variant_label ? ` (${it.variant_label})` : ""} — ${Number(it.unit_price).toFixed(2)}
-                      {Number(it.unit_price) === 0 && <span className="ml-1 text-brand-red">(Gift — Free)</span>}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <OrderItemsList items={o.items ?? []} />
               {(o.promo_code || o.gift_card_code) && (
                 <div className="mt-2 space-y-0.5 border-t border-dashed border-neutral-100 pt-2 text-xs text-brand-red">
                   {o.promo_code && (

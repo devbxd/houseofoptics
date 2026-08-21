@@ -38,6 +38,10 @@ export type SiteSettings = {
   global_shipping_info: string;
   spin_wheel_enabled: boolean;
   returns_info: string;
+  special_request_title: string;
+  special_request_text: string;
+  special_request_text_en: string;
+  special_request_text_ar: string;
 };
 
 const DEFAULT_SETTINGS: SiteSettings = {
@@ -75,6 +79,13 @@ const DEFAULT_SETTINGS: SiteSettings = {
   global_shipping_info: "",
   spin_wheel_enabled: false,
   returns_info: "",
+  special_request_title: "Vous ne trouvez pas votre modèle ?",
+  special_request_text:
+    "Décrivez-nous la paire que vous recherchez (et ajoutez une photo si vous en avez une) — on vous répond rapidement sur WhatsApp pour voir si on peut vous la trouver.",
+  special_request_text_en:
+    "Tell us about the pair you're looking for (add a photo if you have one) — we'll get back to you quickly on WhatsApp to see if we can source it for you.",
+  special_request_text_ar:
+    "أخبرونا عن النظارة التي تبحثون عنها (وأضيفوا صورة إذا كانت متوفرة لديكم) — سنرد عليكم بسرعة عبر واتساب لنرى إن كان بإمكاننا تأمينها لكم.",
 };
 
 async function fetchSiteSettings(): Promise<SiteSettings> {
@@ -150,4 +161,10 @@ export function localizedHeroSubtitle(settings: SiteSettings, locale: "fr" | "en
   if (locale === "en") return settings.hero_subtitle_en || null;
   if (locale === "ar") return settings.hero_subtitle_ar || null;
   return settings.hero_subtitle_fr || null;
+}
+
+export function localizedSpecialRequestText(settings: SiteSettings, locale: "fr" | "en" | "ar") {
+  if (locale === "en") return settings.special_request_text_en || settings.special_request_text;
+  if (locale === "ar") return settings.special_request_text_ar || settings.special_request_text;
+  return settings.special_request_text;
 }
