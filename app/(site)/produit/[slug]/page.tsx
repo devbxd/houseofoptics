@@ -103,7 +103,6 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           price: product.price,
           discount_percent: product.discount_percent,
           stock: product.stock ?? null,
-          created_at: product.created_at,
           category: product.category,
           brand: product.brand,
           images: product.images,
