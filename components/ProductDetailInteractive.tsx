@@ -448,21 +448,6 @@ export function ProductDetailInteractive({
           </button>
         )}
 
-        <div className="mt-4 space-y-2 border-y border-neutral-200 py-4 text-sm text-neutral-700">
-          <p className="flex items-center gap-2">
-            <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0 text-emerald-700">
-              <path d="M16.7 5.3a1 1 0 0 1 0 1.4l-8 8a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.4L8 12.6l7.3-7.3a1 1 0 0 1 1.4 0Z" />
-            </svg>
-            {t["product.trustGuarantee"]}
-          </p>
-          <p className="flex items-center gap-2">
-            <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0 text-emerald-700">
-              <path d="M16.7 5.3a1 1 0 0 1 0 1.4l-8 8a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.4L8 12.6l7.3-7.3a1 1 0 0 1 1.4 0Z" />
-            </svg>
-            {t["product.trustShipping"]}
-          </p>
-        </div>
-
         <div className="mt-3 grid grid-cols-2 gap-2">
           <a
             href={waHref}
