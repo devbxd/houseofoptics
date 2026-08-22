@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import Image from "next/image";
 import { SubmitButton } from "@/components/SubmitButton";
 import { VariantsEditor } from "./VariantsEditor";
+import { NewDropToggle } from "./NewDropToggle";
 
 type Category = { id: string; name: string; parent_id?: string | null };
 type Brand = { id: string; name: string };
@@ -48,6 +49,7 @@ export function ProductForm({
   product,
   submitLabel,
   allProducts,
+  newDropCategory,
 }: {
   action: (formData: FormData) => Promise<unknown>;
   categories: Category[];
@@ -55,6 +57,7 @@ export function ProductForm({
   product?: Product;
   submitLabel: string;
   allProducts: { id: string; name: string }[];
+  newDropCategory?: { name: string; addedAt: string | null } | null;
 }) {
   const flatCategories = flattenCategories(categories);
   const [categoryId, setCategoryId] = useState(product?.category_id ?? "");
@@ -128,6 +131,10 @@ export function ProductForm({
           </select>
         </div>
       </div>
+
+      {newDropCategory && product?.id && (
+        <NewDropToggle productId={product.id} categoryName={newDropCategory.name} addedAt={newDropCategory.addedAt} />
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <div>

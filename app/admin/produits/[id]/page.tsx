@@ -4,7 +4,6 @@ import { ProductForm } from "../ProductForm";
 import { ProductImageGrid } from "../ProductImageGrid";
 import { RelatedProductsEditor } from "../RelatedProductsEditor";
 import { ColorLinksEditor } from "../ColorLinksEditor";
-import { NewDropToggle } from "../NewDropToggle";
 import { updateProduct } from "../actions";
 import { NEW_DROP_CATEGORY_SLUG } from "@/lib/products";
 
@@ -80,15 +79,10 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
         product={{ ...product, variants }}
         allProducts={allProducts ?? []}
         submitLabel="Save"
+        newDropCategory={
+          newDropCategory ? { name: newDropCategory.name, addedAt: product.new_product_added_at ?? null } : null
+        }
       />
-
-      {newDropCategory && (
-        <NewDropToggle
-          productId={id}
-          categoryName={newDropCategory.name}
-          addedAt={product.new_product_added_at ?? null}
-        />
-      )}
 
       <div className="mt-8 max-w-lg rounded-md border border-neutral-200 bg-white p-4">
         <p className="mb-1 text-sm font-medium">Other colors</p>
