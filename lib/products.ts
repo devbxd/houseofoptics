@@ -25,12 +25,6 @@ const REVALIDATE_SECONDS = 60;
 // computed from new_product_added_at — no cron needed, it just ages out.
 export const NEW_PRODUCT_DAYS = 15;
 
-export function isNewProductActive(addedAt: string | null | undefined): boolean {
-  if (!addedAt) return false;
-  const ageMs = Date.now() - new Date(addedAt).getTime();
-  return ageMs >= 0 && ageMs < NEW_PRODUCT_DAYS * 24 * 60 * 60 * 1000;
-}
-
 async function fetchProducts(
   opts: { categorySlug?: string; brandSlug?: string; search?: string; onlyNewProduct?: boolean } = {},
   page = 1,
