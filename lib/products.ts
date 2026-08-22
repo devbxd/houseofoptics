@@ -20,10 +20,14 @@ const PAGE_SIZE = 24;
 // just bounds staleness if a code path ever forgets to tag.
 const REVALIDATE_SECONDS = 60;
 
-// A product manually added to the "New Product" category (Admin > Products
-// > edit product > New Product button) stays listed there for this long,
+// A product manually added to the "New Drop" category (Admin > Products >
+// edit product > Add to New Drop button) stays listed there for this long,
 // computed from new_product_added_at — no cron needed, it just ages out.
 export const NEW_PRODUCT_DAYS = 15;
+
+// The already-existing category (created by hand in Admin > Categories)
+// that the "Add to New Drop" button links products to.
+export const NEW_DROP_CATEGORY_SLUG = "new-drop";
 
 async function fetchProducts(
   opts: { categorySlug?: string; brandSlug?: string; search?: string; onlyNewProduct?: boolean } = {},

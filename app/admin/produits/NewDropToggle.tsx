@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { addToNewProductCategory, removeFromNewProductCategory } from "./actions";
+import { addToNewDrop, removeFromNewDrop } from "./actions";
 import { NEW_PRODUCT_DAYS } from "@/lib/products";
 
-export function NewProductToggle({
+export function NewDropToggle({
   productId,
   categoryName,
   addedAt,
@@ -36,7 +36,7 @@ export function NewProductToggle({
             onClick={async () => {
               setPending(true);
               try {
-                await removeFromNewProductCategory(productId);
+                await removeFromNewDrop(productId);
                 setCurrent(null);
               } finally {
                 setPending(false);
@@ -54,7 +54,7 @@ export function NewProductToggle({
             setPending(true);
             try {
               const now = new Date().toISOString();
-              await addToNewProductCategory(productId);
+              await addToNewDrop(productId);
               setCurrent(now);
             } finally {
               setPending(false);

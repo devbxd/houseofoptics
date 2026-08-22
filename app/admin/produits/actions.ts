@@ -402,11 +402,11 @@ export async function addColorLink(productId: string, otherProductId: string) {
   revalidateTag("products");
 }
 
-// "New Product" category button — links this product to whichever category
-// is flagged as the auto-expiring New Product bucket (Admin > Categories),
-// without touching its real category_id/brand_id. It drops out on its own
-// 15 days after this timestamp (see NEW_PRODUCT_DAYS in lib/products.ts).
-export async function addToNewProductCategory(productId: string) {
+// "Add to New Drop" button — links this product to the existing New Drop
+// category (Admin > Categories, slug "new-drop"), without touching its real
+// category_id/brand_id. It drops out on its own 15 days after this
+// timestamp (see NEW_PRODUCT_DAYS in lib/products.ts).
+export async function addToNewDrop(productId: string) {
   const supabase = createServiceClient();
   const { error } = await supabase
     .from("products")
@@ -418,7 +418,7 @@ export async function addToNewProductCategory(productId: string) {
   revalidateTag("products");
 }
 
-export async function removeFromNewProductCategory(productId: string) {
+export async function removeFromNewDrop(productId: string) {
   const supabase = createServiceClient();
   const { error } = await supabase
     .from("products")

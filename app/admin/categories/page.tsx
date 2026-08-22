@@ -1,14 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { createCategory } from "./actions";
 import { CategoryRow } from "./CategoryRow";
-import { NewProductCategoryPicker } from "./NewProductCategoryPicker";
 import { SubmitButton } from "@/components/SubmitButton";
 
 export default async function AdminCategoriesPage() {
   const supabase = await createClient();
   const { data: categories } = await supabase
     .from("categories")
-    .select("id, name, slug, parent_id, is_new_product_category")
+    .select("id, name, slug, parent_id")
     .order("sort_order", { ascending: true });
 
   const all = categories ?? [];
@@ -36,13 +35,9 @@ export default async function AdminCategoriesPage() {
     })
   );
 
-  const newProductCategory = all.find((c) => c.is_new_product_category);
-
   return (
     <div>
       <h1 className="mb-6 font-serif text-2xl">Categories</h1>
-
-      <NewProductCategoryPicker categories={all} currentId={newProductCategory?.id ?? null} />
 
       <form action={createCategory} className="mb-8 max-w-md space-y-2">
         <input

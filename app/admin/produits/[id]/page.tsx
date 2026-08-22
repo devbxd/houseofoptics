@@ -4,8 +4,9 @@ import { ProductForm } from "../ProductForm";
 import { ProductImageGrid } from "../ProductImageGrid";
 import { RelatedProductsEditor } from "../RelatedProductsEditor";
 import { ColorLinksEditor } from "../ColorLinksEditor";
-import { NewProductToggle } from "../NewProductToggle";
+import { NewDropToggle } from "../NewDropToggle";
 import { updateProduct } from "../actions";
+import { NEW_DROP_CATEGORY_SLUG } from "@/lib/products";
 
 export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,7 +19,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
         .select("*, images:product_images(id, url, sort_order), variants:product_variants(*)")
         .eq("id", id)
         .single(),
-      supabase.from("categories").select("id, name, parent_id, is_new_product_category").order("sort_order"),
+      supabase.from("categories").select("id, name, slug, parent_id").order("sort_order"),
       supabase.from("brands").select("id, name").order("sort_order"),
       // product_related_products comes from a migration that may not have
       // run yet — a missing table just yields null data here.
@@ -56,7 +57,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
     .filter((v: any) => v.color_label || v.size_label)
     .sort((a: any, b: any) => a.sort_order - b.sort_order);
   const updateWithId = updateProduct.bind(null, id);
-  const newProductCategory = (categories ?? []).find((c: any) => c.is_new_product_category);
+  const newDropCategory = (categories ?? []).find((c: any) => c.slug === NEW_DROP_CATEGORY_SLUG);
 
   return (
     <div>
@@ -81,10 +82,10 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
         submitLabel="Save"
       />
 
-      {newProductCategory && (
-        <NewProductToggle
+      {newDropCategory && (
+        <NewDropToggle
           productId={id}
-          categoryName={newProductCategory.name}
+          categoryName={newDropCategory.name}
           addedAt={product.new_product_added_at ?? null}
         />
       )}

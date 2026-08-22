@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { listProducts } from "@/lib/products";
+import { listProducts, NEW_DROP_CATEGORY_SLUG } from "@/lib/products";
 import { getCategories } from "@/lib/settings";
 import { ProductGrid } from "@/components/ProductGrid";
 import { Pagination } from "@/components/Pagination";
@@ -33,11 +33,11 @@ export default async function CategoryPage({
   const category = categories.find((c) => c.slug === slug);
   if (!category) notFound();
 
-  // The "New Product" category (flagged in Admin > Categories) lists
-  // products manually added to it from their edit page, not products whose
+  // The "New Drop" category lists products manually added to it from their
+  // edit page (Admin > Products > New Drop button), not products whose
   // category_id points here — that field is never set to it.
   const { products, total, pageSize } = await listProducts(
-    category.is_new_product_category ? { onlyNewProduct: true } : { categorySlug: slug },
+    slug === NEW_DROP_CATEGORY_SLUG ? { onlyNewProduct: true } : { categorySlug: slug },
     page
   );
   const children = categories.filter((c) => c.parent_id === category.id);
