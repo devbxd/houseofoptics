@@ -402,6 +402,34 @@ export async function addColorLink(productId: string, otherProductId: string) {
   revalidateTag("products");
 }
 
+// "New Product" category button — links this product to whichever category
+// is flagged as the auto-expiring New Product bucket (Admin > Categories),
+// without touching its real category_id/brand_id. It drops out on its own
+// 15 days after this timestamp (see NEW_PRODUCT_DAYS in lib/products.ts).
+export async function addToNewProductCategory(productId: string) {
+  const supabase = createServiceClient();
+  const { error } = await supabase
+    .from("products")
+    .update({ new_product_added_at: new Date().toISOString() })
+    .eq("id", productId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/admin/produits/${productId}`);
+  revalidatePath("/", "layout");
+  revalidateTag("products");
+}
+
+export async function removeFromNewProductCategory(productId: string) {
+  const supabase = createServiceClient();
+  const { error } = await supabase
+    .from("products")
+    .update({ new_product_added_at: null })
+    .eq("id", productId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/admin/produits/${productId}`);
+  revalidatePath("/", "layout");
+  revalidateTag("products");
+}
+
 export async function removeColorLink(productId: string, memberProductId: string) {
   const supabase = createServiceClient();
   await supabase.from("products").update({ color_group_id: null }).eq("id", memberProductId);

@@ -8,6 +8,7 @@ export type ProductCard = {
   price: number | null;
   discount_percent: number | null;
   stock: number | null;
+  new_product_added_at: string | null;
   category: { name: string; slug: string } | null;
   brand: { name: string; slug: string } | null;
   images: { url: string }[];
@@ -19,12 +20,23 @@ const PAGE_SIZE = 24;
 // just bounds staleness if a code path ever forgets to tag.
 const REVALIDATE_SECONDS = 60;
 
+// A product manually added to the "New Product" category (Admin > Products
+// > edit product > New Product button) stays listed there for this long,
+// computed from new_product_added_at — no cron needed, it just ages out.
+export const NEW_PRODUCT_DAYS = 15;
+
+export function isNewProductActive(addedAt: string | null | undefined): boolean {
+  if (!addedAt) return false;
+  const ageMs = Date.now() - new Date(addedAt).getTime();
+  return ageMs >= 0 && ageMs < NEW_PRODUCT_DAYS * 24 * 60 * 60 * 1000;
+}
+
 async function fetchProducts(
-  opts: { categorySlug?: string; brandSlug?: string; search?: string } = {},
+  opts: { categorySlug?: string; brandSlug?: string; search?: string; onlyNewProduct?: boolean } = {},
   page = 1,
   pageSize = PAGE_SIZE
 ): Promise<{ products: ProductCard[]; total: number; pageSize: number }> {
-  const { categorySlug, brandSlug, search } = opts;
+  const { categorySlug, brandSlug, search, onlyNewProduct } = opts;
   const supabase = createPublicClient();
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
@@ -40,7 +52,7 @@ async function fetchProducts(
   let query = supabase
     .from("products")
     .select(
-      `id, name, slug, price, discount_percent, stock, category:${categoryRelation}(name, slug), brand:${brandRelation}(name, slug), images:product_images(url, sort_order)`,
+      `id, name, slug, price, discount_percent, stock, new_product_added_at, category:${categoryRelation}(name, slug), brand:${brandRelation}(name, slug), images:product_images(url, sort_order)`,
       { count: "exact" }
     )
     .eq("is_active", true)
@@ -48,7 +60,15 @@ async function fetchProducts(
     .order("created_at", { ascending: false })
     .range(from, to);
 
-  if (categorySlug) query = query.eq("categories.slug", categorySlug);
+  // The "New Product" category page shows products manually added to it
+  // (Admin > Products > edit product > New Product button), not products
+  // whose category_id points there — that field is never set to it.
+  if (onlyNewProduct) {
+    const cutoff = new Date(Date.now() - NEW_PRODUCT_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    query = query.not("new_product_added_at", "is", null).gte("new_product_added_at", cutoff);
+  } else if (categorySlug) {
+    query = query.eq("categories.slug", categorySlug);
+  }
   if (brandSlug) query = query.eq("brands.slug", brandSlug);
   if (search) query = query.ilike("name", `%${search}%`);
 
@@ -81,7 +101,7 @@ async function fetchRelatedProducts(
   const { data: manual } = await supabase
     .from("product_related_products")
     .select(
-      "sort_order, related:products!product_related_products_related_product_id_fkey(id, name, slug, price, discount_percent, stock, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order))"
+      "sort_order, related:products!product_related_products_related_product_id_fkey(id, name, slug, price, discount_percent, stock, new_product_added_at, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order))"
     )
     .eq("product_id", product.id)
     .order("sort_order", { ascending: true });

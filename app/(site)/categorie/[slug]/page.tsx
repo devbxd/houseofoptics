@@ -33,7 +33,13 @@ export default async function CategoryPage({
   const category = categories.find((c) => c.slug === slug);
   if (!category) notFound();
 
-  const { products, total, pageSize } = await listProducts({ categorySlug: slug }, page);
+  // The "New Product" category (flagged in Admin > Categories) lists
+  // products manually added to it from their edit page, not products whose
+  // category_id points here — that field is never set to it.
+  const { products, total, pageSize } = await listProducts(
+    category.is_new_product_category ? { onlyNewProduct: true } : { categorySlug: slug },
+    page
+  );
   const children = categories.filter((c) => c.parent_id === category.id);
 
   return (

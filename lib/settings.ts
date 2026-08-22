@@ -109,7 +109,7 @@ async function fetchCategories() {
   const supabase = createPublicClient();
   const { data } = await supabase
     .from("categories")
-    .select("id, name, slug, parent_id")
+    .select("id, name, slug, parent_id, is_new_product_category")
     .order("sort_order", { ascending: true });
   return data ?? [];
 }

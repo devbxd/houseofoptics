@@ -45,6 +45,22 @@ export async function renameCategory(id: string, name: string) {
   revalidateTag("products");
 }
 
+// Only one category can be the "New Product" auto-expiring bucket — pass
+// null to turn the feature off, or a category id to make that one the
+// bucket (clearing the flag from whichever category held it before).
+export async function setNewProductCategory(id: string | null) {
+  const supabase = createServiceClient();
+  await supabase.from("categories").update({ is_new_product_category: false }).eq("is_new_product_category", true);
+  if (id) {
+    const { error } = await supabase.from("categories").update({ is_new_product_category: true }).eq("id", id);
+    if (error) throw new Error(error.message);
+  }
+  revalidatePath("/admin/categories");
+  revalidatePath("/", "layout");
+  revalidateTag("categories");
+  revalidateTag("products");
+}
+
 export async function deleteCategory(id: string) {
   const supabase = createServiceClient();
   const { error } = await supabase.from("categories").delete().eq("id", id);
