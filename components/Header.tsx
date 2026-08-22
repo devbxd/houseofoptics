@@ -75,6 +75,10 @@ export function Header({
                 {t["nav.home"]}
               </Link>
 
+              <Link href="/nouveautes" className="text-brand-red transition-colors hover:opacity-80">
+                {t["nav.newDrop"]}
+              </Link>
+
               <div className="group relative py-2">
                 <button className="flex items-center gap-1.5 transition-colors hover:text-brand-red">
                   {t["nav.products"]}

@@ -8,6 +8,7 @@ export type ProductCard = {
   price: number | null;
   discount_percent: number | null;
   stock: number | null;
+  created_at: string;
   category: { name: string; slug: string } | null;
   brand: { name: string; slug: string } | null;
   images: { url: string }[];
@@ -19,12 +20,22 @@ const PAGE_SIZE = 24;
 // just bounds staleness if a code path ever forgets to tag.
 const REVALIDATE_SECONDS = 60;
 
+// A product carries the "New Drop" badge for this long after it's created —
+// purely computed from created_at, so it appears/disappears on its own with
+// no admin action or scheduled job needed.
+export const NEW_DROP_DAYS = 15;
+
+export function isNewDrop(createdAt: string): boolean {
+  const ageMs = Date.now() - new Date(createdAt).getTime();
+  return ageMs >= 0 && ageMs < NEW_DROP_DAYS * 24 * 60 * 60 * 1000;
+}
+
 async function fetchProducts(
-  opts: { categorySlug?: string; brandSlug?: string; search?: string } = {},
+  opts: { categorySlug?: string; brandSlug?: string; search?: string; onlyNewDrop?: boolean } = {},
   page = 1,
   pageSize = PAGE_SIZE
 ): Promise<{ products: ProductCard[]; total: number; pageSize: number }> {
-  const { categorySlug, brandSlug, search } = opts;
+  const { categorySlug, brandSlug, search, onlyNewDrop } = opts;
   const supabase = createPublicClient();
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
@@ -40,7 +51,7 @@ async function fetchProducts(
   let query = supabase
     .from("products")
     .select(
-      `id, name, slug, price, discount_percent, stock, category:${categoryRelation}(name, slug), brand:${brandRelation}(name, slug), images:product_images(url, sort_order)`,
+      `id, name, slug, price, discount_percent, stock, created_at, category:${categoryRelation}(name, slug), brand:${brandRelation}(name, slug), images:product_images(url, sort_order)`,
       { count: "exact" }
     )
     .eq("is_active", true)
@@ -51,6 +62,10 @@ async function fetchProducts(
   if (categorySlug) query = query.eq("categories.slug", categorySlug);
   if (brandSlug) query = query.eq("brands.slug", brandSlug);
   if (search) query = query.ilike("name", `%${search}%`);
+  if (onlyNewDrop) {
+    const cutoff = new Date(Date.now() - NEW_DROP_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    query = query.gte("created_at", cutoff);
+  }
 
   const { data, count } = await query;
   const products = (data as any[])?.map((p) => ({

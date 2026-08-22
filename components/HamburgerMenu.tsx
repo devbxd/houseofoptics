@@ -96,6 +96,13 @@ export function HamburgerMenu({
               {t["nav.allProducts"]}
             </Link>
             <Link
+              href="/nouveautes"
+              onClick={() => setOpen(false)}
+              className="block py-2.5 uppercase tracking-wide text-brand-red"
+            >
+              {t["nav.newDrop"]}
+            </Link>
+            <Link
               href="/wishlist"
               onClick={() => setOpen(false)}
               className="flex items-center gap-2 py-2.5 uppercase tracking-wide"

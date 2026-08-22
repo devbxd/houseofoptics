@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import type { ProductCard } from "@/lib/products";
+import { isNewDrop, type ProductCard } from "@/lib/products";
 import { WishlistButton } from "./WishlistButton";
 import { ScrollReveal } from "./ScrollReveal";
 
@@ -14,6 +14,7 @@ export function ProductGrid({ products, t }: { products: ProductCard[]; t: Recor
       {products.map((p, i) => {
         const hasDiscount = !!p.discount_percent && p.discount_percent > 0 && p.price != null;
         const discountedPrice = hasDiscount ? Number(p.price) * (1 - p.discount_percent! / 100) : null;
+        const isNew = isNewDrop(p.created_at);
 
         return (
           <Link
@@ -39,11 +40,18 @@ export function ProductGrid({ products, t }: { products: ProductCard[]; t: Recor
                   className="object-cover transition-transform duration-500 group-hover:scale-105"
                 />
               )}
-              {p.category && (
-                <span className="absolute left-3 top-3 bg-white/90 px-2.5 py-1 text-[10px] uppercase tracking-wide text-neutral-700">
-                  {p.category.name}
-                </span>
-              )}
+              <div className="absolute left-3 top-3 flex flex-col items-start gap-1">
+                {isNew && (
+                  <span className="bg-brand-red px-2.5 py-1 text-[10px] uppercase tracking-wide text-white shadow">
+                    {t["product.newDrop"]}
+                  </span>
+                )}
+                {p.category && (
+                  <span className="bg-white/90 px-2.5 py-1 text-[10px] uppercase tracking-wide text-neutral-700">
+                    {p.category.name}
+                  </span>
+                )}
+              </div>
               {hasDiscount && (
                 <span className="absolute right-3 top-3 rounded-full bg-brand-red px-2.5 py-1 text-[11px] font-semibold text-white shadow">
                   -{p.discount_percent}%
