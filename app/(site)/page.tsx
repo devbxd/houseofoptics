@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { listProducts } from "@/lib/products";
+import { listProducts, NEW_DROP_CATEGORY_SLUG } from "@/lib/products";
 import { getCategories, getSiteSettings, localizedHeroTitle, localizedHeroEyebrow, localizedHeroSubtitle } from "@/lib/settings";
 import { getBrands, getActiveTestimonials, getFeedbackProducts, getModelPhotos, getHeroData, getCategoryPhotoMap } from "@/lib/homepage";
 import { NewsletterForm } from "@/components/NewsletterForm";
@@ -52,6 +52,16 @@ export default async function HomePage() {
   const { imageById: categoryImageById, countById: categoryCountById } = await getCategoryPhotoMap(
     topCategories.map((c) => c.id)
   );
+
+  // The New Drop tile can't be computed from category_id like every other
+  // category — its products are linked via new_product_added_at instead
+  // (see lib/products.ts), so its count/image need their own query.
+  const newDropCategory = topCategories.find((c) => c.slug === NEW_DROP_CATEGORY_SLUG);
+  if (newDropCategory) {
+    const { products: newDropProducts, total: newDropTotal } = await listProducts({ onlyNewProduct: true }, 1, 1);
+    categoryCountById[newDropCategory.id] = newDropTotal;
+    if (newDropProducts[0]?.images[0]) categoryImageById[newDropCategory.id] = newDropProducts[0].images[0].url;
+  }
 
   // Custom uploaded images (not tied to any product) come first, then
   // manually curated product photos; if the client hasn't picked either,

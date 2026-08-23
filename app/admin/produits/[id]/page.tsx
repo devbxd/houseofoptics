@@ -7,6 +7,10 @@ import { ColorLinksEditor } from "../ColorLinksEditor";
 import { updateProduct } from "../actions";
 import { NEW_DROP_CATEGORY_SLUG } from "@/lib/products";
 
+// Always fetch fresh from the DB — this page must never show a stale New
+// Drop button state (or stale product data) from Next's route cache.
+export const dynamic = "force-dynamic";
+
 export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = createServiceClient();
