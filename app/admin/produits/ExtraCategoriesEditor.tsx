@@ -74,7 +74,10 @@ export function ExtraCategoriesEditor({
                 ? new Date(new Date(l.addedAt).getTime() + NEW_PRODUCT_DAYS * 24 * 60 * 60 * 1000)
                 : null;
             return (
-              <li key={l.linkId} className="flex items-center gap-1.5 border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-xs">
+              <li
+                key={l.linkId}
+                className="flex items-center gap-2 border border-neutral-200 bg-neutral-50 py-1 pl-2.5 pr-1 text-xs"
+              >
                 <span>
                   {l.categoryName}
                   {expiresAt && <span className="text-neutral-400"> · until {expiresAt.toLocaleDateString()}</span>}
@@ -94,9 +97,9 @@ export function ExtraCategoriesEditor({
                       setRemovingId(null);
                     }
                   }}
-                  className="text-neutral-400 hover:text-red-600 disabled:opacity-50"
+                  className="px-1.5 py-1 text-neutral-500 hover:text-red-600 disabled:opacity-50"
                 >
-                  ×
+                  {removingId === l.linkId ? "…" : "Remove"}
                 </button>
               </li>
             );

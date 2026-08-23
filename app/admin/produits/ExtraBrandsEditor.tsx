@@ -65,7 +65,10 @@ export function ExtraBrandsEditor({
       {links.length > 0 && (
         <ul className="mt-2 flex flex-wrap gap-2">
           {links.map((l) => (
-            <li key={l.linkId} className="flex items-center gap-1.5 border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-xs">
+            <li
+              key={l.linkId}
+              className="flex items-center gap-2 border border-neutral-200 bg-neutral-50 py-1 pl-2.5 pr-1 text-xs"
+            >
               <span>{l.brandName}</span>
               <button
                 type="button"
@@ -82,9 +85,9 @@ export function ExtraBrandsEditor({
                     setRemovingId(null);
                   }
                 }}
-                className="text-neutral-400 hover:text-red-600 disabled:opacity-50"
+                className="px-1.5 py-1 text-neutral-500 hover:text-red-600 disabled:opacity-50"
               >
-                ×
+                {removingId === l.linkId ? "…" : "Remove"}
               </button>
             </li>
           ))}
