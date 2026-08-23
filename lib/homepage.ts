@@ -16,6 +16,62 @@ export const getBrands = unstable_cache(fetchBrands, ["brands"], {
   revalidate: REVALIDATE_SECONDS,
 });
 
+export type BrandCard = { id: string; name: string; slug: string; image: string | null; count: number };
+
+// Powers the "All Brands" category page (real brand cards with a photo and
+// a real product count each) plus that category's own tile/total on the
+// homepage — counting main brand_id matches UNION quick-added
+// product_brand_links, deduped, per brand and across all brands combined.
+async function fetchBrandsWithCounts(): Promise<{ brands: BrandCard[]; totalProducts: number }> {
+  const supabase = createPublicClient();
+  const { data: brandRows } = await supabase.from("brands").select("*").order("sort_order", { ascending: true });
+  const list = (brandRows ?? []) as any[];
+
+  const globalIds = new Set<string>();
+  const brands = await Promise.all(
+    list.map(async (b) => {
+      const [{ data: mainRows }, { data: linkRows }] = await Promise.all([
+        supabase
+          .from("products")
+          .select("id, images:product_images(url, sort_order)")
+          .eq("brand_id", b.id)
+          .eq("is_active", true)
+          .order("image_bytes", { ascending: false, nullsFirst: false }),
+        supabase
+          .from("product_brand_links")
+          .select("product:products!inner(id, is_active, images:product_images(url, sort_order))")
+          .eq("brand_id", b.id)
+          .eq("products.is_active", true),
+      ]);
+
+      const linkedProducts = (linkRows ?? [])
+        .map((r: any) => (Array.isArray(r.product) ? r.product[0] : r.product))
+        .filter(Boolean);
+      const byId = new Map<string, any>();
+      for (const p of [...(mainRows ?? []), ...linkedProducts]) byId.set(p.id, p);
+      for (const id of byId.keys()) globalIds.add(id);
+
+      const firstImage = Array.from(byId.values())
+        .flatMap((p: any) => (p.images ?? []).slice().sort((a: any, c: any) => a.sort_order - c.sort_order))[0]?.url;
+
+      return {
+        id: b.id as string,
+        name: b.name as string,
+        slug: b.slug as string,
+        image: b.logo_url || firstImage || null,
+        count: byId.size,
+      };
+    })
+  );
+
+  return { brands, totalProducts: globalIds.size };
+}
+
+export const getBrandsWithCounts = unstable_cache(fetchBrandsWithCounts, ["brands-with-counts"], {
+  tags: ["products"],
+  revalidate: REVALIDATE_SECONDS,
+});
+
 async function fetchActiveTestimonials() {
   const supabase = createPublicClient();
   const { data } = await supabase

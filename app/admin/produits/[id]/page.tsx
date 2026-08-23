@@ -5,36 +5,58 @@ import { ProductImageGrid } from "../ProductImageGrid";
 import { RelatedProductsEditor } from "../RelatedProductsEditor";
 import { ColorLinksEditor } from "../ColorLinksEditor";
 import { updateProduct } from "../actions";
-import { NEW_DROP_CATEGORY_SLUG } from "@/lib/products";
 
-// Always fetch fresh from the DB — this page must never show a stale New
-// Drop button state (or stale product data) from Next's route cache.
+// Always fetch fresh from the DB — this page must never show a stale
+// quick-add state (or stale product data) from Next's route cache.
 export const dynamic = "force-dynamic";
 
 export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = createServiceClient();
 
-  const [{ data: product }, { data: categories }, { data: brands }, { data: relatedRows }, { data: allProducts }] =
-    await Promise.all([
-      supabase
-        .from("products")
-        .select("*, images:product_images(id, url, sort_order), variants:product_variants(*)")
-        .eq("id", id)
-        .single(),
-      supabase.from("categories").select("id, name, slug, parent_id").order("sort_order"),
-      supabase.from("brands").select("id, name").order("sort_order"),
-      // product_related_products comes from a migration that may not have
-      // run yet — a missing table just yields null data here.
-      supabase
-        .from("product_related_products")
-        .select("id, related_product_id, related:products!product_related_products_related_product_id_fkey(name)")
-        .eq("product_id", id)
-        .order("sort_order", { ascending: true }),
-      supabase.from("products").select("id, name").eq("is_active", true).order("name", { ascending: true }),
-    ]);
+  const [
+    { data: product },
+    { data: categories },
+    { data: brands },
+    { data: relatedRows },
+    { data: allProducts },
+    { data: categoryLinkRows },
+    { data: brandLinkRows },
+  ] = await Promise.all([
+    supabase
+      .from("products")
+      .select("*, images:product_images(id, url, sort_order), variants:product_variants(*)")
+      .eq("id", id)
+      .single(),
+    supabase.from("categories").select("id, name, slug, parent_id").order("sort_order"),
+    supabase.from("brands").select("id, name").order("sort_order"),
+    // product_related_products comes from a migration that may not have
+    // run yet — a missing table just yields null data here.
+    supabase
+      .from("product_related_products")
+      .select("id, related_product_id, related:products!product_related_products_related_product_id_fkey(name)")
+      .eq("product_id", id)
+      .order("sort_order", { ascending: true }),
+    supabase.from("products").select("id, name").eq("is_active", true).order("name", { ascending: true }),
+    // product_category_links/product_brand_links come from a migration that
+    // may not have run yet — a missing table just yields null data here.
+    supabase
+      .from("product_category_links")
+      .select("id, added_at, category:categories(id, name, slug)")
+      .eq("product_id", id),
+    supabase.from("product_brand_links").select("id, added_at, brand:brands(id, name)").eq("product_id", id),
+  ]);
 
   if (!product) notFound();
+
+  const extraCategoryLinks = (categoryLinkRows ?? []).map((r: any) => {
+    const cat = Array.isArray(r.category) ? r.category[0] : r.category;
+    return { linkId: r.id, categoryId: cat?.id, categoryName: cat?.name ?? "Deleted category", categorySlug: cat?.slug ?? "", addedAt: r.added_at };
+  });
+  const extraBrandLinks = (brandLinkRows ?? []).map((r: any) => {
+    const brand = Array.isArray(r.brand) ? r.brand[0] : r.brand;
+    return { linkId: r.id, brandId: brand?.id, brandName: brand?.name ?? "Deleted brand" };
+  });
 
   const relatedPicks = (relatedRows ?? []).map((r: any) => ({
     rowId: r.id,
@@ -60,7 +82,6 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
     .filter((v: any) => v.color_label || v.size_label)
     .sort((a: any, b: any) => a.sort_order - b.sort_order);
   const updateWithId = updateProduct.bind(null, id);
-  const newDropCategory = (categories ?? []).find((c: any) => c.slug === NEW_DROP_CATEGORY_SLUG);
 
   return (
     <div>
@@ -83,9 +104,8 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
         product={{ ...product, variants }}
         allProducts={allProducts ?? []}
         submitLabel="Save"
-        newDropCategory={
-          newDropCategory ? { name: newDropCategory.name, addedAt: product.new_product_added_at ?? null } : null
-        }
+        extraCategoryLinks={extraCategoryLinks}
+        extraBrandLinks={extraBrandLinks}
       />
 
       <div className="mt-8 max-w-lg rounded-md border border-neutral-200 bg-white p-4">

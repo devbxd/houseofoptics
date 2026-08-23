@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { listProducts, NEW_DROP_CATEGORY_SLUG } from "@/lib/products";
+import { listProducts, ALL_BRANDS_CATEGORY_SLUG } from "@/lib/products";
 import { getCategories } from "@/lib/settings";
+import { getBrandsWithCounts } from "@/lib/homepage";
 import { ProductGrid } from "@/components/ProductGrid";
+import { BrandGrid } from "@/components/BrandGrid";
 import { Pagination } from "@/components/Pagination";
 import { getServerDict } from "@/lib/locale-server";
 
@@ -33,13 +35,20 @@ export default async function CategoryPage({
   const category = categories.find((c) => c.slug === slug);
   if (!category) notFound();
 
-  // The "New Drop" category lists products manually added to it from their
-  // edit page (Admin > Products > New Drop button), not products whose
-  // category_id points here — that field is never set to it.
-  const { products, total, pageSize } = await listProducts(
-    slug === NEW_DROP_CATEGORY_SLUG ? { onlyNewProduct: true } : { categorySlug: slug },
-    page
-  );
+  // "All Brands" is a real brand directory (cards with logo + count from
+  // the brands table), not a normal product grid — its sub-categories are
+  // legacy and no longer drive what shows here.
+  if (slug === ALL_BRANDS_CATEGORY_SLUG) {
+    const { brands } = await getBrandsWithCounts();
+    return (
+      <main className="mx-auto max-w-6xl px-4 py-12">
+        <h1 className="mb-8 text-center font-serif text-2xl">{category.name}</h1>
+        <BrandGrid brands={brands} shopNowLabel={t["home.shopNow"]} productsLabel={t["home.productsCount"]} />
+      </main>
+    );
+  }
+
+  const { products, total, pageSize } = await listProducts({ categorySlug: slug }, page);
   const children = categories.filter((c) => c.parent_id === category.id);
 
   return (

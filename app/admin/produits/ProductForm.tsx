@@ -4,10 +4,13 @@ import { useActionState, useEffect, useState } from "react";
 import Image from "next/image";
 import { SubmitButton } from "@/components/SubmitButton";
 import { VariantsEditor } from "./VariantsEditor";
-import { NewDropToggle } from "./NewDropToggle";
+import { ExtraCategoriesEditor } from "./ExtraCategoriesEditor";
+import { ExtraBrandsEditor } from "./ExtraBrandsEditor";
 
-type Category = { id: string; name: string; parent_id?: string | null };
+type Category = { id: string; name: string; slug: string; parent_id?: string | null };
 type Brand = { id: string; name: string };
+type ExtraCategoryLink = { linkId: string; categoryId: string; categoryName: string; categorySlug: string; addedAt: string };
+type ExtraBrandLink = { linkId: string; brandId: string; brandName: string };
 
 function flattenCategories(categories: Category[]) {
   const childrenOf = (id: string | null) => categories.filter((c) => (c.parent_id ?? null) === id);
@@ -49,7 +52,8 @@ export function ProductForm({
   product,
   submitLabel,
   allProducts,
-  newDropCategory,
+  extraCategoryLinks,
+  extraBrandLinks,
 }: {
   action: (formData: FormData) => Promise<unknown>;
   categories: Category[];
@@ -57,7 +61,8 @@ export function ProductForm({
   product?: Product;
   submitLabel: string;
   allProducts: { id: string; name: string }[];
-  newDropCategory?: { name: string; addedAt: string | null } | null;
+  extraCategoryLinks?: ExtraCategoryLink[];
+  extraBrandLinks?: ExtraBrandLink[];
 }) {
   const flatCategories = flattenCategories(categories);
   const [categoryId, setCategoryId] = useState(product?.category_id ?? "");
@@ -132,8 +137,11 @@ export function ProductForm({
         </div>
       </div>
 
-      {newDropCategory && product?.id && (
-        <NewDropToggle productId={product.id} categoryName={newDropCategory.name} addedAt={newDropCategory.addedAt} />
+      {product?.id && (
+        <div className="grid grid-cols-2 gap-4">
+          <ExtraCategoriesEditor productId={product.id} allCategories={categories} current={extraCategoryLinks ?? []} />
+          <ExtraBrandsEditor productId={product.id} allBrands={brands} current={extraBrandLinks ?? []} />
+        </div>
       )}
 
       <div className="grid grid-cols-2 gap-4">

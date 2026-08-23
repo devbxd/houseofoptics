@@ -8,7 +8,6 @@ export type ProductCard = {
   price: number | null;
   discount_percent: number | null;
   stock: number | null;
-  new_product_added_at: string | null;
   category: { name: string; slug: string } | null;
   brand: { name: string; slug: string } | null;
   images: { url: string }[];
@@ -21,36 +20,82 @@ const PAGE_SIZE = 24;
 const REVALIDATE_SECONDS = 60;
 
 // A product manually added to the "New Drop" category (Admin > Products >
-// edit product > Add to New Drop button) stays listed there for this long,
-// computed from new_product_added_at — no cron needed, it just ages out.
+// edit product > "Add to category" picker) stays listed there for this
+// long, computed from product_category_links.added_at — no cron needed.
 export const NEW_PRODUCT_DAYS = 15;
 
 // The already-existing category (created by hand in Admin > Categories)
-// that the "Add to New Drop" button links products to.
+// that carries the 15-day auto-expiry — every other quick-added category
+// tag is permanent.
 export const NEW_DROP_CATEGORY_SLUG = "new-drop";
 
+// The umbrella category whose page shows the real brand directory (cards
+// with logo + product count) instead of a normal product grid.
+export const ALL_BRANDS_CATEGORY_SLUG = "all-brands";
+
+// A category/brand page shows products assigned to it the normal way
+// (category_id/brand_id) UNION products manually tagged into it from the
+// edit page (product_category_links/product_brand_links) — the "quick add"
+// system works on top of, not instead of, the real assignment.
+async function resolveExtraProductIds(
+  supabase: ReturnType<typeof createPublicClient>,
+  table: "product_category_links" | "product_brand_links",
+  column: "category_id" | "brand_id",
+  targetId: string,
+  applyNewDropCutoff: boolean
+) {
+  let query = supabase.from(table).select("product_id, added_at").eq(column, targetId);
+  if (applyNewDropCutoff) {
+    const cutoff = new Date(Date.now() - NEW_PRODUCT_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    query = query.gte("added_at", cutoff);
+  }
+  const { data } = await query;
+  return (data ?? []).map((r: any) => r.product_id as string);
+}
+
 async function fetchProducts(
-  opts: { categorySlug?: string; brandSlug?: string; search?: string; onlyNewProduct?: boolean } = {},
+  opts: { categorySlug?: string; brandSlug?: string; search?: string } = {},
   page = 1,
   pageSize = PAGE_SIZE
 ): Promise<{ products: ProductCard[]; total: number; pageSize: number }> {
-  const { categorySlug, brandSlug, search, onlyNewProduct } = opts;
+  const { categorySlug, brandSlug, search } = opts;
   const supabase = createPublicClient();
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  // A plain embedded filter (categories.slug=eq...) only shapes the nested
-  // object, it does NOT restrict which product rows come back — Supabase
-  // needs an explicit inner join for that. But forcing !inner always would
-  // wrongly exclude every product missing that relation, so only use it
-  // when actually filtering on it.
-  const categoryRelation = categorySlug ? "categories!inner" : "categories";
-  const brandRelation = brandSlug ? "brands!inner" : "brands";
+  // categorySlug/brandSlug now resolve to an explicit id list (main
+  // assignment UNION quick-added tags) rather than a relational filter, so
+  // quick-added products show up here too.
+  let idFilter: string[] | null = null;
+
+  if (categorySlug) {
+    const { data: cat } = await supabase.from("categories").select("id").eq("slug", categorySlug).maybeSingle();
+    if (!cat) return { products: [], total: 0, pageSize };
+    const [{ data: mainRows }, extraIds] = await Promise.all([
+      supabase.from("products").select("id").eq("category_id", cat.id).eq("is_active", true),
+      resolveExtraProductIds(supabase, "product_category_links", "category_id", cat.id, categorySlug === NEW_DROP_CATEGORY_SLUG),
+    ]);
+    const ids = new Set([...(mainRows ?? []).map((r: any) => r.id), ...extraIds]);
+    idFilter = Array.from(ids);
+  }
+
+  if (brandSlug) {
+    const { data: brand } = await supabase.from("brands").select("id").eq("slug", brandSlug).maybeSingle();
+    if (!brand) return { products: [], total: 0, pageSize };
+    const [{ data: mainRows }, extraIds] = await Promise.all([
+      supabase.from("products").select("id").eq("brand_id", brand.id).eq("is_active", true),
+      resolveExtraProductIds(supabase, "product_brand_links", "brand_id", brand.id, false),
+    ]);
+    const ids = new Set([...(mainRows ?? []).map((r: any) => r.id), ...extraIds]);
+    idFilter = idFilter ? idFilter.filter((id) => ids.has(id)) : Array.from(ids);
+  }
+
+  if (idFilter && idFilter.length === 0) return { products: [], total: 0, pageSize };
 
   let query = supabase
     .from("products")
     .select(
-      `id, name, slug, price, discount_percent, stock, new_product_added_at, category:${categoryRelation}(name, slug), brand:${brandRelation}(name, slug), images:product_images(url, sort_order)`,
+      "id, name, slug, price, discount_percent, stock, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order)",
       { count: "exact" }
     )
     .eq("is_active", true)
@@ -58,16 +103,7 @@ async function fetchProducts(
     .order("created_at", { ascending: false })
     .range(from, to);
 
-  // The "New Product" category page shows products manually added to it
-  // (Admin > Products > edit product > New Product button), not products
-  // whose category_id points there — that field is never set to it.
-  if (onlyNewProduct) {
-    const cutoff = new Date(Date.now() - NEW_PRODUCT_DAYS * 24 * 60 * 60 * 1000).toISOString();
-    query = query.not("new_product_added_at", "is", null).gte("new_product_added_at", cutoff);
-  } else if (categorySlug) {
-    query = query.eq("categories.slug", categorySlug);
-  }
-  if (brandSlug) query = query.eq("brands.slug", brandSlug);
+  if (idFilter) query = query.in("id", idFilter);
   if (search) query = query.ilike("name", `%${search}%`);
 
   const { data, count } = await query;
@@ -99,7 +135,7 @@ async function fetchRelatedProducts(
   const { data: manual } = await supabase
     .from("product_related_products")
     .select(
-      "sort_order, related:products!product_related_products_related_product_id_fkey(id, name, slug, price, discount_percent, stock, new_product_added_at, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order))"
+      "sort_order, related:products!product_related_products_related_product_id_fkey(id, name, slug, price, discount_percent, stock, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order))"
     )
     .eq("product_id", product.id)
     .order("sort_order", { ascending: true });

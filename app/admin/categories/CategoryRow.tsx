@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { renameCategory, deleteCategory, setCategoryPosition } from "./actions";
+import { CategoryImageUploader } from "./CategoryImageUploader";
 
-type Category = { id: string; name: string; slug: string };
+type Category = { id: string; name: string; slug: string; image_url?: string | null };
 
 export function CategoryRow({
   category,
@@ -65,6 +66,7 @@ export function CategoryRow({
       </div>
 
       <div className="flex shrink-0 items-center gap-4 text-sm">
+        <CategoryImageUploader categoryId={category.id} imageUrl={category.image_url ?? null} />
         {editing ? (
           <button
             className="text-brand-red"

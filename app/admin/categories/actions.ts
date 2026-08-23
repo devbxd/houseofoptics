@@ -3,6 +3,8 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/slugify";
+import { processImage } from "@/lib/process-image";
+import { uploadToR2 } from "@/lib/r2";
 
 export async function createCategory(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
@@ -39,6 +41,38 @@ export async function renameCategory(id: string, name: string) {
   if (!name.trim()) return;
   const supabase = createServiceClient();
   await supabase.from("categories").update({ name: name.trim(), slug: slugify(name) }).eq("id", id);
+  revalidatePath("/admin/categories");
+  revalidatePath("/", "layout");
+  revalidateTag("categories");
+  revalidateTag("products");
+}
+
+// Lets the client set a custom photo for categories with no obvious product
+// photo to fall back to (e.g. "All Brands"), used on the homepage tile.
+export async function updateCategoryImage(formData: FormData): Promise<string> {
+  const categoryId = String(formData.get("category_id") ?? "");
+  const file = formData.get("image") as File | null;
+  if (!categoryId || !file || file.size === 0) throw new Error("No image selected.");
+
+  const { buffer, contentType, ext } = await processImage(file);
+  const path = `categories/${categoryId}/${crypto.randomUUID()}.${ext}`;
+  const url = await uploadToR2(path, buffer, contentType);
+
+  const supabase = createServiceClient();
+  const { error } = await supabase.from("categories").update({ image_url: url }).eq("id", categoryId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/admin/categories");
+  revalidatePath("/", "layout");
+  revalidateTag("categories");
+  revalidateTag("products");
+  return url;
+}
+
+export async function removeCategoryImage(categoryId: string) {
+  const supabase = createServiceClient();
+  const { error } = await supabase.from("categories").update({ image_url: null }).eq("id", categoryId);
+  if (error) throw new Error(error.message);
   revalidatePath("/admin/categories");
   revalidatePath("/", "layout");
   revalidateTag("categories");

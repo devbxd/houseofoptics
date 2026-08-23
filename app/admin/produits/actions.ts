@@ -402,28 +402,85 @@ export async function addColorLink(productId: string, otherProductId: string) {
   revalidateTag("products");
 }
 
-// "Add to New Drop" button — links this product to the existing New Drop
-// category (Admin > Categories, slug "new-drop"), without touching its real
-// category_id/brand_id. It drops out on its own 15 days after this
-// timestamp (see NEW_PRODUCT_DAYS in lib/products.ts).
-export async function addToNewDrop(productId: string) {
+// "Also show in these categories" picker — tags this product into an extra
+// category (e.g. New Drop) without touching its real category_id. New Drop
+// drops products out on its own after NEW_PRODUCT_DAYS (lib/products.ts);
+// every other quick-added category tag is permanent.
+export async function addProductCategoryLink(
+  productId: string,
+  categoryId: string
+): Promise<{ id: string; added_at: string }> {
   const supabase = createServiceClient();
-  const { error } = await supabase
-    .from("products")
-    .update({ new_product_added_at: new Date().toISOString() })
-    .eq("id", productId);
+  const { data, error } = await supabase
+    .from("product_category_links")
+    .insert({ product_id: productId, category_id: categoryId })
+    .select("id, added_at")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      // Already linked — return the existing row instead of failing.
+      const { data: existing } = await supabase
+        .from("product_category_links")
+        .select("id, added_at")
+        .eq("product_id", productId)
+        .eq("category_id", categoryId)
+        .single();
+      if (existing) return existing;
+    }
+    throw new Error(error.message);
+  }
+
+  revalidatePath(`/admin/produits/${productId}`);
+  revalidatePath("/", "layout");
+  revalidateTag("products");
+  return data;
+}
+
+export async function removeProductCategoryLink(linkId: string, productId: string) {
+  const supabase = createServiceClient();
+  const { error } = await supabase.from("product_category_links").delete().eq("id", linkId);
   if (error) throw new Error(error.message);
   revalidatePath(`/admin/produits/${productId}`);
   revalidatePath("/", "layout");
   revalidateTag("products");
 }
 
-export async function removeFromNewDrop(productId: string) {
+// Symmetric "also show under these brands" picker, using brand_id's own
+// quick-add table.
+export async function addProductBrandLink(
+  productId: string,
+  brandId: string
+): Promise<{ id: string; added_at: string }> {
   const supabase = createServiceClient();
-  const { error } = await supabase
-    .from("products")
-    .update({ new_product_added_at: null })
-    .eq("id", productId);
+  const { data, error } = await supabase
+    .from("product_brand_links")
+    .insert({ product_id: productId, brand_id: brandId })
+    .select("id, added_at")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      const { data: existing } = await supabase
+        .from("product_brand_links")
+        .select("id, added_at")
+        .eq("product_id", productId)
+        .eq("brand_id", brandId)
+        .single();
+      if (existing) return existing;
+    }
+    throw new Error(error.message);
+  }
+
+  revalidatePath(`/admin/produits/${productId}`);
+  revalidatePath("/", "layout");
+  revalidateTag("products");
+  return data;
+}
+
+export async function removeProductBrandLink(linkId: string, productId: string) {
+  const supabase = createServiceClient();
+  const { error } = await supabase.from("product_brand_links").delete().eq("id", linkId);
   if (error) throw new Error(error.message);
   revalidatePath(`/admin/produits/${productId}`);
   revalidatePath("/", "layout");

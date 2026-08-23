@@ -5,7 +5,7 @@ import { createProduct } from "../actions";
 export default async function NewProductPage() {
   const supabase = await createClient();
   const [{ data: categories }, { data: brands }, { data: allProducts }] = await Promise.all([
-    supabase.from("categories").select("id, name, parent_id").order("sort_order"),
+    supabase.from("categories").select("id, name, slug, parent_id").order("sort_order"),
     supabase.from("brands").select("id, name").order("sort_order"),
     supabase.from("products").select("id, name").order("name", { ascending: true }),
   ]);

@@ -1,8 +1,16 @@
 import Link from "next/link";
 import Image from "next/image";
-import { listProducts, NEW_DROP_CATEGORY_SLUG } from "@/lib/products";
+import { listProducts, NEW_DROP_CATEGORY_SLUG, ALL_BRANDS_CATEGORY_SLUG } from "@/lib/products";
 import { getCategories, getSiteSettings, localizedHeroTitle, localizedHeroEyebrow, localizedHeroSubtitle } from "@/lib/settings";
-import { getBrands, getActiveTestimonials, getFeedbackProducts, getModelPhotos, getHeroData, getCategoryPhotoMap } from "@/lib/homepage";
+import {
+  getBrands,
+  getActiveTestimonials,
+  getFeedbackProducts,
+  getModelPhotos,
+  getHeroData,
+  getCategoryPhotoMap,
+  getBrandsWithCounts,
+} from "@/lib/homepage";
 import { NewsletterForm } from "@/components/NewsletterForm";
 import { TestimonialsCarousel } from "@/components/TestimonialsCarousel";
 import { FeedbackForm } from "@/components/FeedbackForm";
@@ -53,14 +61,32 @@ export default async function HomePage() {
     topCategories.map((c) => c.id)
   );
 
-  // The New Drop tile can't be computed from category_id like every other
-  // category — its products are linked via new_product_added_at instead
-  // (see lib/products.ts), so its count/image need their own query.
+  // New Drop's products are quick-added, not category_id-assigned, so its
+  // tile needs its own query (the same union logic as its actual page).
   const newDropCategory = topCategories.find((c) => c.slug === NEW_DROP_CATEGORY_SLUG);
   if (newDropCategory) {
-    const { products: newDropProducts, total: newDropTotal } = await listProducts({ onlyNewProduct: true }, 1, 1);
+    const { products: newDropProducts, total: newDropTotal } = await listProducts(
+      { categorySlug: NEW_DROP_CATEGORY_SLUG },
+      1,
+      1
+    );
     categoryCountById[newDropCategory.id] = newDropTotal;
     if (newDropProducts[0]?.images[0]) categoryImageById[newDropCategory.id] = newDropProducts[0].images[0].url;
+  }
+
+  // All Brands isn't a normal category either — its tile shows the total
+  // product count across every real brand.
+  const allBrandsCategory = topCategories.find((c) => c.slug === ALL_BRANDS_CATEGORY_SLUG);
+  if (allBrandsCategory) {
+    const { totalProducts } = await getBrandsWithCounts();
+    categoryCountById[allBrandsCategory.id] = totalProducts;
+  }
+
+  // A manually uploaded category image (Admin > Categories) always wins
+  // over the auto-derived product photo — the only way umbrella categories
+  // like All Brands, which have no single representative product, get one.
+  for (const c of topCategories) {
+    if ((c as any).image_url) categoryImageById[c.id] = (c as any).image_url;
   }
 
   // Custom uploaded images (not tied to any product) come first, then
