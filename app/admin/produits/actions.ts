@@ -59,6 +59,19 @@ async function saveVariants(
 ) {
   const rows = parseVariantRows(formData);
 
+  // Snapshot stock before the delete-and-reinsert below, keyed by
+  // color/size label pair rather than row id — every save destroys and
+  // recreates all variant rows, so a variant's id never survives a save
+  // and can't be used to tell "was this out of stock before this save".
+  const { data: oldVariants } = await supabase
+    .from("product_variants")
+    .select("color_label, size_label, stock")
+    .eq("product_id", productId);
+  const oldStockByKey = new Map<string, number | null>();
+  for (const v of oldVariants ?? []) {
+    oldStockByKey.set(`${v.color_label ?? ""}|${v.size_label ?? ""}`, v.stock);
+  }
+
   const resolved = await Promise.all(
     rows.map(async (v) => ({
       product_id: productId,
@@ -92,6 +105,18 @@ async function saveVariants(
     }));
     await supabase.from("product_variants").insert(fallback);
   }
+
+  // A null stock means "not tracked, always available" — never "out of
+  // stock" — so only a non-null, <=0 old value counts as out.
+  const { notifyStockRestocked } = await import("@/lib/notify-stock");
+  await Promise.all(
+    fields.map((v) => {
+      const oldStock = oldStockByKey.get(`${v.color_label ?? ""}|${v.size_label ?? ""}`);
+      const wasOut = oldStock != null && oldStock <= 0;
+      const isIn = v.stock == null || v.stock > 0;
+      return wasOut && isIn ? notifyStockRestocked(productId, v.color_label, v.size_label) : Promise.resolve();
+    })
+  );
 }
 
 async function uploadImages(productSlug: string, files: File[]) {
@@ -219,7 +244,7 @@ export async function updateProduct(productId: string, formData: FormData) {
   if (!name) return;
 
   const supabase = createServiceClient();
-  const { data: product } = await supabase.from("products").select("slug").eq("id", productId).single();
+  const { data: product } = await supabase.from("products").select("slug, stock").eq("id", productId).single();
   if (!product) return;
 
   await updateProductSafe(supabase, productId, {
@@ -236,6 +261,16 @@ export async function updateProduct(productId: string, formData: FormData) {
     base_size: baseSize,
     is_active: isActive,
   });
+
+  // Base product stock (no variant) went from out to in — anyone waiting
+  // on it gets an email. A null stock is "not tracked, always available",
+  // never "out of stock".
+  const wasOut = product.stock != null && product.stock <= 0;
+  const isIn = stock == null || stock > 0;
+  if (wasOut && isIn) {
+    const { notifyStockRestocked } = await import("@/lib/notify-stock");
+    await notifyStockRestocked(productId, null, null);
+  }
 
   await saveVariants(supabase, productId, product.slug, formData);
 

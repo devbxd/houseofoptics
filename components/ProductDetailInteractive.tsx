@@ -10,6 +10,7 @@ import { ProductGallery } from "./ProductGallery";
 import { WishlistButton } from "./WishlistButton";
 import { ShareButtons } from "./ShareButtons";
 import { Accordion } from "./Accordion";
+import { StockNotifyForm } from "./StockNotifyForm";
 
 type VariantDetail = {
   color_label: string | null;
@@ -326,6 +327,15 @@ export function ProductDetailInteractive({
           )}
           {outOfStock ? t["product.outOfStock"] : t["product.available"]}
         </p>
+
+        {outOfStock && (
+          <StockNotifyForm
+            productId={productId}
+            colorLabel={active?.color_label ?? null}
+            sizeLabel={active?.size_label ?? null}
+            t={t}
+          />
+        )}
 
         {/* Replaced below by the Size/Color pickers once real variant
             choices exist — showing both would just duplicate the same
