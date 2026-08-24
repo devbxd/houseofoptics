@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { getTryOnImage, saveTryOnImage } from "@/app/(site)/tryon-actions";
+import { saveTryOnImage } from "@/app/(site)/tryon-actions";
+
+// Background removal only needs to produce a clean silhouette for a live
+// overlay, not full source resolution — feeding it a smaller image cuts
+// inference time substantially. The overlay itself is scaled dynamically
+// to the detected face anyway, so this costs no visible quality.
+const BG_REMOVAL_MAX_DIMENSION = 768;
 
 type Status = "idle" | "preparing" | "loading-camera" | "tracking" | "unsupported" | "camera-error";
 
@@ -37,6 +43,7 @@ export function VisualizeMeButton({
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [showNoFaceHint, setShowNoFaceHint] = useState(false);
+  const [prepProgress, setPrepProgress] = useState(0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -66,6 +73,7 @@ export function VisualizeMeButton({
     setOpen(false);
     setStatus("idle");
     setShowNoFaceHint(false);
+    setPrepProgress(0);
   }
 
   useEffect(() => stopEverything, []);
@@ -74,18 +82,50 @@ export function VisualizeMeButton({
     if (tryonUrlRef.current) return tryonUrlRef.current;
 
     setStatus("preparing");
+    setPrepProgress(0);
     const sourceRes = await fetch(`/api/tryon-source/${productId}`);
     if (!sourceRes.ok) throw new Error("no-source-photo");
     const sourceBlob = await sourceRes.blob();
+    const resizedBlob = await downscaleImage(sourceBlob, BG_REMOVAL_MAX_DIMENSION);
 
     const { removeBackground } = await import("@imgly/background-removal");
-    const cutoutBlob = await removeBackground(sourceBlob);
+    // The default model (~80MB) is what made this step slow — the
+    // quantized model is roughly half the download and noticeably faster
+    // to run, at a small, acceptable quality cost for a live-overlay cutout.
+    const bgConfig = {
+      model: "isnet_quint8" as const,
+      progress: (_key: string, current: number, total: number) => {
+        if (total > 0) setPrepProgress(Math.round((current / total) * 100));
+      },
+    };
+    let cutoutBlob: Blob;
+    try {
+      cutoutBlob = await removeBackground(resizedBlob, { ...bgConfig, device: "gpu" });
+    } catch {
+      // WebGPU isn't available on every browser/device yet — CPU always works.
+      cutoutBlob = await removeBackground(resizedBlob, { ...bgConfig, device: "cpu" });
+    }
 
     const formData = new FormData();
     formData.append("image", cutoutBlob, "tryon.png");
     const url = await saveTryOnImage(productId, formData);
     tryonUrlRef.current = url;
     return url;
+  }
+
+  async function downscaleImage(blob: Blob, maxDimension: number): Promise<Blob> {
+    const bitmap = await createImageBitmap(blob);
+    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+    const width = Math.round(bitmap.width * scale);
+    const height = Math.round(bitmap.height * scale);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext("2d")!.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close();
+
+    return new Promise((resolve) => canvas.toBlob((b) => resolve(b ?? blob), "image/png"));
   }
 
   function loadImage(src: string): Promise<HTMLImageElement> {
@@ -225,8 +265,20 @@ export function VisualizeMeButton({
             <canvas ref={canvasRef} className="absolute inset-0 h-full w-full object-cover" />
           </div>
 
-          <div className="absolute bottom-10 left-0 right-0 text-center text-sm text-white">
-            {status === "preparing" && <p>{t["product.visualizePreparing"]}</p>}
+          <div className="absolute bottom-10 left-0 right-0 px-8 text-center text-sm text-white">
+            {status === "preparing" && (
+              <div>
+                <p>
+                  {t["product.visualizePreparing"]} {prepProgress}%
+                </p>
+                <div className="mx-auto mt-2 h-1 w-full max-w-xs overflow-hidden rounded-full bg-white/20">
+                  <div
+                    className="h-full bg-white transition-all duration-200"
+                    style={{ width: `${Math.max(4, prepProgress)}%` }}
+                  />
+                </div>
+              </div>
+            )}
             {status === "loading-camera" && <p>{t["product.visualizeLoading"]}</p>}
             {status === "unsupported" && <p className="text-red-400">{t["product.visualizeUnsupported"]}</p>}
             {status === "camera-error" && <p className="text-red-400">{t["product.visualizeCameraError"]}</p>}
