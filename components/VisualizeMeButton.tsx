@@ -7,9 +7,17 @@ import { saveTryOnImage } from "@/app/(site)/tryon-actions";
 // overlay, not full source resolution — feeding it a smaller image cuts
 // inference time substantially. The overlay itself is scaled dynamically
 // to the detected face anyway, so this costs no visible quality.
-const BG_REMOVAL_MAX_DIMENSION = 768;
+const BG_REMOVAL_MAX_DIMENSION = 640;
 
-type Status = "idle" | "preparing" | "loading-camera" | "tracking" | "unsupported" | "camera-error";
+// Every long-running step below is wrapped in a timeout — a hung worker,
+// a stalled CDN fetch, or a WebGPU context that never initializes must
+// never leave the customer staring at a frozen screen forever. On timeout
+// we fail loudly with a clear "Try again" instead of spinning silently.
+const CUTOUT_TIMEOUT_MS = 30_000;
+const CAMERA_TIMEOUT_MS = 15_000;
+const TRACKER_TIMEOUT_MS = 20_000;
+
+type Status = "idle" | "preparing" | "loading-camera" | "tracking" | "unsupported" | "error";
 
 // Landmark indices from MediaPipe's 478-point face mesh topology — stable
 // across the whole Face Landmarker family, used the same way in most
@@ -30,6 +38,22 @@ const LANDMARK_SMOOTHING = 0.35; // lower = smoother but laggier
 const LOST_FACE_FRAMES = 15; // consecutive missed frames before showing the hint
 
 type Point = { x: number; y: number; z: number };
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout")), ms);
+    promise.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      }
+    );
+  });
+}
 
 export function VisualizeMeButton({
   productId,
@@ -56,13 +80,22 @@ export function VisualizeMeButton({
   const missedFramesRef = useRef(0);
   const cancelledRef = useRef(false);
 
+  // Every cleanup step runs independently — one throwing (e.g. a landmarker
+  // already half-closed) must never stop the rest from running, and must
+  // never escape as an unhandled error during unmount.
   function stopEverything() {
     cancelledRef.current = true;
-    if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    try {
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    } catch {}
     rafRef.current = null;
-    streamRef.current?.getTracks().forEach((tr) => tr.stop());
+    try {
+      streamRef.current?.getTracks().forEach((tr) => tr.stop());
+    } catch {}
     streamRef.current = null;
-    landmarkerRef.current?.close();
+    try {
+      landmarkerRef.current?.close();
+    } catch {}
     landmarkerRef.current = null;
     smoothedRef.current = null;
     missedFramesRef.current = 0;
@@ -78,6 +111,23 @@ export function VisualizeMeButton({
 
   useEffect(() => stopEverything, []);
 
+  async function downscaleImage(blob: Blob, maxDimension: number): Promise<Blob> {
+    const bitmap = await createImageBitmap(blob);
+    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+    const width = Math.round(bitmap.width * scale);
+    const height = Math.round(bitmap.height * scale);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return blob;
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close();
+
+    return new Promise((resolve) => canvas.toBlob((b) => resolve(b ?? blob), "image/png"));
+  }
+
   async function ensureCutoutReady(): Promise<string> {
     if (tryonUrlRef.current) return tryonUrlRef.current;
 
@@ -89,43 +139,28 @@ export function VisualizeMeButton({
     const resizedBlob = await downscaleImage(sourceBlob, BG_REMOVAL_MAX_DIMENSION);
 
     const { removeBackground } = await import("@imgly/background-removal");
-    // The default model (~80MB) is what made this step slow — the
-    // quantized model is roughly half the download and noticeably faster
-    // to run, at a small, acceptable quality cost for a live-overlay cutout.
-    const bgConfig = {
-      model: "isnet_quint8" as const,
-      progress: (_key: string, current: number, total: number) => {
-        if (total > 0) setPrepProgress(Math.round((current / total) * 100));
-      },
-    };
-    let cutoutBlob: Blob;
-    try {
-      cutoutBlob = await removeBackground(resizedBlob, { ...bgConfig, device: "gpu" });
-    } catch {
-      // WebGPU isn't available on every browser/device yet — CPU always works.
-      cutoutBlob = await removeBackground(resizedBlob, { ...bgConfig, device: "cpu" });
-    }
+    // CPU + main-thread only: the GPU path and the worker path each add a
+    // failure mode that can hang instead of throwing (a WebGPU context
+    // that never initializes, a worker script that silently fails to load
+    // from the CDN) — CPU on the main thread is slower but predictable,
+    // and it's wrapped in a hard timeout below regardless.
+    const cutoutBlob = await withTimeout(
+      removeBackground(resizedBlob, {
+        model: "isnet_quint8",
+        device: "cpu",
+        proxyToWorker: false,
+        progress: (_key, current, total) => {
+          if (total > 0) setPrepProgress(Math.round((current / total) * 100));
+        },
+      }),
+      CUTOUT_TIMEOUT_MS
+    );
 
     const formData = new FormData();
     formData.append("image", cutoutBlob, "tryon.png");
-    const url = await saveTryOnImage(productId, formData);
+    const url = await withTimeout(saveTryOnImage(productId, formData), 15_000);
     tryonUrlRef.current = url;
     return url;
-  }
-
-  async function downscaleImage(blob: Blob, maxDimension: number): Promise<Blob> {
-    const bitmap = await createImageBitmap(blob);
-    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
-    const width = Math.round(bitmap.width * scale);
-    const height = Math.round(bitmap.height * scale);
-
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    canvas.getContext("2d")!.drawImage(bitmap, 0, 0, width, height);
-    bitmap.close();
-
-    return new Promise((resolve) => canvas.toBlob((b) => resolve(b ?? blob), "image/png"));
   }
 
   function loadImage(src: string): Promise<HTMLImageElement> {
@@ -133,7 +168,7 @@ export function VisualizeMeButton({
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = () => resolve(img);
-      img.onerror = reject;
+      img.onerror = () => reject(new Error("image-load-failed"));
       img.src = src;
     });
   }
@@ -141,9 +176,11 @@ export function VisualizeMeButton({
   async function start() {
     cancelledRef.current = false;
     setOpen(true);
+    setStatus("preparing");
+    setPrepProgress(0);
     setShowNoFaceHint(false);
 
-    if (!navigator.mediaDevices?.getUserMedia) {
+    if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       setStatus("unsupported");
       return;
     }
@@ -155,16 +192,20 @@ export function VisualizeMeButton({
       if (cancelledRef.current) return;
 
       setStatus("loading-camera");
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false,
-      });
+      const stream = await withTimeout(
+        navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        }),
+        CAMERA_TIMEOUT_MS
+      );
       if (cancelledRef.current) {
         stream.getTracks().forEach((tr) => tr.stop());
         return;
       }
       streamRef.current = stream;
-      const video = videoRef.current!;
+      const video = videoRef.current;
+      if (!video) throw new Error("no-video-element");
       video.srcObject = stream;
       await video.play();
       await new Promise<void>((resolve) => {
@@ -173,27 +214,22 @@ export function VisualizeMeButton({
       });
       if (cancelledRef.current) return;
 
-      const canvas = canvasRef.current!;
+      const canvas = canvasRef.current;
+      if (!canvas) throw new Error("no-canvas-element");
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("no-canvas-context");
 
       const { FaceLandmarker, FilesetResolver } = await import("@mediapipe/tasks-vision");
-      const fileset = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm");
-      let landmarker: import("@mediapipe/tasks-vision").FaceLandmarker;
-      try {
-        landmarker = await FaceLandmarker.createFromOptions(fileset, {
-          baseOptions: {
-            modelAssetPath:
-              "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-            delegate: "GPU",
-          },
-          runningMode: "VIDEO",
-          numFaces: 1,
-        });
-      } catch {
-        // Some browsers/devices don't support the GPU delegate — CPU is
-        // slower but works everywhere.
-        landmarker = await FaceLandmarker.createFromOptions(fileset, {
+      const fileset = await withTimeout(
+        FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"),
+        TRACKER_TIMEOUT_MS
+      );
+      // CPU delegate only, same reasoning as background removal above —
+      // predictable over marginally faster.
+      const landmarker = await withTimeout(
+        FaceLandmarker.createFromOptions(fileset, {
           baseOptions: {
             modelAssetPath:
               "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
@@ -201,8 +237,9 @@ export function VisualizeMeButton({
           },
           runningMode: "VIDEO",
           numFaces: 1,
-        });
-      }
+        }),
+        TRACKER_TIMEOUT_MS
+      );
       if (cancelledRef.current) {
         landmarker.close();
         return;
@@ -210,30 +247,45 @@ export function VisualizeMeButton({
       landmarkerRef.current = landmarker;
 
       setStatus("tracking");
-      const ctx = canvas.getContext("2d")!;
       const loop = () => {
-        if (cancelledRef.current || !landmarkerRef.current) return;
-        const result = landmarkerRef.current.detectForVideo(video, performance.now());
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // A runtime error here would otherwise escape into a bare
+        // requestAnimationFrame callback, outside any try/catch — exactly
+        // the kind of uncaught exception that trips Next's global error
+        // boundary and takes the whole page down with it.
+        try {
+          if (cancelledRef.current || !landmarkerRef.current) return;
+          const result = landmarkerRef.current.detectForVideo(video, performance.now());
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        const landmarks = result.faceLandmarks?.[0];
-        if (landmarks && glassesImgRef.current) {
-          missedFramesRef.current = 0;
-          setShowNoFaceHint(false);
-          drawGlasses(ctx, landmarks, glassesImgRef.current, canvas.width, canvas.height, smoothedRef);
-        } else {
-          missedFramesRef.current += 1;
-          if (missedFramesRef.current > LOST_FACE_FRAMES) setShowNoFaceHint(true);
+          const landmarks = result.faceLandmarks?.[0];
+          if (landmarks && glassesImgRef.current) {
+            missedFramesRef.current = 0;
+            setShowNoFaceHint(false);
+            drawGlasses(ctx, landmarks, glassesImgRef.current, canvas.width, canvas.height, smoothedRef);
+          } else {
+            missedFramesRef.current += 1;
+            if (missedFramesRef.current > LOST_FACE_FRAMES) setShowNoFaceHint(true);
+          }
+
+          rafRef.current = requestAnimationFrame(loop);
+        } catch (err) {
+          console.error("Visualize me tracking loop failed:", err);
+          stopEverything();
+          setStatus("error");
         }
-
-        rafRef.current = requestAnimationFrame(loop);
       };
       loop();
     } catch (err) {
       console.error("Visualize me failed:", err);
-      if (!cancelledRef.current) setStatus("camera-error");
+      stopEverything();
+      if (!cancelledRef.current) setStatus("error");
     }
   }
+
+  const errorMessage =
+    status === "unsupported"
+      ? t["product.visualizeUnsupported"]
+      : t["product.visualizeCameraError"];
 
   return (
     <>
@@ -260,28 +312,41 @@ export function VisualizeMeButton({
             ×
           </button>
 
-          <div className="relative aspect-[3/4] w-full max-w-md overflow-hidden rounded-md bg-neutral-900" style={{ transform: "scaleX(-1)" }}>
-            <video ref={videoRef} playsInline muted autoPlay className="h-full w-full object-cover" />
-            <canvas ref={canvasRef} className="absolute inset-0 h-full w-full object-cover" />
-          </div>
+          {(status === "preparing" || status === "loading-camera" || status === "tracking") && (
+            <div
+              className="relative aspect-[3/4] w-full max-w-md overflow-hidden rounded-md bg-neutral-900"
+              style={{ transform: "scaleX(-1)" }}
+            >
+              <video ref={videoRef} playsInline muted autoPlay className="h-full w-full object-cover" />
+              <canvas ref={canvasRef} className="absolute inset-0 h-full w-full object-cover" />
+            </div>
+          )}
 
           <div className="absolute bottom-10 left-0 right-0 px-8 text-center text-sm text-white">
             {status === "preparing" && (
               <div>
-                <p>
-                  {t["product.visualizePreparing"]} {prepProgress}%
-                </p>
-                <div className="mx-auto mt-2 h-1 w-full max-w-xs overflow-hidden rounded-full bg-white/20">
-                  <div
-                    className="h-full bg-white transition-all duration-200"
-                    style={{ width: `${Math.max(4, prepProgress)}%` }}
-                  />
+                <div className="mx-auto flex h-8 w-8 items-center justify-center">
+                  <span className="block h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                 </div>
+                <p className="mt-2">
+                  {t["product.visualizePreparing"]}
+                  {prepProgress > 0 ? ` ${prepProgress}%` : ""}
+                </p>
               </div>
             )}
             {status === "loading-camera" && <p>{t["product.visualizeLoading"]}</p>}
-            {status === "unsupported" && <p className="text-red-400">{t["product.visualizeUnsupported"]}</p>}
-            {status === "camera-error" && <p className="text-red-400">{t["product.visualizeCameraError"]}</p>}
+            {(status === "unsupported" || status === "error") && (
+              <div>
+                <p className="text-red-400">{errorMessage}</p>
+                <button
+                  type="button"
+                  onClick={start}
+                  className="mt-3 border border-white px-4 py-1.5 text-xs uppercase tracking-wide hover:bg-white hover:text-brand-black"
+                >
+                  {t["product.visualizeMe"]}
+                </button>
+              </div>
+            )}
             {status === "tracking" && showNoFaceHint && <p>{t["product.visualizeNoFace"]}</p>}
           </div>
         </div>
