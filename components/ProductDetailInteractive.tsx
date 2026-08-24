@@ -11,6 +11,7 @@ import { WishlistButton } from "./WishlistButton";
 import { ShareButtons } from "./ShareButtons";
 import { Accordion } from "./Accordion";
 import { StockNotifyForm } from "./StockNotifyForm";
+import { VisualizeMeButton } from "./VisualizeMeButton";
 
 type VariantDetail = {
   color_label: string | null;
@@ -94,6 +95,7 @@ export function ProductDetailInteractive({
   waHref,
   callHref,
   instagramHandle,
+  tryonImageUrl,
   t,
 }: {
   productId: string;
@@ -119,6 +121,7 @@ export function ProductDetailInteractive({
   waHref: string;
   callHref: string;
   instagramHandle: string;
+  tryonImageUrl: string | null;
   t: Record<string, string>;
 }) {
   const { addItem } = useCart();
@@ -457,6 +460,8 @@ export function ProductDetailInteractive({
             {t["product.buyNow"]}
           </button>
         )}
+
+        <VisualizeMeButton productId={productId} initialTryonUrl={tryonImageUrl} t={t} />
 
         <div className="mt-3 grid grid-cols-2 gap-2">
           <a

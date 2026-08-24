@@ -83,6 +83,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         waHref={waHref}
         callHref={callHref}
         instagramHandle={settings.instagram_handle}
+        tryonImageUrl={product.tryon_image_url ?? null}
         t={t}
       />
 
