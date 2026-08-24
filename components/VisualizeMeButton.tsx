@@ -11,13 +11,12 @@ const BG_REMOVAL_MAX_DIMENSION = 640;
 
 // Every long-running step below is wrapped in a timeout — a hung worker,
 // a stalled CDN fetch, or a WebGPU context that never initializes must
-// never leave the customer staring at a frozen screen forever. On timeout
-// we fail loudly with a clear "Try again" instead of spinning silently.
-const CUTOUT_TIMEOUT_MS = 30_000;
+// never leave the customer staring at a frozen screen forever.
 const CAMERA_TIMEOUT_MS = 15_000;
 const TRACKER_TIMEOUT_MS = 20_000;
+const CUTOUT_TIMEOUT_MS = 30_000;
 
-type Status = "idle" | "preparing" | "loading-camera" | "tracking" | "unsupported" | "error";
+type Status = "idle" | "loading-camera" | "tracking" | "unsupported" | "error";
 
 // Landmark indices from MediaPipe's 478-point face mesh topology — stable
 // across the whole Face Landmarker family, used the same way in most
@@ -67,7 +66,7 @@ export function VisualizeMeButton({
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [showNoFaceHint, setShowNoFaceHint] = useState(false);
-  const [prepProgress, setPrepProgress] = useState(0);
+  const [glassesReady, setGlassesReady] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -76,6 +75,7 @@ export function VisualizeMeButton({
   const landmarkerRef = useRef<import("@mediapipe/tasks-vision").FaceLandmarker | null>(null);
   const glassesImgRef = useRef<HTMLImageElement | null>(null);
   const tryonUrlRef = useRef<string | null>(initialTryonUrl);
+  const localCutoutUrlRef = useRef<string | null>(null);
   const smoothedRef = useRef<{ a: Point; b: Point; nose: Point } | null>(null);
   const missedFramesRef = useRef(0);
   const cancelledRef = useRef(false);
@@ -97,6 +97,11 @@ export function VisualizeMeButton({
       landmarkerRef.current?.close();
     } catch {}
     landmarkerRef.current = null;
+    try {
+      if (localCutoutUrlRef.current) URL.revokeObjectURL(localCutoutUrlRef.current);
+    } catch {}
+    localCutoutUrlRef.current = null;
+    glassesImgRef.current = null;
     smoothedRef.current = null;
     missedFramesRef.current = 0;
   }
@@ -106,7 +111,7 @@ export function VisualizeMeButton({
     setOpen(false);
     setStatus("idle");
     setShowNoFaceHint(false);
-    setPrepProgress(0);
+    setGlassesReady(false);
   }
 
   useEffect(() => stopEverything, []);
@@ -128,41 +133,6 @@ export function VisualizeMeButton({
     return new Promise((resolve) => canvas.toBlob((b) => resolve(b ?? blob), "image/png"));
   }
 
-  async function ensureCutoutReady(): Promise<string> {
-    if (tryonUrlRef.current) return tryonUrlRef.current;
-
-    setStatus("preparing");
-    setPrepProgress(0);
-    const sourceRes = await fetch(`/api/tryon-source/${productId}`);
-    if (!sourceRes.ok) throw new Error("no-source-photo");
-    const sourceBlob = await sourceRes.blob();
-    const resizedBlob = await downscaleImage(sourceBlob, BG_REMOVAL_MAX_DIMENSION);
-
-    const { removeBackground } = await import("@imgly/background-removal");
-    // CPU + main-thread only: the GPU path and the worker path each add a
-    // failure mode that can hang instead of throwing (a WebGPU context
-    // that never initializes, a worker script that silently fails to load
-    // from the CDN) — CPU on the main thread is slower but predictable,
-    // and it's wrapped in a hard timeout below regardless.
-    const cutoutBlob = await withTimeout(
-      removeBackground(resizedBlob, {
-        model: "isnet_quint8",
-        device: "cpu",
-        proxyToWorker: false,
-        progress: (_key, current, total) => {
-          if (total > 0) setPrepProgress(Math.round((current / total) * 100));
-        },
-      }),
-      CUTOUT_TIMEOUT_MS
-    );
-
-    const formData = new FormData();
-    formData.append("image", cutoutBlob, "tryon.png");
-    const url = await withTimeout(saveTryOnImage(productId, formData), 15_000);
-    tryonUrlRef.current = url;
-    return url;
-  }
-
   function loadImage(src: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -173,12 +143,61 @@ export function VisualizeMeButton({
     });
   }
 
+  // Produces the glasses cutout for the live overlay and shows it as soon
+  // as it's ready, on top of the camera that's already running — never
+  // blocks the camera view, and never throws: a failure here just means
+  // the customer sees themselves live without the glasses drawn on top,
+  // instead of taking down the whole feature. Caching the result to R2
+  // (so the next visitor skips this step) is a separate, best-effort side
+  // task that can fail silently without affecting this session at all.
+  async function prepareGlassesOverlay() {
+    try {
+      let url = tryonUrlRef.current;
+      if (!url) {
+        const sourceRes = await fetch(`/api/tryon-source/${productId}`);
+        if (!sourceRes.ok) return;
+        const sourceBlob = await sourceRes.blob();
+        const resizedBlob = await downscaleImage(sourceBlob, BG_REMOVAL_MAX_DIMENSION);
+
+        const { removeBackground } = await import("@imgly/background-removal");
+        // CPU + main-thread only: the GPU path and the worker path each
+        // add a failure mode that can hang instead of throwing — CPU is
+        // slower but predictable, and still wrapped in a hard timeout.
+        const cutoutBlob = await withTimeout(
+          removeBackground(resizedBlob, { model: "isnet_quint8", device: "cpu", proxyToWorker: false }),
+          CUTOUT_TIMEOUT_MS
+        );
+        if (cancelledRef.current) return;
+
+        url = URL.createObjectURL(cutoutBlob);
+        localCutoutUrlRef.current = url;
+
+        // Best-effort cache upload for future visitors — never awaited by
+        // the caller, never lets a failure here affect this session.
+        const formData = new FormData();
+        formData.append("image", cutoutBlob, "tryon.png");
+        saveTryOnImage(productId, formData)
+          .then((cachedUrl) => {
+            tryonUrlRef.current = cachedUrl;
+          })
+          .catch((err) => console.error("Try-on cutout cache upload failed (non-blocking):", err));
+      }
+
+      const img = await loadImage(url);
+      if (cancelledRef.current) return;
+      glassesImgRef.current = img;
+      setGlassesReady(true);
+    } catch (err) {
+      console.error("Preparing the glasses overlay failed (showing camera only):", err);
+    }
+  }
+
   async function start() {
     cancelledRef.current = false;
     setOpen(true);
-    setStatus("preparing");
-    setPrepProgress(0);
+    setStatus("loading-camera");
     setShowNoFaceHint(false);
+    setGlassesReady(false);
 
     if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       setStatus("unsupported");
@@ -186,12 +205,9 @@ export function VisualizeMeButton({
     }
 
     try {
-      const cutoutUrl = await ensureCutoutReady();
-      if (cancelledRef.current) return;
-      glassesImgRef.current = await loadImage(cutoutUrl);
-      if (cancelledRef.current) return;
-
-      setStatus("loading-camera");
+      // The camera is the part most likely to just work everywhere — shown
+      // first, on its own, so the customer sees themselves immediately
+      // instead of staring at a blank "preparing" screen.
       const stream = await withTimeout(
         navigator.mediaDevices.getUserMedia({
           video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -226,8 +242,6 @@ export function VisualizeMeButton({
         FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"),
         TRACKER_TIMEOUT_MS
       );
-      // CPU delegate only, same reasoning as background removal above —
-      // predictable over marginally faster.
       const landmarker = await withTimeout(
         FaceLandmarker.createFromOptions(fileset, {
           baseOptions: {
@@ -247,21 +261,27 @@ export function VisualizeMeButton({
       landmarkerRef.current = landmarker;
 
       setStatus("tracking");
+      // Runs alongside tracking instead of before it — glasses fade in
+      // once ready rather than gating the whole live view on them.
+      prepareGlassesOverlay();
+
       const loop = () => {
         // A runtime error here would otherwise escape into a bare
         // requestAnimationFrame callback, outside any try/catch — exactly
-        // the kind of uncaught exception that trips Next's global error
-        // boundary and takes the whole page down with it.
+        // the kind of uncaught exception that can take the whole page
+        // down instead of just this feature.
         try {
           if (cancelledRef.current || !landmarkerRef.current) return;
           const result = landmarkerRef.current.detectForVideo(video, performance.now());
           ctx.clearRect(0, 0, canvas.width, canvas.height);
 
           const landmarks = result.faceLandmarks?.[0];
-          if (landmarks && glassesImgRef.current) {
+          if (landmarks) {
             missedFramesRef.current = 0;
             setShowNoFaceHint(false);
-            drawGlasses(ctx, landmarks, glassesImgRef.current, canvas.width, canvas.height, smoothedRef);
+            if (glassesImgRef.current) {
+              drawGlasses(ctx, landmarks, glassesImgRef.current, canvas.width, canvas.height, smoothedRef);
+            }
           } else {
             missedFramesRef.current += 1;
             if (missedFramesRef.current > LOST_FACE_FRAMES) setShowNoFaceHint(true);
@@ -282,10 +302,7 @@ export function VisualizeMeButton({
     }
   }
 
-  const errorMessage =
-    status === "unsupported"
-      ? t["product.visualizeUnsupported"]
-      : t["product.visualizeCameraError"];
+  const errorMessage = status === "unsupported" ? t["product.visualizeUnsupported"] : t["product.visualizeCameraError"];
 
   return (
     <>
@@ -312,7 +329,7 @@ export function VisualizeMeButton({
             ×
           </button>
 
-          {(status === "preparing" || status === "loading-camera" || status === "tracking") && (
+          {(status === "loading-camera" || status === "tracking") && (
             <div
               className="relative aspect-[3/4] w-full max-w-md overflow-hidden rounded-md bg-neutral-900"
               style={{ transform: "scaleX(-1)" }}
@@ -323,17 +340,6 @@ export function VisualizeMeButton({
           )}
 
           <div className="absolute bottom-10 left-0 right-0 px-8 text-center text-sm text-white">
-            {status === "preparing" && (
-              <div>
-                <div className="mx-auto flex h-8 w-8 items-center justify-center">
-                  <span className="block h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                </div>
-                <p className="mt-2">
-                  {t["product.visualizePreparing"]}
-                  {prepProgress > 0 ? ` ${prepProgress}%` : ""}
-                </p>
-              </div>
-            )}
             {status === "loading-camera" && <p>{t["product.visualizeLoading"]}</p>}
             {(status === "unsupported" || status === "error") && (
               <div>
@@ -347,7 +353,8 @@ export function VisualizeMeButton({
                 </button>
               </div>
             )}
-            {status === "tracking" && showNoFaceHint && <p>{t["product.visualizeNoFace"]}</p>}
+            {status === "tracking" && !glassesReady && <p>{t["product.visualizePreparing"]}</p>}
+            {status === "tracking" && glassesReady && showNoFaceHint && <p>{t["product.visualizeNoFace"]}</p>}
           </div>
         </div>
       )}
