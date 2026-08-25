@@ -7,12 +7,27 @@ import { AddToCartButton } from "./AddToCartButton";
 // The single product card used everywhere a product is shown as a tile —
 // grids (ProductGrid) and horizontal auto-scrolling rows (ProductCarousel)
 // alike — so every listing on the site looks and behaves the same way.
-export function ProductCardTile({ product: p, t, style }: { product: ProductCard; t: Record<string, string>; style?: React.CSSProperties }) {
+export function ProductCardTile({
+  product: p,
+  t,
+  style,
+  reveal = false,
+}: {
+  product: ProductCard;
+  t: Record<string, string>;
+  style?: React.CSSProperties;
+  // Opt-in: only set this when the card is rendered inside a <ScrollReveal>
+  // wrapper (see ProductGrid) — that's what actually flips data-reveal
+  // elements visible on scroll. Without a ScrollReveal ancestor watching for
+  // it, a data-reveal element just stays invisible forever (see
+  // ProductCarousel, which doesn't use ScrollReveal and must leave this off).
+  reveal?: boolean;
+}) {
   const hasDiscount = !!p.discount_percent && p.discount_percent > 0 && p.price != null;
   const discountedPrice = hasDiscount ? Number(p.price) * (1 - p.discount_percent! / 100) : null;
 
   return (
-    <Link href={`/produit/${p.slug}`} className="group" data-reveal style={style}>
+    <Link href={`/produit/${p.slug}`} className="group" data-reveal={reveal ? true : undefined} style={style}>
       <div className="relative aspect-square overflow-hidden bg-neutral-100">
         {p.images[0] && (
           <Image

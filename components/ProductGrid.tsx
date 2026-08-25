@@ -10,7 +10,7 @@ export function ProductGrid({ products, t }: { products: ProductCard[]; t: Recor
   return (
     <ScrollReveal className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 lg:grid-cols-4">
       {products.map((p, i) => (
-        <ProductCardTile key={p.id} product={p} t={t} style={{ transitionDelay: `${(i % 8) * 60}ms` }} />
+        <ProductCardTile key={p.id} product={p} t={t} reveal style={{ transitionDelay: `${(i % 8) * 60}ms` }} />
       ))}
     </ScrollReveal>
   );
