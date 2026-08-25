@@ -9,10 +9,13 @@ export type FooterSection = {
 
 async function fetchFooterSections(): Promise<FooterSection[]> {
   const supabase = createPublicClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("footer_sections")
     .select("id, title, links:footer_links(id, label, url, sort_order)")
     .order("sort_order", { ascending: true });
+  // Read on every page — a failure here silently empties the footer
+  // site-wide, worth always logging.
+  if (error) console.error("Failed to load footer sections:", error);
 
   return ((data as any[]) ?? []).map((s) => ({
     id: s.id,

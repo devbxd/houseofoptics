@@ -90,7 +90,11 @@ const DEFAULT_SETTINGS: SiteSettings = {
 
 async function fetchSiteSettings(): Promise<SiteSettings> {
   const supabase = createPublicClient();
-  const { data } = await supabase.from("site_settings").select("*").single();
+  const { data, error } = await supabase.from("site_settings").select("*").single();
+  // Read on every page — a failure here silently reverting the whole site
+  // to hardcoded defaults (brand name, colors, hero copy) is the single
+  // highest-blast-radius query in the app, so it's always worth logging.
+  if (error) console.error("Failed to load site settings:", error);
   // Merge over the defaults rather than replace — a column added by a
   // migration the client hasn't run yet is simply absent from `data`,
   // not `undefined`-valued, so this keeps the site correct either way.
@@ -107,10 +111,11 @@ export const getSiteSettings = unstable_cache(fetchSiteSettings, ["site-settings
 
 async function fetchCategories() {
   const supabase = createPublicClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("categories")
     .select("id, name, slug, parent_id, image_url")
     .order("sort_order", { ascending: true });
+  if (error) console.error("Failed to load categories:", error);
   return data ?? [];
 }
 

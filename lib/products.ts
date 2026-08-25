@@ -1,6 +1,14 @@
 import { unstable_cache } from "next/cache";
 import { createPublicClient } from "@/lib/supabase/public";
 
+// A query that returns nothing looks identical whether that's the real
+// answer or the query silently failed (e.g. a missing RLS policy) — this
+// makes sure the latter shows up in server logs instead of just "this
+// section looks empty" with no trace of why.
+function logIfError(label: string, error: unknown) {
+  if (error) console.error(label, error);
+}
+
 export type ProductCard = {
   id: string;
   name: string;
@@ -49,7 +57,8 @@ async function resolveExtraProductIds(
     const cutoff = new Date(Date.now() - NEW_PRODUCT_DAYS * 24 * 60 * 60 * 1000).toISOString();
     query = query.gte("added_at", cutoff);
   }
-  const { data } = await query;
+  const { data, error } = await query;
+  logIfError(`Failed to resolve quick-added products from ${table}:`, error);
   return (data ?? []).map((r: any) => r.product_id as string);
 }
 
@@ -69,23 +78,27 @@ async function fetchProducts(
   let idFilter: string[] | null = null;
 
   if (categorySlug) {
-    const { data: cat } = await supabase.from("categories").select("id").eq("slug", categorySlug).maybeSingle();
+    const { data: cat, error: catError } = await supabase.from("categories").select("id").eq("slug", categorySlug).maybeSingle();
+    logIfError(`Failed to resolve category "${categorySlug}":`, catError);
     if (!cat) return { products: [], total: 0, pageSize };
-    const [{ data: mainRows }, extraIds] = await Promise.all([
+    const [{ data: mainRows, error: mainError }, extraIds] = await Promise.all([
       supabase.from("products").select("id").eq("category_id", cat.id).eq("is_active", true),
       resolveExtraProductIds(supabase, "product_category_links", "category_id", cat.id, categorySlug === NEW_DROP_CATEGORY_SLUG),
     ]);
+    logIfError(`Failed to load products for category "${categorySlug}":`, mainError);
     const ids = new Set([...(mainRows ?? []).map((r: any) => r.id), ...extraIds]);
     idFilter = Array.from(ids);
   }
 
   if (brandSlug) {
-    const { data: brand } = await supabase.from("brands").select("id").eq("slug", brandSlug).maybeSingle();
+    const { data: brand, error: brandLookupError } = await supabase.from("brands").select("id").eq("slug", brandSlug).maybeSingle();
+    logIfError(`Failed to resolve brand "${brandSlug}":`, brandLookupError);
     if (!brand) return { products: [], total: 0, pageSize };
-    const [{ data: mainRows }, extraIds] = await Promise.all([
+    const [{ data: mainRows, error: mainError }, extraIds] = await Promise.all([
       supabase.from("products").select("id").eq("brand_id", brand.id).eq("is_active", true),
       resolveExtraProductIds(supabase, "product_brand_links", "brand_id", brand.id, false),
     ]);
+    logIfError(`Failed to load products for brand "${brandSlug}":`, mainError);
     const ids = new Set([...(mainRows ?? []).map((r: any) => r.id), ...extraIds]);
     idFilter = idFilter ? idFilter.filter((id) => ids.has(id)) : Array.from(ids);
   }
@@ -106,7 +119,8 @@ async function fetchProducts(
   if (idFilter) query = query.in("id", idFilter);
   if (search) query = query.ilike("name", `%${search}%`);
 
-  const { data, count } = await query;
+  const { data, count, error } = await query;
+  logIfError("Failed to load products:", error);
   const products = (data as any[])?.map((p) => ({
     ...p,
     category: Array.isArray(p.category) ? p.category[0] ?? null : p.category,
@@ -184,12 +198,13 @@ export type ColorSibling = { id: string; name: string; slug: string; image: stri
 async function fetchColorSiblings(product: { id: string; color_group_id?: string | null }): Promise<ColorSibling[]> {
   if (!product.color_group_id) return [];
   const supabase = createPublicClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("products")
     .select("id, name, slug, base_color, images:product_images(url, sort_order)")
     .eq("color_group_id", product.color_group_id)
     .eq("is_active", true)
     .neq("id", product.id);
+  logIfError("Failed to load color siblings:", error);
 
   return ((data as any[]) ?? []).map((p) => ({
     id: p.id,
@@ -207,7 +222,7 @@ export const getColorSiblings = unstable_cache(fetchColorSiblings, ["color-sibli
 
 async function fetchProductBySlug(slug: string) {
   const supabase = createPublicClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("products")
     .select(
       "*, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order), variants:product_variants(*)"
@@ -215,6 +230,10 @@ async function fetchProductBySlug(slug: string) {
     .eq("slug", slug)
     .eq("is_active", true)
     .single();
+  // PGRST116 is Postgrest's "no row found" for .single() — expected for a
+  // real 404, not worth logging. Anything else is a real query failure
+  // that would otherwise 404 a perfectly real product with no trace why.
+  if (error && error.code !== "PGRST116") console.error(`Failed to load product "${slug}":`, error);
 
   if (!data) return null;
   const p = data as any;
@@ -244,12 +263,13 @@ export const getProductBySlug = unstable_cache(fetchProductBySlug, ["product-by-
 
 async function fetchProductReviews(productId: string) {
   const supabase = createPublicClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("testimonials")
     .select("id, author_name, quote, rating, photo_url")
     .eq("product_id", productId)
     .eq("is_active", true)
     .order("sort_order", { ascending: true });
+  logIfError("Failed to load product reviews:", error);
   return (data ?? []) as any[];
 }
 
@@ -261,7 +281,8 @@ export const getProductReviews = unstable_cache(fetchProductReviews, ["product-r
 // For the sitemap only — every active product's slug, unpaginated.
 async function fetchAllProductSlugs() {
   const supabase = createPublicClient();
-  const { data } = await supabase.from("products").select("slug, created_at").eq("is_active", true);
+  const { data, error } = await supabase.from("products").select("slug, created_at").eq("is_active", true);
+  logIfError("Failed to load product slugs for the sitemap:", error);
   return (data ?? []) as { slug: string; created_at: string | null }[];
 }
 

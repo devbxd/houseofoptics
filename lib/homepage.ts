@@ -3,11 +3,20 @@ import { createPublicClient } from "@/lib/supabase/public";
 
 const REVALIDATE_SECONDS = 60;
 
+// A query that returns nothing looks identical whether that's the real
+// answer or the query silently failed (e.g. a missing RLS policy) — this
+// makes sure the latter shows up in server logs instead of just "this
+// section looks empty" with no trace of why.
+function logIfError(label: string, error: unknown) {
+  if (error) console.error(label, error);
+}
+
 async function fetchBrands() {
   const supabase = createPublicClient();
   // select("*") rather than naming featured_on_homepage/homepage_banner_url
   // — they come from a migration that may not have run yet.
-  const { data } = await supabase.from("brands").select("*").order("sort_order", { ascending: true });
+  const { data, error } = await supabase.from("brands").select("*").order("sort_order", { ascending: true });
+  logIfError("Failed to load brands:", error);
   return (data ?? []) as any[];
 }
 
@@ -24,13 +33,14 @@ export type BrandCard = { id: string; name: string; slug: string; image: string 
 // product_brand_links, deduped, per brand and across all brands combined.
 async function fetchBrandsWithCounts(): Promise<{ brands: BrandCard[]; totalProducts: number }> {
   const supabase = createPublicClient();
-  const { data: brandRows } = await supabase.from("brands").select("*").order("sort_order", { ascending: true });
+  const { data: brandRows, error: brandsError } = await supabase.from("brands").select("*").order("sort_order", { ascending: true });
+  logIfError("Failed to load brands with counts:", brandsError);
   const list = (brandRows ?? []) as any[];
 
   const globalIds = new Set<string>();
   const brands = await Promise.all(
     list.map(async (b) => {
-      const [{ data: mainRows }, { data: linkRows }] = await Promise.all([
+      const [{ data: mainRows, error: mainError }, { data: linkRows, error: linkError }] = await Promise.all([
         supabase
           .from("products")
           .select("id, images:product_images(url, sort_order)")
@@ -43,6 +53,8 @@ async function fetchBrandsWithCounts(): Promise<{ brands: BrandCard[]; totalProd
           .eq("brand_id", b.id)
           .eq("products.is_active", true),
       ]);
+      logIfError(`Failed to load products for brand "${b.slug}":`, mainError);
+      logIfError(`Failed to load quick-added products for brand "${b.slug}":`, linkError);
 
       const linkedProducts = (linkRows ?? [])
         .map((r: any) => (Array.isArray(r.product) ? r.product[0] : r.product))
@@ -74,11 +86,12 @@ export const getBrandsWithCounts = unstable_cache(fetchBrandsWithCounts, ["brand
 
 async function fetchActiveTestimonials() {
   const supabase = createPublicClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("testimonials")
     .select("id, author_name, quote, rating, photo_url")
     .eq("is_active", true)
     .order("sort_order", { ascending: true });
+  logIfError("Failed to load testimonials:", error);
   return (data ?? []) as any[];
 }
 
@@ -89,7 +102,8 @@ export const getActiveTestimonials = unstable_cache(fetchActiveTestimonials, ["a
 
 async function fetchFeedbackProducts() {
   const supabase = createPublicClient();
-  const { data } = await supabase.from("products").select("id, name").eq("is_active", true).order("name", { ascending: true });
+  const { data, error } = await supabase.from("products").select("id, name").eq("is_active", true).order("name", { ascending: true });
+  logIfError("Failed to load products for the feedback form:", error);
   return (data ?? []) as any[];
 }
 
@@ -100,10 +114,11 @@ export const getFeedbackProducts = unstable_cache(fetchFeedbackProducts, ["feedb
 
 async function fetchModelPhotos() {
   const supabase = createPublicClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("model_photos")
     .select("id, image_url, product:products(name, slug)")
     .order("sort_order", { ascending: true });
+  logIfError("Failed to load model photos:", error);
   return ((data as any[]) ?? []).map((p) => ({
     id: p.id,
     image_url: p.image_url,
@@ -121,7 +136,10 @@ export const getModelPhotos = unstable_cache(fetchModelPhotos, ["model-photos"],
 // cached read since the homepage always needs both together.
 async function fetchHeroData() {
   const supabase = createPublicClient();
-  const [{ data: customSlides }, { data: manualHero }] = await Promise.all([
+  const [
+    { data: customSlides, error: customSlidesError },
+    { data: manualHero, error: manualHeroError },
+  ] = await Promise.all([
     supabase.from("hero_slides").select("id, image_url, sort_order").order("sort_order", { ascending: true }),
     supabase
       .from("product_images")
@@ -129,6 +147,8 @@ async function fetchHeroData() {
       .eq("is_hero", true)
       .order("hero_order", { ascending: true }),
   ]);
+  logIfError("Failed to load custom hero slides:", customSlidesError);
+  logIfError("Failed to load manually-picked hero photos:", manualHeroError);
 
   const customHeroImages = (customSlides ?? []).map((s) => ({ id: s.id, name: "", url: s.image_url }));
   const manualHeroImages =
@@ -152,12 +172,13 @@ async function fetchCategoryPhotoMap(categoryIds: string[]) {
   if (categoryIds.length === 0) return { imageById: {} as Record<string, string>, countById: {} as Record<string, number> };
 
   const supabase = createPublicClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("products")
     .select("category_id, images:product_images(url, sort_order)")
     .eq("is_active", true)
     .in("category_id", categoryIds)
     .order("image_bytes", { ascending: false, nullsFirst: false });
+  logIfError("Failed to load category photo map:", error);
 
   const imageById: Record<string, string> = {};
   const countById: Record<string, number> = {};

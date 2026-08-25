@@ -21,11 +21,12 @@ async function fetchActivePopup(): Promise<ActivePopup | null> {
   // select("*") rather than naming columns explicitly — image_url comes from
   // a migration that may not have run yet, and "*" degrades gracefully
   // (just absent) instead of erroring like naming it would.
-  const { data: popups } = await supabase
+  const { data: popups, error } = await supabase
     .from("popups")
     .select("*")
     .eq("is_active", true)
     .order("created_at", { ascending: false });
+  if (error) console.error("Failed to load popups:", error);
 
   if (!popups || popups.length === 0) return null;
 
@@ -35,10 +36,11 @@ async function fetchActivePopup(): Promise<ActivePopup | null> {
       if (Date.now() > expiresAt) continue;
     }
     if (p.max_uses != null) {
-      const { count } = await supabase
+      const { count, error: countError } = await supabase
         .from("orders")
         .select("*", { count: "exact", head: true })
         .gte("created_at", p.created_at);
+      if (countError) console.error(`Failed to count orders for popup "${p.id}" max_uses check:`, countError);
       if ((count ?? 0) >= p.max_uses) continue;
     }
     return {

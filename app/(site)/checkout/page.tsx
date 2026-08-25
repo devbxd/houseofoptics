@@ -113,7 +113,10 @@ export default function CheckoutPage() {
       .from("site_settings")
       .select("whatsapp_number")
       .single()
-      .then(({ data }) => setOwnerWhatsapp(data?.whatsapp_number || null));
+      .then(({ data, error }) => {
+        if (error) console.error("Failed to load WhatsApp number for checkout:", error);
+        setOwnerWhatsapp(data?.whatsapp_number || null);
+      });
   }, []);
 
   // Ordering more than one item at once requires an account — waits for
