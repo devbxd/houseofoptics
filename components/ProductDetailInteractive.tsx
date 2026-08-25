@@ -129,16 +129,18 @@ export function ProductDetailInteractive({
   const addToCartRowRef = useRef<HTMLDivElement>(null);
   const [showStickyBar, setShowStickyBar] = useState(false);
 
-  // Every version of this product — the base photo/color itself plus each
-  // row in `variants` — represented as one flat list of (color, size)
-  // combos. `variant: null` means "the base product", exactly like before;
-  // the difference from the old single combined dropdown is that color and
-  // size are now picked independently (two selects, like the reference
-  // design), so a combo is whichever (color, size) pair is currently
-  // selected together, not a single label a user toggles on/off.
+  // Every version of this product — each row in `variants` plus the base
+  // photo/color itself — represented as one flat list of (color, size)
+  // combos. `variant: null` means "the base product". Real variant rows are
+  // listed BEFORE the base combo on purpose: a shop owner will often add a
+  // variant row for the same color as the base (e.g. to give "Black" its
+  // own price/description/photo alongside the main photo) — when that
+  // happens the two combos share the same (color, size) key, and putting
+  // variants first means that real row wins the match below instead of
+  // the description-less base combo silently shadowing it.
   const combos = [
-    { color: baseColor, size: baseSize, variant: null as VariantDetail | null },
     ...variants.map((v) => ({ color: v.color_label, size: v.size_label, variant: v })),
+    { color: baseColor, size: baseSize, variant: null as VariantDetail | null },
   ];
   const uniqueColors = Array.from(new Set(combos.map((c) => c.color).filter((c): c is string => !!c)));
   const uniqueSizes = Array.from(new Set(combos.map((c) => c.size).filter((s): s is string => !!s)));
@@ -148,24 +150,32 @@ export function ProductDetailInteractive({
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
 
+  // Picking a color never touches the size the shopper already chose, and
+  // vice versa — each selector is independent. Some products only ever
+  // fill in one axis per row (color-only rows, or size-only rows), so a
+  // combo matching BOTH the color and size picked won't always exist; see
+  // activeCombo below for how that's resolved without silently discarding
+  // either choice.
   function selectColor(color: string) {
     setSelectedColor(color);
-    // Not every color necessarily comes in the size that was showing
-    // (product_variants can be a sparse matrix, not every combo entered) —
-    // jump to a size that actually exists for this color rather than
-    // landing on a made-up combo with no matching row, which used to be
-    // exactly the "pick black, can't get back to yellow" bug.
-    const sizesForColor = combos.filter((c) => c.color === color).map((c) => c.size);
-    if (!sizesForColor.includes(selectedSize)) setSelectedSize(sizesForColor[0] ?? null);
   }
   function selectSize(size: string) {
     setSelectedSize(size);
-    const colorsForSize = combos.filter((c) => c.size === size).map((c) => c.color);
-    if (!colorsForSize.includes(selectedColor)) setSelectedColor(colorsForSize[0] ?? null);
   }
 
+  // Resolves the shopper's current (color, size) picks to the best
+  // available combo, in order of preference:
+  // 1. A combo matching both picks exactly.
+  // 2. A combo matching the color (most eyewear variation is by color —
+  //    a different photo, sometimes a different price — so this is the
+  //    more meaningful axis when both can't be satisfied at once).
+  // 3. A combo matching the size.
+  // 4. Any real variant, so the page always shows *something* concrete
+  //    rather than silently falling back to the bare base product.
   const activeCombo =
     combos.find((c) => (c.color ?? null) === (selectedColor ?? null) && (c.size ?? null) === (selectedSize ?? null)) ??
+    combos.find((c) => (c.color ?? null) === (selectedColor ?? null)) ??
+    combos.find((c) => (c.size ?? null) === (selectedSize ?? null)) ??
     (variants.length > 0 ? combos[0] : null);
   const active = activeCombo?.variant ?? null;
 
@@ -268,6 +278,31 @@ export function ProductDetailInteractive({
           zoomLabel={t["product.zoom"]}
         />
 
+        {colorSiblings.length > 0 && (
+          <div className="mt-3">
+            <p className="mb-1.5 text-xs uppercase tracking-wide text-neutral-500">{t["product.otherColors"]}</p>
+            <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
+              <Link
+                href={`/produit/${slug}`}
+                aria-current="true"
+                className="relative h-11 w-11 shrink-0 overflow-hidden rounded border-2 border-brand-black"
+              >
+                {images[0] && <Image src={images[0].url} alt={name} fill unoptimized sizes="44px" className="object-cover" />}
+              </Link>
+              {colorSiblings.map((c) => (
+                <Link
+                  key={c.id}
+                  href={`/produit/${c.slug}`}
+                  title={c.base_color ?? c.name}
+                  className="relative h-11 w-11 shrink-0 overflow-hidden rounded border border-neutral-300 hover:border-brand-black"
+                >
+                  {c.image && <Image src={c.image} alt={c.base_color ?? c.name} fill unoptimized sizes="44px" className="object-cover" />}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         <nav className="mt-4 text-xs text-neutral-500">
           <Link href="/" className="hover:text-brand-black">
             {t["nav.home"]}
@@ -357,31 +392,6 @@ export function ProductDetailInteractive({
               </span>
             )}
           </p>
-        )}
-
-        {colorSiblings.length > 0 && (
-          <div className="mt-4">
-            <p className="mb-2 text-sm text-neutral-600">{t["product.otherColors"]}</p>
-            <div className="flex flex-wrap gap-2">
-              <Link
-                href={`/produit/${slug}`}
-                aria-current="true"
-                className="relative h-14 w-14 shrink-0 overflow-hidden rounded border-2 border-brand-black"
-              >
-                {images[0] && <Image src={images[0].url} alt={name} fill unoptimized sizes="56px" className="object-cover" />}
-              </Link>
-              {colorSiblings.map((c) => (
-                <Link
-                  key={c.id}
-                  href={`/produit/${c.slug}`}
-                  title={c.base_color ?? c.name}
-                  className="relative h-14 w-14 shrink-0 overflow-hidden rounded border border-neutral-300 hover:border-brand-black"
-                >
-                  {c.image && <Image src={c.image} alt={c.base_color ?? c.name} fill unoptimized sizes="56px" className="object-cover" />}
-                </Link>
-              ))}
-            </div>
-          </div>
         )}
 
         {variants.length > 0 && uniqueSizes.length > 0 && (

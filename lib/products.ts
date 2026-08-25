@@ -132,13 +132,19 @@ async function fetchRelatedProducts(
   // A manual pick (Admin > Products > edit product > Related sunglasses)
   // always wins over the automatic category/brand matching below.
   const supabase = createPublicClient();
-  const { data: manual } = await supabase
+  const { data: manual, error: manualError } = await supabase
     .from("product_related_products")
     .select(
       "sort_order, related:products!product_related_products_related_product_id_fkey(id, name, slug, price, discount_percent, stock, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order))"
     )
     .eq("product_id", product.id)
     .order("sort_order", { ascending: true });
+
+  // A manual pick failing to load (e.g. a missing RLS policy on this
+  // table) used to silently fall through to the automatic matching below
+  // with no trace of why — log it so a future regression here is visible
+  // in the server logs instead of just "related products look wrong".
+  if (manualError) console.error("Failed to load manual related products:", manualError);
 
   if (manual && manual.length > 0) {
     return manual.map((row: any) => ({

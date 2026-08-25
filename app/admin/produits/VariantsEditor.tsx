@@ -121,9 +121,14 @@ export function VariantsEditor({
         </button>
       </div>
       <p className="mb-2 text-xs text-neutral-500">
-        Each entry below is a distinct version of this exact product — say a different color, a different size,
-        or both — with its own optional photo, price and description. Fill in whichever of Color / Size apply;
-        leave the other blank.
+        Each entry below is a distinct, purchasable version of this product — its own price, stock, photo and
+        description. If this product only comes in different colors (no sizes), just fill in Color on each row
+        and leave Size blank. If it only comes in different sizes, do the reverse. <strong>If it has both</strong>{" "}
+        (e.g. Black in 52mm and 56mm, Red in 52mm and 56mm), fill in <strong>both</strong> Color and Size on every
+        row — otherwise that row's own price/description won't be tied to a specific size. Also: don&apos;t
+        re-enter the color already set above as &quot;Base color&quot; — that one is the main photo already, it
+        doesn&apos;t need its own row here unless you want to give it a different price or description from the
+        others.
       </p>
 
       <div className="space-y-3">
