@@ -30,11 +30,27 @@ const NOSE_BRIDGE = 6; // top of the nose, between the eyes
 // noticeably wider than the bare outer-eye-corner distance to reach the
 // temples, but the exact ratio depends on how tightly each product photo
 // was cropped. Adjust here after trying it live with a real camera.
-const GLASSES_WIDTH_RATIO = 2.25;
+const GLASSES_WIDTH_RATIO = 1.9;
 const VERTICAL_BLEND = 0.55; // 0 = eye-corner height, 1 = nose-bridge height
 const YAW_SKEW_FACTOR = 1.4; // how much the overlay shears when the head turns
 const LANDMARK_SMOOTHING = 0.35; // lower = smoother but laggier
 const LOST_FACE_FRAMES = 15; // consecutive missed frames before showing the hint
+
+// Product photos aren't all framed/zoomed the same way — some have a lot of
+// empty margin around the glasses, some almost none — so scaling the raw
+// cutout by a fixed ratio made the overlay a different apparent size from
+// one product to the next. Cropping to the actual glasses' own bounding box
+// first makes every product start from the same "edge-to-edge" baseline
+// before GLASSES_WIDTH_RATIO is applied.
+const BOUNDING_BOX_ALPHA_THRESHOLD = 12; // 0-255; ignores near-transparent fringe pixels
+const BOUNDING_BOX_PADDING_RATIO = 0.03;
+// Product photos are shot with the temples (arms) spread flat and open,
+// which reach much further apart than they ever would resting on a real
+// head face-on — left uncropped, the tips render as stray "hooks" floating
+// past the face. Trimming a fixed slice off each side after the bounding
+// box crop keeps the lens/bridge/hinge area (what actually needs to show)
+// and drops the flared tips, consistently across every product photo.
+const TEMPLE_TRIM_RATIO = 0.13;
 
 type Point = { x: number; y: number; z: number };
 
@@ -133,6 +149,61 @@ export function VisualizeMeButton({
     return new Promise((resolve) => canvas.toBlob((b) => resolve(b ?? blob), "image/png"));
   }
 
+  // Trims a transparent-background cutout down to just the glasses: first
+  // to their tight bounding box (removing whatever empty margin that
+  // product's photo happened to be shot with), then a further fixed slice
+  // off each side to drop the flared-open temple tips. Every product ends
+  // up framed the same consistent way, so GLASSES_WIDTH_RATIO scales them
+  // all to a comparable size on a face instead of varying photo to photo.
+  async function cropToGlasses(blob: Blob): Promise<Blob> {
+    const bitmap = await createImageBitmap(blob);
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return blob;
+    ctx.drawImage(bitmap, 0, 0);
+    bitmap.close();
+
+    const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let minX = canvas.width;
+    let minY = canvas.height;
+    let maxX = 0;
+    let maxY = 0;
+    for (let y = 0; y < canvas.height; y++) {
+      for (let x = 0; x < canvas.width; x++) {
+        if (data[(y * canvas.width + x) * 4 + 3] > BOUNDING_BOX_ALPHA_THRESHOLD) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (maxX <= minX || maxY <= minY) return blob; // fully transparent — nothing to crop
+
+    const boxW = maxX - minX + 1;
+    const boxH = maxY - minY + 1;
+    const padX = Math.round(boxW * BOUNDING_BOX_PADDING_RATIO);
+    const padY = Math.round(boxH * BOUNDING_BOX_PADDING_RATIO);
+    const templeTrim = Math.round(boxW * TEMPLE_TRIM_RATIO);
+
+    const cropX = Math.max(0, minX - padX + templeTrim);
+    const cropY = Math.max(0, minY - padY);
+    const cropW = Math.min(canvas.width - cropX, boxW + padX * 2 - templeTrim * 2);
+    const cropH = Math.min(canvas.height - cropY, boxH + padY * 2);
+    if (cropW <= 0 || cropH <= 0) return blob;
+
+    const out = document.createElement("canvas");
+    out.width = cropW;
+    out.height = cropH;
+    const outCtx = out.getContext("2d");
+    if (!outCtx) return blob;
+    outCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+    return new Promise((resolve) => out.toBlob((b) => resolve(b ?? blob), "image/png"));
+  }
+
   function loadImage(src: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -169,13 +240,17 @@ export function VisualizeMeButton({
         );
         if (cancelledRef.current) return;
 
-        url = URL.createObjectURL(cutoutBlob);
+        // Consistent framing across every product — see cropToGlasses.
+        const croppedBlob = await cropToGlasses(cutoutBlob);
+        if (cancelledRef.current) return;
+
+        url = URL.createObjectURL(croppedBlob);
         localCutoutUrlRef.current = url;
 
         // Best-effort cache upload for future visitors — never awaited by
         // the caller, never lets a failure here affect this session.
         const formData = new FormData();
-        formData.append("image", cutoutBlob, "tryon.png");
+        formData.append("image", croppedBlob, "tryon.png");
         saveTryOnImage(productId, formData)
           .then((cachedUrl) => {
             tryonUrlRef.current = cachedUrl;
