@@ -129,33 +129,24 @@ export function ProductDetailInteractive({
   const addToCartRowRef = useRef<HTMLDivElement>(null);
   const [showStickyBar, setShowStickyBar] = useState(false);
 
-  // Every version of this product — each row in `variants` plus the base
-  // photo/color itself — represented as one flat list of (color, size)
-  // combos. `variant: null` means "the base product". Real variant rows are
-  // listed BEFORE the base combo on purpose: a shop owner will often add a
-  // variant row for the same color as the base (e.g. to give "Black" its
-  // own price/description/photo alongside the main photo) — when that
-  // happens the two combos share the same (color, size) key, and putting
-  // variants first means that real row wins the match below instead of
-  // the description-less base combo silently shadowing it.
-  const combos = [
-    ...variants.map((v) => ({ color: v.color_label, size: v.size_label, variant: v })),
-    { color: baseColor, size: baseSize, variant: null as VariantDetail | null },
-  ];
-  const uniqueColors = Array.from(new Set(combos.map((c) => c.color).filter((c): c is string => !!c)));
-  const uniqueSizes = Array.from(new Set(combos.map((c) => c.size).filter((s): s is string => !!s)));
+  // Color and size are independent selectors, like on any normal
+  // e-commerce site — picking one never resets or depends on the other.
+  // Most variant rows only ever fill in one axis (a "Color" row with no
+  // size, or a "Size" row with no color); a handful of older/legacy
+  // products may still have a row with both filled in at once, so that
+  // exact combo is still preferred first when it exists.
+  const uniqueColors = Array.from(
+    new Set([baseColor, ...variants.map((v) => v.color_label)].filter((c): c is string => !!c))
+  );
+  const uniqueSizes = Array.from(
+    new Set([baseSize, ...variants.map((v) => v.size_label)].filter((s): s is string => !!s))
+  );
 
   const [selectedColor, setSelectedColor] = useState<string | null>(variants.length > 0 ? baseColor : null);
   const [selectedSize, setSelectedSize] = useState<string | null>(variants.length > 0 ? baseSize : null);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
 
-  // Picking a color never touches the size the shopper already chose, and
-  // vice versa — each selector is independent. Some products only ever
-  // fill in one axis per row (color-only rows, or size-only rows), so a
-  // combo matching BOTH the color and size picked won't always exist; see
-  // activeCombo below for how that's resolved without silently discarding
-  // either choice.
   function selectColor(color: string) {
     setSelectedColor(color);
   }
@@ -163,43 +154,54 @@ export function ProductDetailInteractive({
     setSelectedSize(size);
   }
 
-  // Resolves the shopper's current (color, size) picks to the best
-  // available combo, in order of preference:
-  // 1. A combo matching both picks exactly.
-  // 2. A combo matching the color (most eyewear variation is by color —
-  //    a different photo, sometimes a different price — so this is the
-  //    more meaningful axis when both can't be satisfied at once).
-  // 3. A combo matching the size.
-  // 4. Any real variant, so the page always shows *something* concrete
-  //    rather than silently falling back to the bare base product.
-  const activeCombo =
-    combos.find((c) => (c.color ?? null) === (selectedColor ?? null) && (c.size ?? null) === (selectedSize ?? null)) ??
-    combos.find((c) => (c.color ?? null) === (selectedColor ?? null)) ??
-    combos.find((c) => (c.size ?? null) === (selectedSize ?? null)) ??
-    (variants.length > 0 ? combos[0] : null);
-  const active = activeCombo?.variant ?? null;
+  // An exact (color + size) row — from an older product entered the
+  // combined way — always wins when one exists.
+  const exactVariant =
+    (selectedColor || selectedSize) &&
+    variants.find(
+      (v) => (v.color_label ?? null) === (selectedColor ?? null) && (v.size_label ?? null) === (selectedSize ?? null)
+    );
 
-  // What gets stored on the cart/wishlist/order line — null for the base
-  // combo (there's no product_variants row for it, so checkout must treat
-  // it exactly like a product with no variants at all, not try to match a
-  // "Yellow" label against the variants table and fail).
-  const variantForStorage = active ? variantLabel(active) : null;
+  // Otherwise color and size are resolved independently: the color row
+  // decides the photo/description (that's what changes when you pick a
+  // different color), and the size row decides price/stock (that's the
+  // axis that actually varies those, e.g. a bigger lens costing more).
+  const colorVariant = exactVariant || (selectedColor ? variants.find((v) => v.color_label === selectedColor && !v.size_label) : null) || null;
+  const sizeVariant = exactVariant || (selectedSize ? variants.find((v) => v.size_label === selectedSize && !v.color_label) : null) || null;
 
-  const displayImages = active?.image_url ? [{ url: active.image_url }] : images;
+  // What gets stored on the cart/wishlist/order line — combines whatever
+  // the shopper actually picked, not just whichever single variant row
+  // happened to resolve, so "Black" + "58mm" always shows as both even
+  // though they may live in two separate rows.
+  const variantForStorage = [selectedColor, selectedSize].filter(Boolean).join(" — ") || null;
 
-  const hasVariantPrice = active?.price != null;
-  const effectivePrice = hasVariantPrice ? active!.price : price;
+  const activeImageUrl = colorVariant?.image_url || sizeVariant?.image_url || null;
+  const displayImages = activeImageUrl ? [{ url: activeImageUrl }] : images;
+
+  const activePrice = sizeVariant?.price ?? colorVariant?.price ?? null;
+  const hasVariantPrice = activePrice != null;
+  const effectivePrice = hasVariantPrice ? activePrice : price;
   const hasPrice = effectivePrice != null;
   // A variant's own price is a flat override — the base product's discount
   // only makes sense against the base price.
   const hasDiscount = !hasVariantPrice && hasPrice && !!discountPercent && discountPercent > 0;
   const finalPrice = hasDiscount ? effectivePrice! * (1 - discountPercent! / 100) : effectivePrice;
 
-  const displayDescription = active?.description ?? description;
+  const displayDescription = colorVariant?.description || sizeVariant?.description || description;
 
-  const activeStock = active?.stock ?? stock;
+  const activeStock = sizeVariant?.stock ?? colorVariant?.stock ?? stock;
   const outOfStock = activeStock != null && activeStock <= 0;
   const noPrice = finalPrice == null;
+
+  // "Notify me" needs to subscribe to whichever exact row's stock is
+  // actually driving activeStock above, so a restock on that same row (see
+  // notifyStockRestocked, matched by this same color/size pair) finds it —
+  // not just whatever the shopper happens to have picked on screen.
+  const stockSourceLabels = sizeVariant
+    ? { color: null, size: sizeVariant.size_label }
+    : colorVariant
+      ? { color: colorVariant.color_label, size: null }
+      : { color: null, size: null };
 
   // Switching to a variant with less stock than the quantity already
   // dialed in (e.g. picked 5, then switched to a color with only 2 left)
@@ -222,7 +224,7 @@ export function ProductDetailInteractive({
     return () => observer.disconnect();
   }, []);
 
-  const cartImage = active?.image_url ?? images[0]?.url ?? null;
+  const cartImage = activeImageUrl ?? images[0]?.url ?? null;
 
   function handleAdd() {
     if (finalPrice == null) return;
@@ -271,7 +273,7 @@ export function ProductDetailInteractive({
           // index survives the swap (it also drifts on its own from the
           // auto-advance carousel), so picking a color could keep showing
           // whatever photo happened to be active instead of that variant's.
-          key={active?.image_url ?? "base"}
+          key={activeImageUrl ?? "base"}
           images={displayImages}
           alt={name}
           discountPercent={hasDiscount ? discountPercent : null}
@@ -369,8 +371,8 @@ export function ProductDetailInteractive({
         {outOfStock && (
           <StockNotifyForm
             productId={productId}
-            colorLabel={active?.color_label ?? null}
-            sizeLabel={active?.size_label ?? null}
+            colorLabel={stockSourceLabels.color}
+            sizeLabel={stockSourceLabels.size}
             t={t}
           />
         )}
