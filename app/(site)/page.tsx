@@ -19,6 +19,7 @@ import { BrandStrip } from "@/components/BrandStrip";
 import { CategoryCarousel } from "@/components/CategoryCarousel";
 import { ModelPhotosStrip } from "@/components/ModelPhotosStrip";
 import { ProductGrid } from "@/components/ProductGrid";
+import { ProductCarousel } from "@/components/ProductCarousel";
 import { getServerDict } from "@/lib/locale-server";
 
 export default async function HomePage() {
@@ -197,6 +198,12 @@ export default async function HomePage() {
           {t["home.viewAll"]}
         </Link>
       </section>
+
+      {heroPool.products.length > 0 && (
+        <section className="mx-auto max-w-6xl px-4 py-12 md:px-6 md:py-16">
+          <ProductCarousel products={heroPool.products.slice(0, 8)} title={t["home.recommendedForYou"]} t={t} />
+        </section>
+      )}
 
       <TestimonialsCarousel testimonials={testimonials ?? []} title={t["home.testimonialsTitle"]}>
         <FeedbackForm t={t} products={feedbackProducts ?? []} />

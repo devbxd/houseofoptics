@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getProductBySlug, getRelatedProducts, getColorSiblings, getProductReviews } from "@/lib/products";
+import { getProductBySlug, getRelatedProducts, getColorSiblings, getProductReviews, listProducts } from "@/lib/products";
 import { getSiteSettings, whatsappLink, phoneLink } from "@/lib/settings";
 import { ProductDetailInteractive } from "@/components/ProductDetailInteractive";
 import { ProductGrid } from "@/components/ProductGrid";
+import { ProductCarousel } from "@/components/ProductCarousel";
 import { ProductReviews } from "@/components/ProductReviews";
 import { RecentlyViewed } from "@/components/RecentlyViewed";
 import { getServerDict } from "@/lib/locale-server";
@@ -35,11 +36,13 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const waHref = settings.whatsapp_number ? whatsappLink(settings.whatsapp_number, orderMessage) : "/contact";
   const callHref = settings.whatsapp_number ? phoneLink(settings.whatsapp_number) : "/contact";
 
-  const [related, colorSiblings, reviews] = await Promise.all([
+  const [related, colorSiblings, reviews, latest] = await Promise.all([
     getRelatedProducts(product),
     getColorSiblings(product),
     getProductReviews(product.id),
+    listProducts({}, 1, 9),
   ]);
+  const latestProducts = latest.products.filter((p) => p.id !== product.id).slice(0, 8);
 
   const ratedReviews = (reviews ?? []).filter((r) => r.rating != null);
   const ratingSummary =
@@ -110,6 +113,12 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         }}
         t={t}
       />
+
+      {latestProducts.length > 0 && (
+        <section className="mt-16 border-t border-neutral-200 pt-10">
+          <ProductCarousel products={latestProducts} title={t["home.latestSunglasses"]} t={t} />
+        </section>
+      )}
     </main>
   );
 }
