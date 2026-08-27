@@ -94,13 +94,16 @@ export default function CheckoutPage() {
   const [form, setForm] = useState({ name: "", email: "", phone: "", address: "", city: "" });
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "cod">("card");
+  // Card payment isn't wired up to a real processor yet — cash on delivery
+  // is the only actual way to pay, so it's the only selectable option.
+  const [paymentMethod] = useState<"card" | "cod">("cod");
   const [shippingZone, setShippingZone] = useState<"beirut" | "outside_beirut">("beirut");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmedOrderId, setConfirmedOrderId] = useState<string | null>(null);
   const [confirmedSnapshot, setConfirmedSnapshot] = useState<ConfirmedOrder | null>(null);
   const [ownerWhatsapp, setOwnerWhatsapp] = useState<string | null>(null);
+  const [shippingCosts, setShippingCosts] = useState<{ beirut: number; outside_beirut: number }>(SHIPPING_COST);
 
   const [promoInput, setPromoInput] = useState("");
   const [promoChecking, setPromoChecking] = useState(false);
@@ -111,11 +114,14 @@ export default function CheckoutPage() {
     const supabase = createClient();
     supabase
       .from("site_settings")
-      .select("whatsapp_number")
+      .select("whatsapp_number, shipping_cost_beirut, shipping_cost_outside")
       .single()
       .then(({ data, error }) => {
-        if (error) console.error("Failed to load WhatsApp number for checkout:", error);
+        if (error) console.error("Failed to load site settings for checkout:", error);
         setOwnerWhatsapp(data?.whatsapp_number || null);
+        if (data?.shipping_cost_beirut != null && data?.shipping_cost_outside != null) {
+          setShippingCosts({ beirut: Number(data.shipping_cost_beirut), outside_beirut: Number(data.shipping_cost_outside) });
+        }
       });
   }, []);
 
@@ -166,7 +172,7 @@ export default function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, giftCard]);
 
-  const shippingCost = SHIPPING_COST[shippingZone];
+  const shippingCost = shippingCosts[shippingZone];
   const discountAmount = appliedPromo ? subtotal * (appliedPromo.discountPercent / 100) : 0;
   const giftCardDiscountAmount =
     giftCard?.valid && giftCard.type === "discount" ? subtotal * (giftCard.discountPercent / 100) : 0;
@@ -188,7 +194,7 @@ export default function CheckoutPage() {
         setAppliedPromo({ code: promoInput.trim().toUpperCase(), discountPercent: res.discountPercent });
       } else {
         setAppliedPromo(null);
-        setPromoError(t["checkout.promoInvalid"]);
+        setPromoError(res.reason === "expired" ? t["checkout.promoExpired"] : t["checkout.promoInvalid"]);
       }
     } catch {
       setPromoError(t["checkout.genericError"]);
@@ -307,9 +313,11 @@ export default function CheckoutPage() {
       setError(
         err instanceof Error && err.message === "OUT_OF_STOCK"
           ? t["checkout.outOfStockError"]
-          : err instanceof Error && err.message === "GIFT_CARD_INVALID"
-            ? t["checkout.giftCardInvalid"]
-            : t["checkout.genericError"]
+          : err instanceof Error && err.message === "PRODUCT_UNAVAILABLE"
+            ? t["checkout.productUnavailableError"]
+            : err instanceof Error && err.message === "GIFT_CARD_INVALID"
+              ? t["checkout.giftCardInvalid"]
+              : t["checkout.genericError"]
       );
     } finally {
       setSubmitting(false);
@@ -424,8 +432,8 @@ export default function CheckoutPage() {
           <div className="space-y-2">
             {(
               [
-                { value: "beirut", label: t["checkout.beirut"], cost: SHIPPING_COST.beirut },
-                { value: "outside_beirut", label: t["checkout.outsideBeirut"], cost: SHIPPING_COST.outside_beirut },
+                { value: "beirut", label: t["checkout.beirut"], cost: shippingCosts.beirut },
+                { value: "outside_beirut", label: t["checkout.outsideBeirut"], cost: shippingCosts.outside_beirut },
               ] as const
             ).map((opt) => (
               <label
@@ -521,27 +529,14 @@ export default function CheckoutPage() {
         <div>
           <label className="mb-2 block text-sm text-neutral-600">{t["checkout.payment"]}</label>
           <div className="space-y-2">
-            {(
-              [
-                { value: "card", label: t["checkout.payByCard"] },
-                { value: "cod", label: t["checkout.cashOnDelivery"] },
-              ] as const
-            ).map((opt) => (
-              <label
-                key={opt.value}
-                className={`flex cursor-pointer items-center gap-2 border px-4 py-3 text-sm ${
-                  paymentMethod === opt.value ? "border-brand-black" : "border-neutral-300"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  checked={paymentMethod === opt.value}
-                  onChange={() => setPaymentMethod(opt.value)}
-                />
-                {opt.label}
-              </label>
-            ))}
+            <label className="flex cursor-not-allowed items-center gap-2 border border-neutral-200 px-4 py-3 text-sm text-neutral-400">
+              <input type="radio" name="paymentMethod" disabled />
+              {t["checkout.payByCard"]} — {t["checkout.comingSoon"]}
+            </label>
+            <label className="flex cursor-default items-center gap-2 border border-brand-black px-4 py-3 text-sm">
+              <input type="radio" name="paymentMethod" checked readOnly />
+              {t["checkout.cashOnDelivery"]}
+            </label>
           </div>
         </div>
 
@@ -579,11 +574,8 @@ export default function CheckoutPage() {
           disabled={submitting}
           className="w-full bg-brand-black py-3 text-center text-sm uppercase tracking-widest text-white hover:opacity-90 disabled:opacity-50"
         >
-          {submitting ? t["checkout.processing"] : paymentMethod === "cod" ? t["checkout.placeOrder"] : t["checkout.payByCard"]}
+          {submitting ? t["checkout.processing"] : t["checkout.placeOrder"]}
         </button>
-        {paymentMethod === "card" && (
-          <p className="text-center text-xs text-neutral-400">{t["checkout.securePayment"]}</p>
-        )}
       </form>
       </div>
     </main>

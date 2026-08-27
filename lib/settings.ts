@@ -42,6 +42,8 @@ export type SiteSettings = {
   special_request_text: string;
   special_request_text_en: string;
   special_request_text_ar: string;
+  shipping_cost_beirut: number;
+  shipping_cost_outside: number;
 };
 
 const DEFAULT_SETTINGS: SiteSettings = {
@@ -86,6 +88,8 @@ const DEFAULT_SETTINGS: SiteSettings = {
     "Tell us about the pair you're looking for (add a photo if you have one) — we'll get back to you quickly on WhatsApp to see if we can source it for you.",
   special_request_text_ar:
     "أخبرونا عن النظارة التي تبحثون عنها (وأضيفوا صورة إذا كانت متوفرة لديكم) — سنرد عليكم بسرعة عبر واتساب لنرى إن كان بإمكاننا تأمينها لكم.",
+  shipping_cost_beirut: 4,
+  shipping_cost_outside: 6,
 };
 
 async function fetchSiteSettings(): Promise<SiteSettings> {

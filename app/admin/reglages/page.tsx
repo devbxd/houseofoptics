@@ -117,6 +117,30 @@ export default async function SettingsPage() {
         </div>
 
         <div className="border-t border-neutral-200 pt-4">
+          <label className="mb-1 block text-sm text-neutral-600">Shipping cost — Beirut ($)</label>
+          <input
+            name="shipping_cost_beirut"
+            type="number"
+            step="0.01"
+            min={0}
+            defaultValue={settings?.shipping_cost_beirut ?? 4}
+            className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm text-neutral-600">Shipping cost — Outside Beirut ($)</label>
+          <input
+            name="shipping_cost_outside"
+            type="number"
+            step="0.01"
+            min={0}
+            defaultValue={settings?.shipping_cost_outside ?? 6}
+            className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+          />
+        </div>
+
+        <div className="border-t border-neutral-200 pt-4">
           <label className="mb-1 block text-sm text-neutral-600">Shop address (used for the map on the Location page)</label>
           <input
             name="shop_address"

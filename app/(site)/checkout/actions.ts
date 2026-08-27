@@ -50,7 +50,6 @@ export async function createOrder(input: CheckoutInput) {
   }
 
   const supabase = createServiceClient();
-  const itemsTotal = input.items.reduce((a, i) => a + i.price * i.quantity, 0);
 
   // Resolve each cart line to a concrete product/variant row, then
   // atomically check-and-decrement stock for the whole order in one
@@ -59,24 +58,68 @@ export async function createOrder(input: CheckoutInput) {
   // a cart can hold an item that went out of stock after it was added, or
   // simply after the button-disabling check ran in an earlier page load.
   const productIds = [...new Set(input.items.map((i) => i.productId))];
-  const { data: allVariants } = await supabase
-    .from("product_variants")
-    .select("id, product_id, color_label, size_label, label, kind")
-    .in("product_id", productIds);
+  const [{ data: allVariants }, { data: productRows }] = await Promise.all([
+    supabase.from("product_variants").select("id, product_id, color_label, size_label, label, kind, price").in("product_id", productIds),
+    supabase.from("products").select("id, price, discount_percent, is_active").in("id", productIds),
+  ]);
+  const productById = new Map((productRows ?? []).map((p) => [p.id, p]));
+
+  // A gift-card "free product" line is the one exception allowed to be
+  // priced at $0 — every other line is repriced from the real catalog
+  // below, never trusted from the client (a modified cart could otherwise
+  // claim any price it wants and still pass stock/decrement checks). Read
+  // here to know which product that exception applies to; the actual
+  // atomic redemption still happens further down where it always has.
+  let giftProductId: string | null = null;
+  if (input.giftCardCode) {
+    const { data: giftPeek } = await supabase
+      .from("gift_cards")
+      .select("type, product_id")
+      .eq("code", input.giftCardCode.trim().toUpperCase())
+      .is("redeemed_at", null)
+      .maybeSingle();
+    if (giftPeek?.type === "product") giftProductId = giftPeek.product_id;
+  }
 
   const stockItems: { product_id: string; variant_id: string | null; quantity: number }[] = [];
-  for (const item of input.items) {
+  let usedGiftLine = false;
+  const verifiedItems = input.items.map((item) => {
+    const product = productById.get(item.productId);
+    // Missing or deactivated since it was added to the cart — a stale
+    // cart must never be purchasable just because it was added while the
+    // product was still live.
+    if (!product || !product.is_active) throw new Error("PRODUCT_UNAVAILABLE");
+
+    let variantId: string | null = null;
+    let unitPrice: number | null = product.price;
+    let hasVariantPrice = false;
     if (item.variant) {
       const match = (allVariants ?? []).find((v) => v.product_id === item.productId && variantLabel(v) === item.variant);
       // A variant label with nothing matching it in the database (deleted
-      // since it was added to the cart, say) can't be stock-checked safely
-      // — block the order for that line rather than guessing.
+      // since it was added to the cart, say) can't be priced/stock-checked
+      // safely — block the order for that line rather than guessing.
       if (!match) throw new Error("OUT_OF_STOCK");
-      stockItems.push({ product_id: item.productId, variant_id: match.id, quantity: item.quantity });
-    } else {
-      stockItems.push({ product_id: item.productId, variant_id: null, quantity: item.quantity });
+      variantId = match.id;
+      if (match.price != null) {
+        unitPrice = match.price;
+        hasVariantPrice = true;
+      }
     }
-  }
+    stockItems.push({ product_id: item.productId, variant_id: variantId, quantity: item.quantity });
+
+    if (giftProductId && !usedGiftLine && item.productId === giftProductId) {
+      usedGiftLine = true;
+      return { ...item, price: 0 };
+    }
+
+    if (unitPrice == null) throw new Error("PRODUCT_UNAVAILABLE");
+    // A variant's own price is a flat override — the base product's
+    // discount only ever applies against the base price (mirrors
+    // ProductDetailInteractive.tsx's own hasDiscount logic).
+    const finalPrice = !hasVariantPrice && product.discount_percent ? unitPrice * (1 - product.discount_percent / 100) : unitPrice;
+    return { ...item, price: Math.round(finalPrice * 100) / 100 };
+  });
+  const itemsTotal = verifiedItems.reduce((a, i) => a + i.price * i.quantity, 0);
 
   // checkout_decrement_stock comes from a migration that may not have run
   // yet on this deployment — PGRST202 means Supabase can't find the
@@ -286,7 +329,7 @@ export async function createOrder(input: CheckoutInput) {
       .eq("code", claimedGiftCardCode);
   }
 
-  const orderItemFields = input.items.map((i) => ({
+  const orderItemFields = verifiedItems.map((i) => ({
     order_id: order.id,
     product_id: i.productId,
     product_name: i.name,
@@ -309,6 +352,7 @@ export async function createOrder(input: CheckoutInput) {
     await notifyNewOrder({
       orderId: order.id,
       ...input,
+      items: verifiedItems,
       total,
       subtotal: itemsTotal,
       promoCode: redeemedCode,

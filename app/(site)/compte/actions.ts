@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { SITE_URL } from "@/lib/site";
 
 function safeNext(next: string | null) {
   // Only ever redirect back into this site, never to an attacker-supplied
@@ -100,6 +101,31 @@ export async function signInCustomer(formData: FormData) {
   }
 
   redirect(next);
+}
+
+export async function requestPasswordReset(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) redirect(`/compte/mot-de-passe-oublie?error=${encodeURIComponent("Email requis")}`);
+
+  const supabase = await createClient();
+  // Never reveal whether the email exists (anti-enumeration) — always show
+  // the same "check your inbox" outcome regardless of what Supabase says.
+  await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${SITE_URL}/compte/reinitialiser` });
+  redirect("/compte/mot-de-passe-oublie?sent=1");
+}
+
+export async function resetPassword(formData: FormData) {
+  const password = String(formData.get("password") ?? "");
+  if (password.length < 6) {
+    redirect(`/compte/reinitialiser?error=${encodeURIComponent("Le mot de passe doit contenir au moins 6 caractères")}`);
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) {
+    redirect(`/compte/reinitialiser?error=${encodeURIComponent("Lien expiré — redemande un email de réinitialisation.")}`);
+  }
+  redirect("/compte?reset=1");
 }
 
 export async function signOutCustomer() {

@@ -54,7 +54,11 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
     const supabase = createClient();
     supabase
       .from("wishlist_items")
-      .select("product_id, variant, slug, name, price, image, stock")
+      // The inner join filters through the public "products" RLS policy
+      // (is_active = true) — a product the shop owner deactivated or
+      // deleted since it was wishlisted just silently drops out of the
+      // result here, no separate cleanup query needed.
+      .select("product_id, variant, slug, name, price, image, stock, products!inner(is_active)")
       .eq("customer_id", user.id)
       .then(({ data }) => {
         setItems(

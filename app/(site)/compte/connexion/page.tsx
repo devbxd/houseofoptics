@@ -54,6 +54,12 @@ export default async function LoginPage({
           </button>
         </form>
 
+        <p className="mt-3 text-center text-sm">
+          <Link href="/compte/mot-de-passe-oublie" className="text-neutral-600 underline underline-offset-2 hover:text-brand-black">
+            Mot de passe oublié ?
+          </Link>
+        </p>
+
         <p className="mt-6 text-center text-sm text-neutral-600">
           {t["account.login.noAccount"]}{" "}
           <Link

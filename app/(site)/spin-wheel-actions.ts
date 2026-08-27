@@ -92,7 +92,9 @@ export async function spinWheel(email: string): Promise<SpinResult> {
 
 const CODE_LIFETIME_MS = 60 * 60 * 1000; // codes expire 1 hour after being won
 
-export async function validatePromoCode(code: string): Promise<{ valid: boolean; discountPercent: number | null }> {
+export async function validatePromoCode(
+  code: string
+): Promise<{ valid: boolean; discountPercent: number | null; reason?: "expired" }> {
   const trimmed = code.trim().toUpperCase();
   if (!trimmed) return { valid: false, discountPercent: null };
 
@@ -106,7 +108,7 @@ export async function validatePromoCode(code: string): Promise<{ valid: boolean;
 
   if (!data) return { valid: false, discountPercent: null };
   if (Date.now() - new Date(data.created_at).getTime() > CODE_LIFETIME_MS) {
-    return { valid: false, discountPercent: null };
+    return { valid: false, discountPercent: null, reason: "expired" };
   }
   return { valid: true, discountPercent: data.discount_percent };
 }

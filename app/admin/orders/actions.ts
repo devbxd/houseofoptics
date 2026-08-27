@@ -6,9 +6,13 @@ import { restoreOrderStock } from "@/lib/order-stock";
 
 export async function deleteOrder(id: string) {
   const supabase = createServiceClient();
+  // Don't restore twice — a cancelled order already gave its stock back.
+  const { data: order } = await supabase.from("orders").select("status").eq("id", id).maybeSingle();
+  if (order && order.status !== "cancelled") await restoreOrderStock(supabase, id);
   await supabase.from("orders").delete().eq("id", id);
   revalidatePath("/admin/orders");
   revalidatePath("/admin/clients");
+  revalidateTag("products");
 }
 
 // Guarded against double-restoring if an already cancelled order gets

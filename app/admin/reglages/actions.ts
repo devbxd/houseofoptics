@@ -21,6 +21,11 @@ export async function updateSettings(formData: FormData) {
     shop_description_ar: String(formData.get("shop_description_ar") ?? "").trim(),
   };
 
+  const shippingBeirut = String(formData.get("shipping_cost_beirut") ?? "").trim();
+  const shippingOutside = String(formData.get("shipping_cost_outside") ?? "").trim();
+  if (shippingBeirut) update.shipping_cost_beirut = Number(shippingBeirut);
+  if (shippingOutside) update.shipping_cost_outside = Number(shippingOutside);
+
   const logo = formData.get("logo") as File | null;
   if (logo && logo.size > 0) {
     const { buffer, contentType, ext } = await processImage(logo);

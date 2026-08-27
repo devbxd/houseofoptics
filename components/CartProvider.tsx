@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 export type CartItem = {
   productId: string;
@@ -45,6 +46,29 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   }, [items, hydrated]);
+
+  // A cart persists indefinitely in localStorage — if the shop owner
+  // deactivates or deletes a product after it was added, it would
+  // otherwise sit there forever, still purchasable at checkout. Runs once
+  // right after hydration and silently drops any line whose product isn't
+  // (or no longer is) publicly readable — the public "products" RLS
+  // policy already only allows is_active = true rows through.
+  useEffect(() => {
+    if (!hydrated || items.length === 0) return;
+    const ids = Array.from(new Set(items.map((i) => i.productId)));
+    const supabase = createClient();
+    supabase
+      .from("products")
+      .select("id")
+      .in("id", ids)
+      .then(({ data }) => {
+        const activeIds = new Set((data ?? []).map((r) => r.id));
+        setItems((prev) => prev.filter((i) => activeIds.has(i.productId)));
+      });
+    // Only ever needs to run once per session, right after the cart is
+    // first loaded from storage — not on every subsequent items change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated]);
 
   const addItem = useCallback((item: Omit<CartItem, "quantity">, quantity = 1) => {
     setItems((prev) => {
