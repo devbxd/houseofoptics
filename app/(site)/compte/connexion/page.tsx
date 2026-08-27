@@ -24,7 +24,7 @@ export default async function LoginPage({
           </p>
         )}
 
-        {error && <p className="mt-4 text-center text-sm text-brand-red">{error}</p>}
+        {error && <p className="mt-4 text-center text-sm text-brand-red">{t[`account.error.${error}`] ?? error}</p>}
 
         <form action={signInCustomer} className="mt-6 space-y-4">
           <input type="hidden" name="next" value={safeNext} />

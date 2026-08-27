@@ -3,6 +3,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getServerDict } from "@/lib/locale-server";
 import { signOutCustomer } from "./actions";
 import { OrdersList } from "./OrdersList";
+import { ProfileEditForm } from "./ProfileEditForm";
 
 export default async function AccountPage() {
   const supabase = await createClient();
@@ -43,6 +44,9 @@ export default async function AccountPage() {
             {user.email}
             {profile?.phone ? ` · ${profile.phone}` : ""}
           </p>
+          <div className="mt-2">
+            <ProfileEditForm name={name} phone={profile?.phone ?? null} />
+          </div>
         </div>
         <form action={signOutCustomer}>
           <button

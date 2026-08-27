@@ -36,7 +36,7 @@ export default async function SignUpPage({
         <h1 className="mt-2 text-center font-serif text-2xl text-brand-black">{t["account.signup.title"]}</h1>
         <p className="mt-2 text-center text-sm text-neutral-600">{t["account.signup.subtitle"]}</p>
 
-        {error && <p className="mt-4 text-center text-sm text-brand-red">{error}</p>}
+        {error && <p className="mt-4 text-center text-sm text-brand-red">{t[`account.error.${error}`] ?? error}</p>}
 
         <form action={signUpCustomer} className="mt-6 space-y-4">
           <input type="hidden" name="next" value={safeNext} />

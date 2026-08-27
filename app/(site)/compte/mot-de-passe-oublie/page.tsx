@@ -1,4 +1,5 @@
 import { requestPasswordReset } from "../actions";
+import { getServerDict } from "@/lib/locale-server";
 
 export default async function ForgotPasswordPage({
   searchParams,
@@ -6,6 +7,7 @@ export default async function ForgotPasswordPage({
   searchParams: Promise<{ error?: string; sent?: string }>;
 }) {
   const { error, sent } = await searchParams;
+  const { t } = await getServerDict();
 
   return (
     <main className="mx-auto max-w-md px-4 py-16">
@@ -23,7 +25,7 @@ export default async function ForgotPasswordPage({
             <p className="mt-2 text-center text-sm text-neutral-600">
               Entrez votre email, on vous envoie un lien pour choisir un nouveau mot de passe.
             </p>
-            {error && <p className="mt-4 text-center text-sm text-brand-red">{error}</p>}
+            {error && <p className="mt-4 text-center text-sm text-brand-red">{t[`account.error.${error}`] ?? error}</p>}
             <form action={requestPasswordReset} className="mt-6 space-y-4">
               <div>
                 <label className="mb-1 block text-sm text-neutral-600">Email</label>

@@ -15,15 +15,16 @@ function safeNext(next: string | null) {
 // limit exceeded") — never shown to a customer as-is. Known cases get a
 // clear French message; anything unrecognized falls back to a generic one
 // rather than leaking Supabase's wording.
+// Returns a short code, translated by the page component via t[] — never a
+// hardcoded-language sentence, since Supabase's own error.message is always
+// English regardless of the site's locale (fr/en/ar).
 function friendlySignUpError(message: string | undefined): string {
   const m = (message ?? "").toLowerCase();
-  if (m.includes("rate limit")) return "Trop de tentatives pour le moment — réessaie dans quelques minutes.";
-  if (m.includes("already registered") || m.includes("already exists")) {
-    return "Un compte existe déjà avec cet email — connecte-toi à la place.";
-  }
-  if (m.includes("password")) return "Mot de passe invalide — 6 caractères minimum.";
-  if (m.includes("email")) return "Adresse email invalide.";
-  return "Erreur d'inscription — réessaie dans quelques instants.";
+  if (m.includes("rate limit")) return "RATE_LIMIT";
+  if (m.includes("already registered") || m.includes("already exists")) return "EMAIL_TAKEN";
+  if (m.includes("password")) return "INVALID_PASSWORD";
+  if (m.includes("email")) return "INVALID_EMAIL";
+  return "SIGNUP_ERROR";
 }
 
 export async function signUpCustomer(formData: FormData) {
@@ -34,10 +35,10 @@ export async function signUpCustomer(formData: FormData) {
   const next = safeNext(String(formData.get("next") ?? ""));
 
   if (!name || !email || !password) {
-    redirect(`/compte/inscription?error=${encodeURIComponent("Tous les champs sont requis")}&next=${encodeURIComponent(next)}`);
+    redirect(`/compte/inscription?error=${encodeURIComponent("MISSING_FIELDS")}&next=${encodeURIComponent(next)}`);
   }
   if (password.length < 6) {
-    redirect(`/compte/inscription?error=${encodeURIComponent("Le mot de passe doit contenir au moins 6 caractères")}&next=${encodeURIComponent(next)}`);
+    redirect(`/compte/inscription?error=${encodeURIComponent("PASSWORD_TOO_SHORT")}&next=${encodeURIComponent(next)}`);
   }
 
   const supabase = await createClient();
@@ -59,7 +60,7 @@ export async function signUpCustomer(formData: FormData) {
   // existing account" apart from a genuine new signup.
   if (data.user.identities && data.user.identities.length === 0) {
     redirect(
-      `/compte/connexion?error=${encodeURIComponent("Un compte existe déjà avec cet email — connecte-toi.")}&next=${encodeURIComponent(next)}`
+      `/compte/connexion?error=${encodeURIComponent("EMAIL_TAKEN")}&next=${encodeURIComponent(next)}`
     );
   }
 
@@ -90,14 +91,14 @@ export async function signInCustomer(formData: FormData) {
   const next = safeNext(String(formData.get("next") ?? ""));
 
   if (!email || !password) {
-    redirect(`/compte/connexion?error=${encodeURIComponent("Email et mot de passe requis")}&next=${encodeURIComponent(next)}`);
+    redirect(`/compte/connexion?error=${encodeURIComponent("MISSING_CREDENTIALS")}&next=${encodeURIComponent(next)}`);
   }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    redirect(`/compte/connexion?error=${encodeURIComponent("Email ou mot de passe incorrect")}&next=${encodeURIComponent(next)}`);
+    redirect(`/compte/connexion?error=${encodeURIComponent("INVALID_CREDENTIALS")}&next=${encodeURIComponent(next)}`);
   }
 
   redirect(next);
@@ -105,7 +106,7 @@ export async function signInCustomer(formData: FormData) {
 
 export async function requestPasswordReset(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
-  if (!email) redirect(`/compte/mot-de-passe-oublie?error=${encodeURIComponent("Email requis")}`);
+  if (!email) redirect(`/compte/mot-de-passe-oublie?error=${encodeURIComponent("EMAIL_REQUIRED")}`);
 
   const supabase = await createClient();
   // Never reveal whether the email exists (anti-enumeration) — always show
@@ -117,15 +118,28 @@ export async function requestPasswordReset(formData: FormData) {
 export async function resetPassword(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   if (password.length < 6) {
-    redirect(`/compte/reinitialiser?error=${encodeURIComponent("Le mot de passe doit contenir au moins 6 caractères")}`);
+    redirect(`/compte/reinitialiser?error=${encodeURIComponent("PASSWORD_TOO_SHORT")}`);
   }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.updateUser({ password });
   if (error) {
-    redirect(`/compte/reinitialiser?error=${encodeURIComponent("Lien expiré — redemande un email de réinitialisation.")}`);
+    redirect(`/compte/reinitialiser?error=${encodeURIComponent("RESET_LINK_EXPIRED")}`);
   }
   redirect("/compte?reset=1");
+}
+
+export async function updateProfile(formData: FormData) {
+  const name = String(formData.get("name") ?? "").trim();
+  const phone = String(formData.get("phone") ?? "").trim();
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+  const service = createServiceClient();
+  await service.from("customer_profiles").update({ name: name || user.email, phone: phone || null }).eq("id", user.id);
+  redirect("/compte");
 }
 
 export async function signOutCustomer() {
