@@ -90,6 +90,7 @@ export function ProductDetailInteractive({
   packagingImageUrl,
   ratingSummary,
   variants,
+  initialColor,
   colorSiblings,
   brand,
   category,
@@ -116,6 +117,9 @@ export function ProductDetailInteractive({
   packagingImageUrl: string | null;
   ratingSummary: { average: number; count: number } | null;
   variants: VariantDetail[];
+  // Deep-link from a per-color search result card (?color=Red) — pre-opens
+  // this product already showing that color, dropdown still fully usable.
+  initialColor?: string | null;
   colorSiblings: { id: string; name: string; slug: string; image: string | null; base_color: string | null }[];
   brand: { name: string; slug: string } | null;
   category: { name: string; slug: string } | null;
@@ -143,7 +147,12 @@ export function ProductDetailInteractive({
     new Set([baseSize, ...variants.map((v) => v.size_label)].filter((s): s is string => !!s))
   );
 
-  const [selectedColor, setSelectedColor] = useState<string | null>(variants.length > 0 ? baseColor : null);
+  // A deep-linked color (?color=Red from a search result card) wins over
+  // the default base color, as long as it's actually one this product has.
+  const validInitialColor = initialColor && uniqueColors.includes(initialColor) ? initialColor : null;
+  const [selectedColor, setSelectedColor] = useState<string | null>(
+    variants.length > 0 ? validInitialColor ?? baseColor : null
+  );
   const [selectedSize, setSelectedSize] = useState<string | null>(variants.length > 0 ? baseSize : null);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);

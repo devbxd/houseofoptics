@@ -8,7 +8,7 @@ export function AddToCartButton({
   t,
   className,
 }: {
-  product: { id: string; name: string; price: number | null; stock: number | null; image: string | null };
+  product: { id: string; name: string; price: number | null; stock: number | null; image: string | null; variant?: string | null };
   t: Record<string, string>;
   className?: string;
 }) {
@@ -28,7 +28,7 @@ export function AddToCartButton({
         e.preventDefault();
         e.stopPropagation();
         if (outOfStock || noPrice) return;
-        addItem({ productId: product.id, variant: null, name: product.name, price: product.price!, image: product.image });
+        addItem({ productId: product.id, variant: product.variant ?? null, name: product.name, price: product.price!, image: product.image });
         setAdded(true);
         setTimeout(() => setAdded(false), 1500);
       }}

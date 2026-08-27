@@ -1,4 +1,4 @@
-import { listProducts } from "@/lib/products";
+import { searchProducts } from "@/lib/products";
 import { ProductGrid } from "@/components/ProductGrid";
 import { Pagination } from "@/components/Pagination";
 import { getServerDict } from "@/lib/locale-server";
@@ -13,7 +13,7 @@ export default async function SearchPage({
   const page = Math.max(1, Number(pageParam) || 1);
 
   const [{ products, total, pageSize }, { t }] = await Promise.all([
-    search ? listProducts({ search }, page) : Promise.resolve({ products: [], total: 0, pageSize: 24 }),
+    search ? searchProducts(search, page) : Promise.resolve({ products: [], total: 0, pageSize: 24 }),
     getServerDict(),
   ]);
 

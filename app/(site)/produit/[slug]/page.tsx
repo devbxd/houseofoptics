@@ -27,8 +27,15 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function ProductPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ color?: string }>;
+}) {
   const { slug } = await params;
+  const { color: initialColorParam } = await searchParams;
   const [product, settings, { t }] = await Promise.all([getProductBySlug(slug), getSiteSettings(), getServerDict()]);
   if (!product) notFound();
 
@@ -80,6 +87,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         packagingImageUrl={product.packaging_image_url || null}
         ratingSummary={ratingSummary}
         variants={product.variants ?? []}
+        initialColor={initialColorParam || null}
         colorSiblings={colorSiblings}
         brand={product.brand}
         category={product.category}

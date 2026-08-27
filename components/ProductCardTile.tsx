@@ -25,14 +25,18 @@ export function ProductCardTile({
 }) {
   const hasDiscount = !!p.discount_percent && p.discount_percent > 0 && p.price != null;
   const discountedPrice = hasDiscount ? Number(p.price) * (1 - p.discount_percent! / 100) : null;
+  // A per-color search result card still opens the same product page —
+  // just pre-selected to that color, dropdown still fully usable there.
+  const href = p.variantColor ? `/produit/${p.slug}?color=${encodeURIComponent(p.variantColor)}` : `/produit/${p.slug}`;
+  const displayName = p.variantColor ? `${p.name} — ${p.variantColor}` : p.name;
 
   return (
-    <Link href={`/produit/${p.slug}`} className="group" data-reveal={reveal ? true : undefined} style={style}>
+    <Link href={href} className="group" data-reveal={reveal ? true : undefined} style={style}>
       <div className="relative aspect-square overflow-hidden bg-neutral-100">
         {p.images[0] && (
           <Image
             src={p.images[0].url}
-            alt={p.name}
+            alt={displayName}
             fill
             // Product photos are already resized/compressed server-side at
             // upload (see lib/process-image.ts) and served from Supabase
@@ -55,13 +59,13 @@ export function ProductCardTile({
           </span>
         )}
         <WishlistButton
-          item={{ productId: p.id, variant: null, slug: p.slug, name: p.name, price: p.price, image: p.images[0]?.url ?? null, stock: p.stock }}
+          item={{ productId: p.id, variant: p.variantColor ?? null, slug: p.slug, name: displayName, price: p.price, image: p.images[0]?.url ?? null, stock: p.stock }}
           className="absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-neutral-700 shadow transition-colors hover:text-brand-red"
           iconClassName="h-4 w-4"
         />
       </div>
       <div className="mt-3 text-center">
-        <p className="text-sm text-neutral-800 group-hover:text-brand-red">{p.name}</p>
+        <p className="text-sm text-neutral-800 group-hover:text-brand-red">{displayName}</p>
         {hasDiscount ? (
           <p className="mt-1 space-x-2 text-sm">
             <span className="text-neutral-400 line-through">${Number(p.price).toFixed(2)}</span>
@@ -76,10 +80,11 @@ export function ProductCardTile({
       <AddToCartButton
         product={{
           id: p.id,
-          name: p.name,
+          name: displayName,
           price: hasDiscount ? discountedPrice : p.price,
           stock: p.stock,
           image: p.images[0]?.url ?? null,
+          variant: p.variantColor ?? null,
         }}
         t={t}
         className="mt-2 block w-full border border-neutral-300 py-2 text-center text-[11px] uppercase tracking-wide text-neutral-700 transition-colors hover:border-brand-black hover:bg-brand-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50"

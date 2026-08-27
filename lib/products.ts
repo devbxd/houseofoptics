@@ -19,6 +19,11 @@ export type ProductCard = {
   category: { name: string; slug: string } | null;
   brand: { name: string; slug: string } | null;
   images: { url: string }[];
+  // Set only on a per-color card produced by searchProducts — the product
+  // itself is unchanged (still one row, one page), this just means the
+  // card represents one specific color of it: its own photo/price/stock,
+  // and a link that opens the product pre-selected to that color.
+  variantColor?: string | null;
 };
 
 const PAGE_SIZE = 24;
@@ -135,6 +140,90 @@ async function fetchProducts(
 // of firing one each — invalidated instantly by revalidateTag("products")
 // whenever a product/discount/stock/image changes in the admin.
 export const listProducts = unstable_cache(fetchProducts, ["list-products"], {
+  tags: ["products"],
+  revalidate: REVALIDATE_SECONDS,
+});
+
+// Search results show one card per color a matched product comes in (each
+// with that color's own photo/price/stock), plus the product's own base
+// card — even though it's still a single product/page underneath (see
+// VariantDetail in ProductDetailInteractive.tsx). Clicking a color card
+// opens that same product pre-selected to that color via ?color=, where
+// the dropdown still works normally. Matches by product name OR by a
+// variant's color label, so searching a color still finds the product.
+async function fetchSearchResults(
+  query: string,
+  page = 1,
+  pageSize = PAGE_SIZE
+): Promise<{ products: ProductCard[]; total: number; pageSize: number }> {
+  const supabase = createPublicClient();
+
+  const [{ data: nameMatches, error: nameError }, { data: colorMatches, error: colorError }] = await Promise.all([
+    supabase.from("products").select("id").eq("is_active", true).ilike("name", `%${query}%`),
+    supabase.from("product_variants").select("product_id").ilike("color_label", `%${query}%`),
+  ]);
+  logIfError("Search: failed to match products by name:", nameError);
+  logIfError("Search: failed to match products by variant color:", colorError);
+
+  const matchedIds = Array.from(
+    new Set([...(nameMatches ?? []).map((r: any) => r.id), ...(colorMatches ?? []).map((r: any) => r.product_id)])
+  );
+  if (matchedIds.length === 0) return { products: [], total: 0, pageSize };
+
+  const { data: products, error } = await supabase
+    .from("products")
+    .select(
+      "id, name, slug, price, discount_percent, stock, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order), variants:product_variants(color_label, size_label, price, stock, image_url, image_urls)"
+    )
+    .in("id", matchedIds)
+    .eq("is_active", true);
+  logIfError("Search: failed to load matched products:", error);
+
+  const cards: ProductCard[] = [];
+  for (const p of (products as any[]) ?? []) {
+    const category = Array.isArray(p.category) ? p.category[0] ?? null : p.category;
+    const brand = Array.isArray(p.brand) ? p.brand[0] ?? null : p.brand;
+    const images = (p.images ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order);
+
+    cards.push({
+      id: p.id,
+      name: p.name,
+      slug: p.slug,
+      price: p.price,
+      discount_percent: p.discount_percent,
+      stock: p.stock,
+      category,
+      brand,
+      images,
+      variantColor: null,
+    });
+
+    const seenColors = new Set<string>();
+    for (const v of p.variants ?? []) {
+      if (!v.color_label || seenColors.has(v.color_label)) continue;
+      const photo = (v.image_urls && v.image_urls[0]) || v.image_url;
+      if (!photo) continue; // nothing to show for this color, skip its card
+      seenColors.add(v.color_label);
+      cards.push({
+        id: `${p.id}::${v.color_label}`,
+        name: p.name,
+        slug: p.slug,
+        price: v.price ?? p.price,
+        discount_percent: v.price != null ? null : p.discount_percent,
+        stock: v.stock ?? p.stock,
+        category,
+        brand,
+        images: [{ url: photo }],
+        variantColor: v.color_label,
+      });
+    }
+  }
+
+  const from = (page - 1) * pageSize;
+  return { products: cards.slice(from, from + pageSize), total: cards.length, pageSize };
+}
+
+export const searchProducts = unstable_cache(fetchSearchResults, ["search-products"], {
   tags: ["products"],
   revalidate: REVALIDATE_SECONDS,
 });
