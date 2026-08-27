@@ -20,6 +20,7 @@ type VariantDetail = {
   price: number | null;
   description: string | null;
   image_url: string | null;
+  image_urls?: string[] | null;
 };
 
 function variantLabel(v: { color_label: string | null; size_label: string | null }) {
@@ -175,8 +176,17 @@ export function ProductDetailInteractive({
   // though they may live in two separate rows.
   const variantForStorage = [selectedColor, selectedSize].filter(Boolean).join(" — ") || null;
 
-  const activeImageUrl = colorVariant?.image_url || sizeVariant?.image_url || null;
-  const displayImages = activeImageUrl ? [{ url: activeImageUrl }] : images;
+  // A color's own photo gallery (as many photos as were uploaded for it)
+  // fully replaces the main photos while it's selected — falls back to a
+  // single image for older rows saved before a color could carry more
+  // than one, and to the size's own photo if only that has one set.
+  const activeGalleryImages =
+    (colorVariant?.image_urls && colorVariant.image_urls.length > 0 ? colorVariant.image_urls : null) ??
+    (colorVariant?.image_url ? [colorVariant.image_url] : null) ??
+    (sizeVariant?.image_urls && sizeVariant.image_urls.length > 0 ? sizeVariant.image_urls : null) ??
+    (sizeVariant?.image_url ? [sizeVariant.image_url] : null);
+  const activeImageUrl = activeGalleryImages?.[0] ?? null;
+  const displayImages = activeGalleryImages ? activeGalleryImages.map((url) => ({ url })) : images;
 
   const activePrice = sizeVariant?.price ?? colorVariant?.price ?? null;
   const hasVariantPrice = activePrice != null;

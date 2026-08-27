@@ -28,16 +28,38 @@ function parseVariantRows(formData: FormData) {
   const descriptions = formData.getAll("variant_description") as string[];
   const existingImages = formData.getAll("variant_existing_image") as string[];
   const images = formData.getAll("variant_image") as File[];
+  const rowKeys = formData.getAll("variant_row_key") as string[];
+  const existingImageLists = formData.getAll("variant_existing_images") as string[];
   return colors
-    .map((color, i) => ({
-      colorLabel: color.trim() || null,
-      sizeLabel: sizes[i]?.trim() || null,
-      stock: stocks[i]?.trim() ? Number(stocks[i]) : null,
-      price: prices[i]?.trim() ? Number(prices[i]) : null,
-      description: descriptions[i]?.trim() || null,
-      existingImageUrl: existingImages[i]?.trim() || null,
-      imageFile: images[i] && images[i].size > 0 ? images[i] : null,
-    }))
+    .map((color, i) => {
+      // A color's extra photos live in a field named after that row's own
+      // key (variant_new_images_<key>) rather than a shared variant_*
+      // name — a plain multiple-file input can't tell which row it came
+      // from once every row's files land in the same getAll() array, so
+      // each row gets its own uniquely-named input instead.
+      const rowKey = rowKeys[i];
+      const newImages = rowKey
+        ? (formData.getAll(`variant_new_images_${rowKey}`) as File[]).filter((f) => f && f.size > 0)
+        : [];
+      let existingImageUrls: string[] = [];
+      try {
+        const parsed = existingImageLists[i] ? JSON.parse(existingImageLists[i]) : [];
+        if (Array.isArray(parsed)) existingImageUrls = parsed.filter((u) => typeof u === "string" && u);
+      } catch {
+        // malformed JSON — treat as no extra photos rather than failing the save
+      }
+      return {
+        colorLabel: color.trim() || null,
+        sizeLabel: sizes[i]?.trim() || null,
+        stock: stocks[i]?.trim() ? Number(stocks[i]) : null,
+        price: prices[i]?.trim() ? Number(prices[i]) : null,
+        description: descriptions[i]?.trim() || null,
+        existingImageUrl: existingImages[i]?.trim() || null,
+        imageFile: images[i] && images[i].size > 0 ? images[i] : null,
+        existingImageUrls,
+        newImageFiles: newImages,
+      };
+    })
     .filter((v) => v.colorLabel || v.sizeLabel);
 }
 
@@ -73,15 +95,29 @@ async function saveVariants(
   }
 
   const resolved = await Promise.all(
-    rows.map(async (v) => ({
-      product_id: productId,
-      color_label: v.colorLabel,
-      size_label: v.sizeLabel,
-      stock: v.stock,
-      price: v.price,
-      description: v.description,
-      image_url: v.imageFile ? await uploadVariantImage(productSlug, v.imageFile) : v.existingImageUrl,
-    }))
+    rows.map(async (v) => {
+      // A color can carry as many photos as the admin wants — every
+      // newly-picked file gets uploaded, alongside whatever was already
+      // saved or picked from another product's gallery. Sizes and legacy
+      // rows never have any of these, so this is a no-op for them.
+      const uploadedNewUrls = (
+        await Promise.all(v.newImageFiles.map((file) => uploadVariantImage(productSlug, file)))
+      ).filter((url): url is string => !!url);
+      const imageUrls = [...v.existingImageUrls, ...uploadedNewUrls];
+
+      return {
+        product_id: productId,
+        color_label: v.colorLabel,
+        size_label: v.sizeLabel,
+        stock: v.stock,
+        price: v.price,
+        description: v.description,
+        // Kept in sync as a single-photo fallback for any code path still
+        // reading image_url instead of the real image_urls gallery.
+        image_url: imageUrls[0] ?? (v.imageFile ? await uploadVariantImage(productSlug, v.imageFile) : v.existingImageUrl),
+        image_urls: imageUrls.length > 0 ? imageUrls : null,
+      };
+    })
   );
 
   await supabase.from("product_variants").delete().eq("product_id", productId);

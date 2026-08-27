@@ -9,8 +9,11 @@ type ColorRow = {
   stock: string;
   price: string;
   description: string;
-  existingImageUrl: string;
-  previewUrl: string | null;
+  // Photos already saved (or just picked from another product's gallery) —
+  // ready to submit as-is. Newly chosen local files are kept separately
+  // below and only uploaded when the whole form is saved.
+  existingImageUrls: string[];
+  newFiles: { file: File; previewUrl: string }[];
 };
 
 type SizeRow = {
@@ -27,10 +30,11 @@ type VariantData = {
   price?: number | null;
   description?: string | null;
   image_url?: string | null;
+  image_urls?: string[] | null;
 };
 
 function emptyColorRow(): ColorRow {
-  return { key: crypto.randomUUID(), color: "", stock: "", price: "", description: "", existingImageUrl: "", previewUrl: null };
+  return { key: crypto.randomUUID(), color: "", stock: "", price: "", description: "", existingImageUrls: [], newFiles: [] };
 }
 
 function emptySizeRow(): SizeRow {
@@ -60,8 +64,10 @@ export function VariantsEditor({
         stock: v.stock?.toString() ?? "",
         price: v.price?.toString() ?? "",
         description: v.description ?? "",
-        existingImageUrl: v.image_url ?? "",
-        previewUrl: v.image_url ?? null,
+        // Prefer the real gallery column; fall back to the old single-photo
+        // column for rows saved before this page supported more than one.
+        existingImageUrls: v.image_urls && v.image_urls.length > 0 ? v.image_urls : v.image_url ? [v.image_url] : [],
+        newFiles: [],
       }))
   );
   const [sizeRows, setSizeRows] = useState<SizeRow[]>(
@@ -75,7 +81,7 @@ export function VariantsEditor({
       }))
   );
 
-  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const newFilesInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [pickerRowKey, setPickerRowKey] = useState<string | null>(null);
   const [galleryRowKey, setGalleryRowKey] = useState<string | null>(null);
   const [productQuery, setProductQuery] = useState("");
@@ -118,12 +124,15 @@ export function VariantsEditor({
     setLoadingGallery(false);
   }
 
-  function chooseFromGallery(url: string) {
+  // Adds to the row's photos instead of replacing them — picking several
+  // photos (from the device, or from another product's gallery, across as
+  // many clicks as needed) is exactly how a color ends up with 15 photos
+  // instead of being stuck at one.
+  function addFromGallery(url: string) {
     if (!galleryRowKey) return;
-    const input = fileInputRefs.current[galleryRowKey];
-    if (input) input.value = "";
-    updateColor(galleryRowKey, { existingImageUrl: url, previewUrl: url });
-    setGalleryRowKey(null);
+    updateColor(galleryRowKey, {
+      existingImageUrls: [...(colorRows.find((r) => r.key === galleryRowKey)?.existingImageUrls ?? []), url],
+    });
   }
 
   return (
@@ -143,8 +152,9 @@ export function VariantsEditor({
         <p className="mb-2 text-xs text-neutral-500">
           One row per color this product comes in. Price and stock are optional — leave them blank if that color
           costs the same and shares stock with the rest; only fill them in for a color that&apos;s priced or
-          stocked differently. Don&apos;t re-enter the color already set above as &quot;Base color&quot; — that one
-          is the main photo already.
+          stocked differently. Add as many photos as you want per color — they replace the main photos when that
+          color is picked on the site. Don&apos;t re-enter the color already set above as &quot;Base color&quot; —
+          that one is the main photo already.
         </p>
 
         <div className="space-y-3">
@@ -189,43 +199,83 @@ export function VariantsEditor({
                 />
               </div>
 
-              <div className="flex gap-2">
-                <div className="shrink-0">
-                  <input type="hidden" name="variant_existing_image" value={row.existingImageUrl} />
+              <textarea
+                name="variant_description"
+                value={row.description}
+                onChange={(e) => updateColor(row.key, { description: e.target.value })}
+                rows={2}
+                placeholder="Description shown for this color (optional)"
+                className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+              />
+
+              {/* Submitted fields for this row's photos — parallel to
+                  variant_color/variant_size/etc above, one entry per row,
+                  matched up by position in actions.ts. */}
+              <input type="hidden" name="variant_row_key" value={row.key} />
+              <input type="hidden" name="variant_existing_images" value={JSON.stringify(row.existingImageUrls)} />
+              <input type="hidden" name="variant_existing_image" value="" />
+              <input
+                ref={(el) => {
+                  newFilesInputRefs.current[row.key] = el;
+                }}
+                name={`variant_new_images_${row.key}`}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files ?? []);
+                  updateColor(row.key, {
+                    newFiles: [...row.newFiles, ...files.map((file) => ({ file, previewUrl: URL.createObjectURL(file) }))],
+                  });
+                }}
+              />
+              {/* Kept empty — sizes/legacy rows still submit a real one of
+                  these to keep every variant_* field lined up by position;
+                  colors' actual photos go through the fields above instead. */}
+              <input type="file" name="variant_image" className="hidden" />
+
+              <div>
+                <p className="mb-1 text-xs text-neutral-500">
+                  Photos ({row.existingImageUrls.length + row.newFiles.length})
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {row.existingImageUrls.map((url, i) => (
+                    <div key={url + i} className="group relative h-16 w-16 shrink-0 overflow-hidden rounded border border-neutral-200">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- small local preview, next/image's fill sizing isn't worth it here */}
+                      <img src={url} alt="" className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateColor(row.key, { existingImageUrls: row.existingImageUrls.filter((_, x) => x !== i) })
+                        }
+                        className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-[10px] leading-none text-white opacity-0 group-hover:opacity-100"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  {row.newFiles.map((f, i) => (
+                    <div key={f.previewUrl} className="group relative h-16 w-16 shrink-0 overflow-hidden rounded border border-neutral-200">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- small local preview, next/image's fill sizing isn't worth it here */}
+                      <img src={f.previewUrl} alt="" className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => updateColor(row.key, { newFiles: row.newFiles.filter((_, x) => x !== i) })}
+                        className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-[10px] leading-none text-white opacity-0 group-hover:opacity-100"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
                   <button
                     type="button"
                     onClick={() => setPickerRowKey(row.key)}
-                    className="flex h-14 w-14 items-center justify-center overflow-hidden rounded border border-dashed border-neutral-300 text-center text-[10px] leading-tight text-neutral-400 hover:border-brand-black"
+                    className="flex h-16 w-16 shrink-0 items-center justify-center rounded border border-dashed border-neutral-300 text-center text-[10px] leading-tight text-neutral-400 hover:border-brand-black"
                   >
-                    {row.previewUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- small local preview, next/image's fill sizing isn't worth it here
-                      <img src={row.previewUrl} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      "Photo"
-                    )}
+                    + Add
                   </button>
-                  <input
-                    ref={(el) => {
-                      fileInputRefs.current[row.key] = el;
-                    }}
-                    name="variant_image"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0] ?? null;
-                      updateColor(row.key, { previewUrl: file ? URL.createObjectURL(file) : row.existingImageUrl || null });
-                    }}
-                  />
                 </div>
-                <textarea
-                  name="variant_description"
-                  value={row.description}
-                  onChange={(e) => updateColor(row.key, { description: e.target.value })}
-                  rows={2}
-                  placeholder="Description shown for this color (optional)"
-                  className="flex-1 border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
-                />
               </div>
             </div>
           ))}
@@ -280,10 +330,11 @@ export function VariantsEditor({
               />
               <input type="hidden" name="variant_description" value="" />
               <input type="hidden" name="variant_existing_image" value="" />
+              <input type="hidden" name="variant_row_key" value={row.key} />
+              <input type="hidden" name="variant_existing_images" value="" />
               {/* Keeps this row contributing one entry to every variant_*
-                  field name, same as a color row's real file input — the
-                  save action matches all of them up by position, so every
-                  row must line up across every field, sizes included. */}
+                  field name — the save action matches all of them up by
+                  position, so every row must line up across every field. */}
               <input type="file" name="variant_image" className="hidden" />
               <button
                 type="button"
@@ -332,6 +383,8 @@ export function VariantsEditor({
                     <input type="hidden" name="variant_price" value={v.price?.toString() ?? ""} />
                     <input type="hidden" name="variant_description" value={v.description ?? ""} />
                     <input type="hidden" name="variant_existing_image" value={v.image_url ?? ""} />
+                    <input type="hidden" name="variant_row_key" value={`legacy-${i}`} />
+                    <input type="hidden" name="variant_existing_images" value="" />
                     <input type="file" name="variant_image" className="hidden" />
                   </div>
                 );
@@ -346,16 +399,16 @@ export function VariantsEditor({
           onClick={() => setPickerRowKey(null)}
         >
           <div className="w-72 rounded-md bg-white p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <p className="mb-3 text-sm font-medium">Choose a photo</p>
+            <p className="mb-3 text-sm font-medium">Add photos</p>
             <button
               type="button"
               onClick={() => {
-                fileInputRefs.current[pickerRowKey]?.click();
+                newFilesInputRefs.current[pickerRowKey]?.click();
                 setPickerRowKey(null);
               }}
               className="mb-2 block w-full border border-neutral-300 px-3 py-2.5 text-left text-sm hover:border-brand-black"
             >
-              Upload from device
+              Upload from device (pick several at once)
             </button>
             <button
               type="button"
@@ -383,7 +436,7 @@ export function VariantsEditor({
           >
             <div className="mb-3 flex items-center justify-between">
               <p className="text-sm font-medium">
-                {galleryProduct ? `${galleryProduct.name}'s photos` : "Choose a product"}
+                {galleryProduct ? `${galleryProduct.name}'s photos — tap any number of them` : "Choose a product"}
               </p>
               <button type="button" onClick={closeGallery} className="text-xl leading-none text-neutral-400 hover:text-brand-black">
                 ×
@@ -437,19 +490,35 @@ export function VariantsEditor({
                 )}
                 {!loadingGallery && productImages && productImages.length > 0 && (
                   <div className="grid grid-cols-4 gap-2">
-                    {productImages.map((url) => (
-                      <button
-                        key={url}
-                        type="button"
-                        onClick={() => chooseFromGallery(url)}
-                        className="relative aspect-square overflow-hidden rounded border border-neutral-200 hover:border-brand-black"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element -- small gallery thumbnail, next/image's fill sizing isn't worth it here */}
-                        <img src={url} alt="" className="h-full w-full object-cover" />
-                      </button>
-                    ))}
+                    {productImages.map((url) => {
+                      const picked = colorRows.find((r) => r.key === galleryRowKey)?.existingImageUrls.includes(url);
+                      return (
+                        <button
+                          key={url}
+                          type="button"
+                          onClick={() => addFromGallery(url)}
+                          disabled={picked}
+                          className={`relative aspect-square overflow-hidden rounded border hover:border-brand-black ${picked ? "border-brand-black" : "border-neutral-200"}`}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element -- small gallery thumbnail, next/image's fill sizing isn't worth it here */}
+                          <img src={url} alt="" className="h-full w-full object-cover" />
+                          {picked && (
+                            <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-lg text-white">
+                              ✓
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
+                <button
+                  type="button"
+                  onClick={closeGallery}
+                  className="mt-3 block w-full bg-brand-black py-2 text-center text-xs uppercase tracking-wide text-white hover:opacity-90"
+                >
+                  Done
+                </button>
               </div>
             )}
           </div>
