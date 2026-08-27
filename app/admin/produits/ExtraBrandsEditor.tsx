@@ -10,7 +10,10 @@ export function ExtraBrandsEditor({
   allBrands,
   current,
 }: {
-  productId: string;
+  // Omitted on the "create product" form — see ExtraCategoriesEditor for
+  // why: staged as hidden `extra_brand_id` fields instead of hitting the
+  // live add/remove actions, which need a product id that doesn't exist yet.
+  productId?: string;
   allBrands: { id: string; name: string }[];
   current: Link[];
 }) {
@@ -43,10 +46,17 @@ export function ExtraBrandsEditor({
           type="button"
           disabled={!selected || pending}
           onClick={async () => {
+            const brand = allBrands.find((b) => b.id === selected)!;
+
+            if (!productId) {
+              setLinks((prev) => [...prev, { linkId: brand.id, brandId: brand.id, brandName: brand.name }]);
+              setSelected("");
+              return;
+            }
+
             setPending(true);
             setError(null);
             try {
-              const brand = allBrands.find((b) => b.id === selected)!;
               const link = await addProductBrandLink(productId, selected);
               setLinks((prev) => [...prev, { linkId: link.id, brandId: brand.id, brandName: brand.name }]);
               setSelected("");
@@ -69,11 +79,16 @@ export function ExtraBrandsEditor({
               key={l.linkId}
               className="flex items-center gap-2 border border-neutral-200 bg-neutral-50 py-1 pl-2.5 pr-1 text-xs"
             >
+              {!productId && <input type="hidden" name="extra_brand_id" value={l.brandId} />}
               <span>{l.brandName}</span>
               <button
                 type="button"
                 disabled={removingId === l.linkId}
                 onClick={async () => {
+                  if (!productId) {
+                    setLinks((prev) => prev.filter((x) => x.linkId !== l.linkId));
+                    return;
+                  }
                   setRemovingId(l.linkId);
                   setError(null);
                   try {

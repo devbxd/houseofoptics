@@ -11,7 +11,11 @@ export function ExtraCategoriesEditor({
   allCategories,
   current,
 }: {
-  productId: string;
+  // Omitted on the "create product" form, where the product doesn't have an
+  // id yet — picks there are staged as hidden `extra_category_id` fields
+  // (read by createProduct in actions.ts) and only actually linked once the
+  // product is saved, instead of hitting the live add/remove actions below.
+  productId?: string;
   allCategories: { id: string; name: string; slug: string }[];
   current: Link[];
 }) {
@@ -44,10 +48,23 @@ export function ExtraCategoriesEditor({
           type="button"
           disabled={!selected || pending}
           onClick={async () => {
+            const cat = allCategories.find((c) => c.id === selected)!;
+
+            if (!productId) {
+              // Staged: no product to link to yet, just remember the pick
+              // locally — createProduct reads it from the hidden inputs
+              // below once the form is actually submitted.
+              setLinks((prev) => [
+                ...prev,
+                { linkId: cat.id, categoryId: cat.id, categoryName: cat.name, categorySlug: cat.slug, addedAt: new Date().toISOString() },
+              ]);
+              setSelected("");
+              return;
+            }
+
             setPending(true);
             setError(null);
             try {
-              const cat = allCategories.find((c) => c.id === selected)!;
               const link = await addProductCategoryLink(productId, selected);
               setLinks((prev) => [
                 ...prev,
@@ -78,6 +95,7 @@ export function ExtraCategoriesEditor({
                 key={l.linkId}
                 className="flex items-center gap-2 border border-neutral-200 bg-neutral-50 py-1 pl-2.5 pr-1 text-xs"
               >
+                {!productId && <input type="hidden" name="extra_category_id" value={l.categoryId} />}
                 <span>
                   {l.categoryName}
                   {expiresAt && <span className="text-neutral-400"> · until {expiresAt.toLocaleDateString()}</span>}
@@ -86,6 +104,10 @@ export function ExtraCategoriesEditor({
                   type="button"
                   disabled={removingId === l.linkId}
                   onClick={async () => {
+                    if (!productId) {
+                      setLinks((prev) => prev.filter((x) => x.linkId !== l.linkId));
+                      return;
+                    }
                     setRemovingId(l.linkId);
                     setError(null);
                     try {

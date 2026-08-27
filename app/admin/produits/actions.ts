@@ -181,6 +181,12 @@ export async function createProduct(formData: FormData) {
   const baseSize = String(formData.get("base_size") ?? "").trim() || null;
   const files = (formData.getAll("images") as File[]).filter((f) => f.size > 0);
   const packagingFile = formData.get("packaging_image") as File | null;
+  // Picked in "Also show in these categories/brands" before the product
+  // existed to link them to — staged as plain form fields (see
+  // ExtraCategoriesEditor/ExtraBrandsEditor) instead of the live
+  // add/remove actions those use once a product already has an id.
+  const extraCategoryIds = (formData.getAll("extra_category_id") as string[]).filter(Boolean);
+  const extraBrandIds = (formData.getAll("extra_brand_id") as string[]).filter(Boolean);
 
   if (!name) return;
 
@@ -206,6 +212,15 @@ export async function createProduct(formData: FormData) {
 
   await saveVariants(supabase, product.id, product.slug, formData);
 
+  if (extraCategoryIds.length > 0) {
+    await supabase
+      .from("product_category_links")
+      .insert(extraCategoryIds.map((category_id) => ({ product_id: product.id, category_id })));
+  }
+  if (extraBrandIds.length > 0) {
+    await supabase.from("product_brand_links").insert(extraBrandIds.map((brand_id) => ({ product_id: product.id, brand_id })));
+  }
+
   const urls = await uploadImages(product.slug, files);
   if (urls.length > 0) {
     await supabase
@@ -218,7 +233,12 @@ export async function createProduct(formData: FormData) {
   revalidatePath("/admin/produits");
   revalidatePath("/", "layout");
   revalidateTag("products");
-  redirect("/admin/produits");
+  // Straight to the edit page, not the list — "Also show in these
+  // categories/brands", "Other colors" and "Related sunglasses" all need
+  // an existing product id, so they're invisible on the create form no
+  // matter what. Landing here right after saving is what actually makes
+  // them reachable without an extra click back into the list.
+  redirect(`/admin/produits/${product.id}`);
 }
 
 export async function updateProduct(productId: string, formData: FormData) {

@@ -137,12 +137,10 @@ export function ProductForm({
         </div>
       </div>
 
-      {product?.id && (
-        <div className="grid grid-cols-2 gap-4">
-          <ExtraCategoriesEditor productId={product.id} allCategories={categories} current={extraCategoryLinks ?? []} />
-          <ExtraBrandsEditor productId={product.id} allBrands={brands} current={extraBrandLinks ?? []} />
-        </div>
-      )}
+      <div className="grid grid-cols-2 gap-4">
+        <ExtraCategoriesEditor productId={product?.id} allCategories={categories} current={extraCategoryLinks ?? []} />
+        <ExtraBrandsEditor productId={product?.id} allBrands={brands} current={extraBrandLinks ?? []} />
+      </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
