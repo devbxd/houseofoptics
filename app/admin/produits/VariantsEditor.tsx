@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { getProductImages } from "./actions";
+import { getProductImages, uploadVariantPhoto } from "./actions";
 
 type ColorRow = {
   key: string;
@@ -9,11 +9,18 @@ type ColorRow = {
   stock: string;
   price: string;
   description: string;
-  // Photos already saved (or just picked from another product's gallery) —
-  // ready to submit as-is. Newly chosen local files are kept separately
-  // below and only uploaded when the whole form is saved.
+  // Photos already saved, picked from another product's gallery, or just
+  // finished uploading — ready to submit as-is.
   existingImageUrls: string[];
-  newFiles: { file: File; previewUrl: string }[];
+  // Newly picked local files upload immediately (one small request per
+  // photo, see uploadVariantPhoto) instead of riding along in the big
+  // product-save submission, which used to have a total body size cap
+  // shared with every other photo on the page — a color with several
+  // full-size phone photos could blow past that and silently lose
+  // everything after the first. Each entry here is showing a live preview
+  // while its upload is still in flight; it moves into existingImageUrls
+  // once done.
+  uploading: { key: string; previewUrl: string }[];
 };
 
 type SizeRow = {
@@ -34,7 +41,7 @@ type VariantData = {
 };
 
 function emptyColorRow(): ColorRow {
-  return { key: crypto.randomUUID(), color: "", stock: "", price: "", description: "", existingImageUrls: [], newFiles: [] };
+  return { key: crypto.randomUUID(), color: "", stock: "", price: "", description: "", existingImageUrls: [], uploading: [] };
 }
 
 function emptySizeRow(): SizeRow {
@@ -67,7 +74,7 @@ export function VariantsEditor({
         // Prefer the real gallery column; fall back to the old single-photo
         // column for rows saved before this page supported more than one.
         existingImageUrls: v.image_urls && v.image_urls.length > 0 ? v.image_urls : v.image_url ? [v.image_url] : [],
-        newFiles: [],
+        uploading: [],
       }))
   );
   const [sizeRows, setSizeRows] = useState<SizeRow[]>(
@@ -100,6 +107,35 @@ export function VariantsEditor({
   }
   function updateSize(key: string, patch: Partial<SizeRow>) {
     setSizeRows((r) => r.map((row) => (row.key === key ? { ...row, ...patch } : row)));
+  }
+
+  // Uploads one photo right away and moves it from the row's live-preview
+  // "uploading" list into its real photo list once the upload resolves —
+  // fires once per picked file, in parallel, each as its own small request.
+  function uploadPhotoForRow(rowKey: string, file: File) {
+    const uploadKey = crypto.randomUUID();
+    const previewUrl = URL.createObjectURL(file);
+    setColorRows((r) =>
+      r.map((row) => (row.key === rowKey ? { ...row, uploading: [...row.uploading, { key: uploadKey, previewUrl }] } : row))
+    );
+    const formData = new FormData();
+    formData.append("photo", file);
+    uploadVariantPhoto(formData)
+      .then((url) => {
+        setColorRows((r) =>
+          r.map((row) =>
+            row.key === rowKey
+              ? { ...row, uploading: row.uploading.filter((u) => u.key !== uploadKey), existingImageUrls: [...row.existingImageUrls, url] }
+              : row
+          )
+        );
+      })
+      .catch(() => {
+        setColorRows((r) =>
+          r.map((row) => (row.key === rowKey ? { ...row, uploading: row.uploading.filter((u) => u.key !== uploadKey) } : row))
+        );
+        alert("A photo failed to upload — try again.");
+      });
   }
 
   function openGallery(rowKey: string) {
@@ -208,9 +244,12 @@ export function VariantsEditor({
                 className="w-full border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
               />
 
-              {/* Submitted fields for this row's photos — parallel to
+              {/* Submitted fields for this row — parallel to
                   variant_color/variant_size/etc above, one entry per row,
-                  matched up by position in actions.ts. */}
+                  matched up by position in actions.ts. Photos are never
+                  submitted as files here — each one already uploaded the
+                  moment it was picked (see uploadPhotoForRow), so only the
+                  resulting URLs travel with the form. */}
               <input type="hidden" name="variant_row_key" value={row.key} />
               <input type="hidden" name="variant_existing_images" value={JSON.stringify(row.existingImageUrls)} />
               <input type="hidden" name="variant_existing_image" value="" />
@@ -218,16 +257,14 @@ export function VariantsEditor({
                 ref={(el) => {
                   newFilesInputRefs.current[row.key] = el;
                 }}
-                name={`variant_new_images_${row.key}`}
                 type="file"
                 accept="image/*"
                 multiple
                 className="hidden"
                 onChange={(e) => {
                   const files = Array.from(e.target.files ?? []);
-                  updateColor(row.key, {
-                    newFiles: [...row.newFiles, ...files.map((file) => ({ file, previewUrl: URL.createObjectURL(file) }))],
-                  });
+                  e.target.value = "";
+                  files.forEach((file) => uploadPhotoForRow(row.key, file));
                 }}
               />
               {/* Kept empty — sizes/legacy rows still submit a real one of
@@ -237,7 +274,7 @@ export function VariantsEditor({
 
               <div>
                 <p className="mb-1 text-xs text-neutral-500">
-                  Photos ({row.existingImageUrls.length + row.newFiles.length})
+                  Photos ({row.existingImageUrls.length + row.uploading.length})
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {row.existingImageUrls.map((url, i) => (
@@ -255,17 +292,13 @@ export function VariantsEditor({
                       </button>
                     </div>
                   ))}
-                  {row.newFiles.map((f, i) => (
-                    <div key={f.previewUrl} className="group relative h-16 w-16 shrink-0 overflow-hidden rounded border border-neutral-200">
+                  {row.uploading.map((u) => (
+                    <div key={u.key} className="relative h-16 w-16 shrink-0 overflow-hidden rounded border border-neutral-200">
                       {/* eslint-disable-next-line @next/next/no-img-element -- small local preview, next/image's fill sizing isn't worth it here */}
-                      <img src={f.previewUrl} alt="" className="h-full w-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => updateColor(row.key, { newFiles: row.newFiles.filter((_, x) => x !== i) })}
-                        className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-[10px] leading-none text-white opacity-0 group-hover:opacity-100"
-                      >
-                        ×
-                      </button>
+                      <img src={u.previewUrl} alt="" className="h-full w-full object-cover opacity-50" />
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/20 text-[9px] text-white">
+                        Uploading...
+                      </span>
                     </div>
                   ))}
                   <button

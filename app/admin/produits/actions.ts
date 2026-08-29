@@ -28,19 +28,15 @@ function parseVariantRows(formData: FormData) {
   const descriptions = formData.getAll("variant_description") as string[];
   const existingImages = formData.getAll("variant_existing_image") as string[];
   const images = formData.getAll("variant_image") as File[];
-  const rowKeys = formData.getAll("variant_row_key") as string[];
   const existingImageLists = formData.getAll("variant_existing_images") as string[];
   return colors
     .map((color, i) => {
-      // A color's extra photos live in a field named after that row's own
-      // key (variant_new_images_<key>) rather than a shared variant_*
-      // name — a plain multiple-file input can't tell which row it came
-      // from once every row's files land in the same getAll() array, so
-      // each row gets its own uniquely-named input instead.
-      const rowKey = rowKeys[i];
-      const newImages = rowKey
-        ? (formData.getAll(`variant_new_images_${rowKey}`) as File[]).filter((f) => f && f.size > 0)
-        : [];
+      // Every color photo — newly picked or already saved — is uploaded
+      // ahead of time by uploadVariantPhoto() as soon as it's picked in the
+      // admin, one small request per photo, and arrives here purely as a
+      // URL in this JSON list. Nothing about a save's size depends on how
+      // many photos a color has anymore — see uploadVariantPhoto below for
+      // why that used to silently cap a color at 1 photo.
       let existingImageUrls: string[] = [];
       try {
         const parsed = existingImageLists[i] ? JSON.parse(existingImageLists[i]) : [];
@@ -57,10 +53,26 @@ function parseVariantRows(formData: FormData) {
         existingImageUrl: existingImages[i]?.trim() || null,
         imageFile: images[i] && images[i].size > 0 ? images[i] : null,
         existingImageUrls,
-        newImageFiles: newImages,
       };
     })
     .filter((v) => v.colorLabel || v.sizeLabel);
+}
+
+// Uploads one variant photo the moment it's picked in the admin, instead of
+// bundling every color's photos into the one big product-save submission.
+// That submission has a 15MB total body cap (see next.config.ts) shared by
+// the base photos, packaging photo AND every color's photos combined — a
+// handful of full-size phone photos blows past that easily, and the whole
+// save was silently rejected, which looked like "stuck at 1 photo" since
+// nothing after the first upload survived. Each call here is its own tiny
+// request, so the count of photos a color can have is no longer bounded by
+// the save's total size at all.
+export async function uploadVariantPhoto(formData: FormData): Promise<string> {
+  const file = formData.get("photo") as File | null;
+  if (!file || file.size === 0) throw new Error("No photo provided");
+  const { buffer, contentType, ext } = await processImage(file);
+  const path = `variants/${crypto.randomUUID()}.${ext}`;
+  return uploadToR2(path, buffer, contentType);
 }
 
 async function uploadVariantImage(productSlug: string, file: File) {
@@ -96,14 +108,10 @@ async function saveVariants(
 
   const resolved = await Promise.all(
     rows.map(async (v) => {
-      // A color can carry as many photos as the admin wants — every
-      // newly-picked file gets uploaded, alongside whatever was already
-      // saved or picked from another product's gallery. Sizes and legacy
-      // rows never have any of these, so this is a no-op for them.
-      const uploadedNewUrls = (
-        await Promise.all(v.newImageFiles.map((file) => uploadVariantImage(productSlug, file)))
-      ).filter((url): url is string => !!url);
-      const imageUrls = [...v.existingImageUrls, ...uploadedNewUrls];
+      // Every photo in existingImageUrls was already uploaded (via
+      // uploadVariantPhoto, called as soon as it was picked in the admin) —
+      // nothing left to upload here. Sizes and legacy rows never have any.
+      const imageUrls = v.existingImageUrls;
 
       return {
         product_id: productId,
@@ -390,6 +398,24 @@ export async function updateDiscount(productId: string, discountPercent: number 
     .eq("id", productId);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/discounts");
+  revalidatePath("/", "layout");
+  revalidateTag("products");
+}
+
+// Toggling this on immediately shows the product as out of stock
+// everywhere on the site (product page, cards, search, checkout) without
+// touching the real stock numbers underneath — flipping it back off
+// restores exactly what was there before, colors/sizes included, with no
+// need to re-enter anything.
+export async function toggleSoldOut(productId: string) {
+  const supabase = createServiceClient();
+  const { data: product } = await supabase.from("products").select("is_sold_out").eq("id", productId).single();
+  if (!product) return;
+
+  await supabase.from("products").update({ is_sold_out: !product.is_sold_out }).eq("id", productId);
+
+  revalidatePath("/admin/produits");
+  revalidatePath(`/admin/produits/${productId}`);
   revalidatePath("/", "layout");
   revalidateTag("products");
 }

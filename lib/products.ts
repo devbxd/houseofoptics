@@ -113,7 +113,7 @@ async function fetchProducts(
   let query = supabase
     .from("products")
     .select(
-      "id, name, slug, price, discount_percent, stock, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order)",
+      "id, name, slug, price, discount_percent, stock, is_sold_out, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order)",
       { count: "exact" }
     )
     .eq("is_active", true)
@@ -128,6 +128,7 @@ async function fetchProducts(
   logIfError("Failed to load products:", error);
   const products = (data as any[])?.map((p) => ({
     ...p,
+    stock: p.is_sold_out ? 0 : p.stock,
     category: Array.isArray(p.category) ? p.category[0] ?? null : p.category,
     brand: Array.isArray(p.brand) ? p.brand[0] ?? null : p.brand,
     images: (p.images ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order),
@@ -173,7 +174,7 @@ async function fetchSearchResults(
   const { data: products, error } = await supabase
     .from("products")
     .select(
-      "id, name, slug, price, discount_percent, stock, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order), variants:product_variants(color_label, size_label, price, stock, image_url, image_urls)"
+      "id, name, slug, price, discount_percent, stock, is_sold_out, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order), variants:product_variants(color_label, size_label, price, stock, image_url, image_urls)"
     )
     .in("id", matchedIds)
     .eq("is_active", true);
@@ -184,6 +185,7 @@ async function fetchSearchResults(
     const category = Array.isArray(p.category) ? p.category[0] ?? null : p.category;
     const brand = Array.isArray(p.brand) ? p.brand[0] ?? null : p.brand;
     const images = (p.images ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order);
+    const baseStock = p.is_sold_out ? 0 : p.stock;
 
     cards.push({
       id: p.id,
@@ -191,7 +193,7 @@ async function fetchSearchResults(
       slug: p.slug,
       price: p.price,
       discount_percent: p.discount_percent,
-      stock: p.stock,
+      stock: baseStock,
       category,
       brand,
       images,
@@ -210,7 +212,7 @@ async function fetchSearchResults(
         slug: p.slug,
         price: v.price ?? p.price,
         discount_percent: v.price != null ? null : p.discount_percent,
-        stock: v.stock ?? p.stock,
+        stock: p.is_sold_out ? 0 : v.stock ?? p.stock,
         category,
         brand,
         images: [{ url: photo }],
@@ -238,7 +240,7 @@ async function fetchRelatedProducts(
   const { data: manual, error: manualError } = await supabase
     .from("product_related_products")
     .select(
-      "sort_order, related:products!product_related_products_related_product_id_fkey(id, name, slug, price, discount_percent, stock, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order))"
+      "sort_order, related:products!product_related_products_related_product_id_fkey(id, name, slug, price, discount_percent, stock, is_sold_out, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order))"
     )
     .eq("product_id", product.id)
     .order("sort_order", { ascending: true });
@@ -252,6 +254,7 @@ async function fetchRelatedProducts(
   if (manual && manual.length > 0) {
     return manual.map((row: any) => ({
       ...row.related,
+      stock: row.related.is_sold_out ? 0 : row.related.stock,
       category: Array.isArray(row.related.category) ? row.related.category[0] ?? null : row.related.category,
       brand: Array.isArray(row.related.brand) ? row.related.brand[0] ?? null : row.related.brand,
       images: (row.related.images ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order),
@@ -333,11 +336,16 @@ async function fetchProductBySlug(slug: string) {
       ...v,
       color_label: v.color_label ?? (v.kind === "color" ? v.label : null),
       size_label: v.size_label ?? (v.kind === "size" ? v.label : null),
+      // The manual "Sold out" override always wins over whatever stock
+      // number is actually stored, on every color/size row — see
+      // toggleSoldOut in admin/produits/actions.ts.
+      stock: p.is_sold_out ? 0 : v.stock,
     }))
     .filter((v: any) => v.color_label || v.size_label)
     .sort((a: any, b: any) => a.sort_order - b.sort_order);
   return {
     ...p,
+    stock: p.is_sold_out ? 0 : p.stock,
     category: Array.isArray(p.category) ? p.category[0] ?? null : p.category,
     brand: Array.isArray(p.brand) ? p.brand[0] ?? null : p.brand,
     images: (p.images ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order),

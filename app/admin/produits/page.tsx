@@ -21,7 +21,7 @@ export default async function AdminProductsPage({
 
   let query = supabase
     .from("products")
-    .select("id, name, price, is_active, discount_percent, category:categories(name), images:product_images(url, sort_order)", {
+    .select("id, name, price, is_active, is_sold_out, discount_percent, category:categories(name), images:product_images(url, sort_order)", {
       count: "exact",
     })
     .order("created_at", { ascending: false })
@@ -84,6 +84,9 @@ export default async function AdminProductsPage({
                 {img && <Image src={img.url} alt={p.name} fill sizes="300px" className="object-cover" />}
                 {!p.is_active && (
                   <span className="absolute left-2 top-2 rounded bg-neutral-900/80 px-2 py-0.5 text-xs text-white">Hidden</span>
+                )}
+                {p.is_sold_out && (
+                  <span className="absolute left-2 bottom-2 rounded bg-brand-red px-2 py-0.5 text-xs text-white">Sold out</span>
                 )}
                 {!!p.discount_percent && (
                   <span className="absolute right-2 top-2 rounded-full bg-brand-red px-2 py-0.5 text-xs font-semibold text-white">

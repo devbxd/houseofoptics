@@ -6,6 +6,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { VariantsEditor } from "./VariantsEditor";
 import { ExtraCategoriesEditor } from "./ExtraCategoriesEditor";
 import { ExtraBrandsEditor } from "./ExtraBrandsEditor";
+import { SoldOutButton } from "./SoldOutButton";
 
 type Category = { id: string; name: string; slug: string; parent_id?: string | null };
 type Brand = { id: string; name: string };
@@ -34,6 +35,7 @@ type Product = {
   base_color?: string | null;
   base_size?: string | null;
   is_active?: boolean;
+  is_sold_out?: boolean;
   packaging_image_url?: string | null;
   variants?: {
     color_label: string | null;
@@ -272,6 +274,16 @@ export function ProductForm({
           <input type="checkbox" name="is_active" defaultChecked={product.is_active ?? true} />
           Visible on the site
         </label>
+      )}
+
+      {product?.id && (
+        <div>
+          <SoldOutButton productId={product.id} initialSoldOut={product.is_sold_out ?? false} />
+          <p className="mt-1 text-xs text-neutral-500">
+            Shows as out of stock everywhere on the site right away, without touching the stock numbers below —
+            click again to make it available exactly as it was.
+          </p>
+        </div>
       )}
 
       <div className="flex items-center gap-3">

@@ -60,7 +60,7 @@ export async function createOrder(input: CheckoutInput) {
   const productIds = [...new Set(input.items.map((i) => i.productId))];
   const [{ data: allVariants }, { data: productRows }] = await Promise.all([
     supabase.from("product_variants").select("id, product_id, color_label, size_label, label, kind, price").in("product_id", productIds),
-    supabase.from("products").select("id, price, discount_percent, is_active").in("id", productIds),
+    supabase.from("products").select("id, price, discount_percent, is_active, is_sold_out").in("id", productIds),
   ]);
   const productById = new Map((productRows ?? []).map((p) => [p.id, p]));
 
@@ -89,6 +89,10 @@ export async function createOrder(input: CheckoutInput) {
     // cart must never be purchasable just because it was added while the
     // product was still live.
     if (!product || !product.is_active) throw new Error("PRODUCT_UNAVAILABLE");
+    // The manual "Sold out" override (Admin > Products > edit product)
+    // blocks checkout the same way real zero stock would, without actually
+    // touching the stock numbers underneath.
+    if (product.is_sold_out) throw new Error("OUT_OF_STOCK");
 
     let variantId: string | null = null;
     let unitPrice: number | null = product.price;
