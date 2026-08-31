@@ -109,9 +109,9 @@ function giftCardSummary(card: {
   credit_amount: number | null;
   productName: string | null;
 }): string {
-  if (card.type === "product") return card.productName ?? "un article gratuit";
-  if (card.type === "discount") return `${card.discount_percent}% de réduction`;
-  return `$${Number(card.credit_amount).toFixed(2)} de crédit`;
+  if (card.type === "product") return card.productName ?? "a free item";
+  if (card.type === "discount") return `${card.discount_percent}% off`;
+  return `$${Number(card.credit_amount).toFixed(2)} credit`;
 }
 
 // Emails the code straight to the recipient with a short explainer of what
@@ -119,10 +119,10 @@ function giftCardSummary(card: {
 // copying the code and sending it themselves.
 export async function sendGiftCardByEmail(code: string, recipientEmail: string): Promise<{ ok: boolean; error?: string }> {
   const email = recipientEmail.trim();
-  if (!email || !email.includes("@")) return { ok: false, error: "Adresse email invalide" };
+  if (!email || !email.includes("@")) return { ok: false, error: "Invalid email address" };
 
   const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return { ok: false, error: "Envoi d'email non configuré (RESEND_API_KEY manquant)" };
+  if (!apiKey) return { ok: false, error: "Email sending isn't configured (missing RESEND_API_KEY)" };
 
   const supabase = createServiceClient();
   const { data: card } = (await supabase
@@ -130,7 +130,7 @@ export async function sendGiftCardByEmail(code: string, recipientEmail: string):
     .select("code, type, discount_percent, credit_amount, recipient_name, message, product:products(name)")
     .eq("code", code)
     .maybeSingle()) as { data: any };
-  if (!card) return { ok: false, error: "Carte cadeau introuvable" };
+  if (!card) return { ok: false, error: "Gift card not found" };
 
   const productName = Array.isArray(card.product) ? card.product[0]?.name : card.product?.name;
   const summary = giftCardSummary({ type: card.type, discount_percent: card.discount_percent, credit_amount: card.credit_amount, productName: productName ?? null });
@@ -138,19 +138,19 @@ export async function sendGiftCardByEmail(code: string, recipientEmail: string):
   const sent = await sendEmail(
     apiKey,
     email,
-    `🎁 Vous avez reçu un cadeau — House of Optics`,
+    `🎁 You've received a gift — House of Optics`,
     renderEmail({
-      heading: `Un cadeau pour ${card.recipient_name}`,
+      heading: `A gift for ${card.recipient_name}`,
       bodyHtml: `
-        <p style="margin:0 0 16px;">Vous avez reçu : <strong>${summary}</strong></p>
+        <p style="margin:0 0 16px;">You've received: <strong>${summary}</strong></p>
         ${card.message ? `<p style="margin:0 0 16px;font-style:italic;">"${card.message}"</p>` : ""}
-        <p style="margin:0 0 8px;">Pour l'utiliser, connectez-vous (ou créez un compte gratuitement) sur notre site, puis entrez ce code :</p>
+        <p style="margin:0 0 8px;">To use it, sign in (or create a free account) on our site, then enter this code:</p>
         <p style="margin:12px 0;padding:14px 18px;background:#f2f0ec;font-family:monospace;font-size:18px;letter-spacing:2px;text-align:center;">${card.code}</p>
       `,
-      ctaLabel: "Utiliser mon cadeau",
+      ctaLabel: "Use my gift",
       ctaUrl: `${SITE_URL}/carte-cadeau`,
     })
   );
 
-  return sent ? { ok: true } : { ok: false, error: "L'envoi a échoué — réessaie dans quelques instants." };
+  return sent ? { ok: true } : { ok: false, error: "Sending failed — try again in a moment." };
 }

@@ -346,9 +346,38 @@ export async function createOrder(input: CheckoutInput) {
   // without it rather than failing the whole order over a missing column.
   const { error: itemsError } = await supabase.from("order_items").insert(orderItemFields);
   if (itemsError) {
-    await supabase
+    const { error: fallbackItemsError } = await supabase
       .from("order_items")
       .insert(orderItemFields.map(({ image_url, ...rest }) => rest));
+    // Stock was already decremented and the order row already exists at
+    // this point — an order with zero items would otherwise just look
+    // "empty" in the admin with no trace of why. This is the one failure
+    // in this whole flow that can't be cleanly rolled back (the customer
+    // already has a confirmation), so it's surfaced loudly instead:
+    // logged, and the owner is emailed directly so the order gets fixed
+    // by hand rather than silently sitting there unfulfillable.
+    if (fallbackItemsError) {
+      console.error(`Order ${order.id} items failed to save:`, itemsError, fallbackItemsError);
+      try {
+        const apiKey = process.env.RESEND_API_KEY;
+        const ownerEmail = process.env.OWNER_NOTIFICATION_EMAIL;
+        if (apiKey && ownerEmail) {
+          const { sendEmail } = await import("@/lib/notify-order");
+          const { renderEmail } = await import("@/lib/email-template");
+          await sendEmail(
+            apiKey,
+            ownerEmail,
+            `Order ${order.id.slice(0, 8)} needs manual review — items failed to save`,
+            renderEmail({
+              heading: "An order's items failed to save",
+              bodyHtml: `<p>Order <strong>${order.id}</strong> from ${input.name} (${input.email}) was created and stock was already deducted, but its line items could not be saved. Check this order manually in the dashboard and add the items by hand if needed.</p>`,
+            })
+          );
+        }
+      } catch {
+        // the order itself already succeeded — a failed alert email must never surface as an error to the customer
+      }
+    }
   }
 
   try {

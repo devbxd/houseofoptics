@@ -2,6 +2,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { getSiteSettings, whatsappLink } from "@/lib/settings";
 import { OrderDeleteButton } from "./OrderDeleteButton";
 import { OrderCancelButton } from "./OrderCancelButton";
+import { OrderStatusSelect } from "./OrderStatusSelect";
 import { OrderItemsList } from "./OrderItemsList";
 
 export default async function AdminOrdersPage({
@@ -83,7 +84,7 @@ export default async function AdminOrdersPage({
                 </div>
                 <div className="text-right">
                   <p className="text-sm">${Number(o.total).toFixed(2)}</p>
-                  <span className="rounded bg-neutral-100 px-2 py-0.5 text-xs uppercase text-neutral-600">{o.status}</span>
+                  <OrderStatusSelect orderId={o.id} status={o.status} />
                   <div className="mt-2 flex items-center justify-end gap-3">
                     <OrderCancelButton orderId={o.id} status={o.status} />
                     <OrderDeleteButton orderId={o.id} />

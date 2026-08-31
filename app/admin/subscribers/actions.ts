@@ -32,7 +32,7 @@ export async function sendBroadcast(formData: FormData) {
   const html = renderEmail({
     heading: subject,
     bodyHtml: textToHtml(message),
-    ctaLabel: "Découvrir la collection",
+    ctaLabel: "Discover the collection",
     ctaUrl: `${SITE_URL}/produits`,
   });
 

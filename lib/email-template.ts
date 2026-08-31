@@ -53,7 +53,7 @@ export function renderEmail({
                   ctaUrl
                     ? `<div style="margin-top:28px;">
                         <a href="${ctaUrl}" style="display:inline-block;background:${DARK};color:#ffffff;text-decoration:none;padding:13px 30px;font-size:12px;letter-spacing:2px;text-transform:uppercase;">
-                          ${ctaLabel ?? "Découvrir"}
+                          ${ctaLabel ?? "Discover"}
                         </a>
                       </div>`
                     : ""
