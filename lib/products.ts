@@ -287,32 +287,21 @@ async function fetchSearchResults(
 export const searchProducts = fetchSearchResults;
 
 // TEMPORARY diagnostic — remove once the missing-variant search bug is
-// found. Runs the exact same embedded query fetchSearchResults uses for
-// exactly one product id and returns the raw result untouched.
+// found. Runs several variations of the same query to isolate exactly
+// which factor makes color_label come back null.
 export async function debugProductVariantsRaw(id: string) {
-  const supabase = createPublicClient();
-  const byEq = await supabase
-    .from("products")
-    .select(
-      "id, name, variants:product_variants(color_label, size_label, price, stock, image_url, image_urls)"
-    )
-    .eq("id", id)
-    .eq("is_active", true);
-  const byIn = await supabase
-    .from("products")
-    .select(
-      "id, name, variants:product_variants(color_label, size_label, price, stock, image_url, image_urls)"
-    )
-    .in("id", [id])
-    .eq("is_active", true);
-  const flatVariants = await supabase
-    .from("product_variants")
-    .select("product_id, color_label, size_label")
-    .eq("product_id", id);
+  const anon = createPublicClient();
+
+  const anonExplicit = await anon.from("product_variants").select("color_label, size_label, price, stock").eq("product_id", id);
+  const anonStar = await anon.from("product_variants").select("*").eq("product_id", id);
+  const anonColorOnly = await anon.from("product_variants").select("color_label").eq("product_id", id);
+  const anonIdColor = await anon.from("product_variants").select("id, color_label").eq("product_id", id);
+
   return {
-    byEq: { data: byEq.data, error: byEq.error?.message ?? null },
-    byIn: { data: byIn.data, error: byIn.error?.message ?? null },
-    flatVariants: { data: flatVariants.data, error: flatVariants.error?.message ?? null },
+    anonExplicit: { data: anonExplicit.data, error: anonExplicit.error?.message ?? null },
+    anonStar: { data: anonStar.data, error: anonStar.error?.message ?? null },
+    anonColorOnly: { data: anonColorOnly.data, error: anonColorOnly.error?.message ?? null },
+    anonIdColor: { data: anonIdColor.data, error: anonIdColor.error?.message ?? null },
   };
 }
 
