@@ -150,24 +150,75 @@ export const listProducts = unstable_cache(fetchProducts, ["list-products"], {
 // card — even though it's still a single product/page underneath (see
 // VariantDetail in ProductDetailInteractive.tsx). Clicking a color card
 // opens that same product pre-selected to that color via ?color=, where
-// the dropdown still works normally. Matches by product name OR by a
-// variant's color label, so searching a color still finds the product.
+// the dropdown still works normally. Matches ANYTHING the query could be:
+// product name, SKU, brand name (main assignment or a quick-added extra
+// brand), category name (main assignment or quick-added extra category),
+// or a variant's color label — searching "Dita" finds every Dita product
+// even if the word "Dita" never appears in a product's own name.
 async function fetchSearchResults(
   query: string,
   page = 1,
   pageSize = PAGE_SIZE
 ): Promise<{ products: ProductCard[]; total: number; pageSize: number }> {
   const supabase = createPublicClient();
+  const q = `%${query}%`;
 
-  const [{ data: nameMatches, error: nameError }, { data: colorMatches, error: colorError }] = await Promise.all([
-    supabase.from("products").select("id").eq("is_active", true).ilike("name", `%${query}%`),
-    supabase.from("product_variants").select("product_id").ilike("color_label", `%${query}%`),
+  const [
+    { data: nameMatches, error: nameError },
+    { data: skuMatches, error: skuError },
+    { data: colorMatches, error: colorError },
+    { data: brandMatches, error: brandNameError },
+    { data: categoryMatches, error: categoryNameError },
+  ] = await Promise.all([
+    supabase.from("products").select("id").eq("is_active", true).ilike("name", q),
+    supabase.from("products").select("id").eq("is_active", true).ilike("sku", q),
+    supabase.from("product_variants").select("product_id").ilike("color_label", q),
+    supabase.from("brands").select("id").ilike("name", q),
+    supabase.from("categories").select("id").ilike("name", q),
   ]);
   logIfError("Search: failed to match products by name:", nameError);
+  logIfError("Search: failed to match products by SKU:", skuError);
   logIfError("Search: failed to match products by variant color:", colorError);
+  logIfError("Search: failed to match brands by name:", brandNameError);
+  logIfError("Search: failed to match categories by name:", categoryNameError);
+
+  const brandIds = (brandMatches ?? []).map((r: any) => r.id);
+  const categoryIds = (categoryMatches ?? []).map((r: any) => r.id);
+
+  const [
+    { data: brandProductRows, error: brandProductError },
+    { data: brandLinkRows, error: brandLinkError },
+    { data: categoryProductRows, error: categoryProductError },
+    { data: categoryLinkRows, error: categoryLinkError },
+  ] = await Promise.all([
+    brandIds.length
+      ? supabase.from("products").select("id").in("brand_id", brandIds).eq("is_active", true)
+      : Promise.resolve({ data: [] as { id: string }[], error: null }),
+    brandIds.length
+      ? supabase.from("product_brand_links").select("product_id").in("brand_id", brandIds)
+      : Promise.resolve({ data: [] as { product_id: string }[], error: null }),
+    categoryIds.length
+      ? supabase.from("products").select("id").in("category_id", categoryIds).eq("is_active", true)
+      : Promise.resolve({ data: [] as { id: string }[], error: null }),
+    categoryIds.length
+      ? supabase.from("product_category_links").select("product_id").in("category_id", categoryIds)
+      : Promise.resolve({ data: [] as { product_id: string }[], error: null }),
+  ]);
+  logIfError("Search: failed to match products by brand:", brandProductError);
+  logIfError("Search: failed to match quick-added brand links:", brandLinkError);
+  logIfError("Search: failed to match products by category:", categoryProductError);
+  logIfError("Search: failed to match quick-added category links:", categoryLinkError);
 
   const matchedIds = Array.from(
-    new Set([...(nameMatches ?? []).map((r: any) => r.id), ...(colorMatches ?? []).map((r: any) => r.product_id)])
+    new Set([
+      ...(nameMatches ?? []).map((r: any) => r.id),
+      ...(skuMatches ?? []).map((r: any) => r.id),
+      ...(colorMatches ?? []).map((r: any) => r.product_id),
+      ...(brandProductRows ?? []).map((r: any) => r.id),
+      ...(brandLinkRows ?? []).map((r: any) => r.product_id),
+      ...(categoryProductRows ?? []).map((r: any) => r.id),
+      ...(categoryLinkRows ?? []).map((r: any) => r.product_id),
+    ])
   );
   if (matchedIds.length === 0) return { products: [], total: 0, pageSize };
 
