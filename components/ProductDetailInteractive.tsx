@@ -72,85 +72,44 @@ function VariantDropdown({
   );
 }
 
-// Best-effort visual color for a swatch square — matches common color names
-// in English and French, including a couple of sunglasses-specific lens
-// tints. Falls back to a neutral fill (the label text underneath still
-// carries the real info) for anything unrecognized, e.g. a brand-specific
-// name like "Havana Fade".
-const SWATCH_COLORS: Record<string, string> = {
-  black: "#161616",
-  noir: "#161616",
-  white: "#f5f5f0",
-  blanc: "#f5f5f0",
-  red: "#dc2626",
-  rouge: "#dc2626",
-  blue: "#2563eb",
-  bleu: "#2563eb",
-  navy: "#1e3a5f",
-  marine: "#1e3a5f",
-  green: "#16a34a",
-  vert: "#16a34a",
-  yellow: "#eab308",
-  jaune: "#eab308",
-  orange: "#f97316",
-  pink: "#ec4899",
-  rose: "#ec4899",
-  purple: "#9333ea",
-  violet: "#9333ea",
-  brown: "#6b4226",
-  marron: "#6b4226",
-  brun: "#6b4226",
-  havana: "#7a4a2b",
-  havane: "#7a4a2b",
-  tortoise: "#6b4226",
-  ecaille: "#6b4226",
-  beige: "#d8c3a5",
-  grey: "#9ca3af",
-  gray: "#9ca3af",
-  gris: "#9ca3af",
-  silver: "#c0c0c0",
-  argent: "#c0c0c0",
-  gold: "#c9a227",
-  or: "#c9a227",
-  dore: "#c9a227",
-  clear: "#eeeeee",
-  transparent: "#eeeeee",
-  g15: "#4b5d4f",
-};
-
-function swatchBackground(label: string): string {
-  const key = label.trim().toLowerCase();
-  if (SWATCH_COLORS[key]) return SWATCH_COLORS[key];
-  const found = Object.keys(SWATCH_COLORS).find((k) => key.includes(k));
-  return found ? SWATCH_COLORS[found] : "#d4d4d4";
-}
-
+// Shows each color's own first photo as its swatch — falling back to the
+// product's main photo for a color with no dedicated photos of its own
+// (e.g. the base color, which usually has no separate variant row at all).
+// Clicking one selects that color exactly like the dropdown does, swapping
+// in the rest of that color's photos the same way the normal gallery does.
 function ColorSwatches({
   colors,
+  variants,
+  fallbackImage,
   selected,
   onSelect,
 }: {
   colors: string[];
+  variants: VariantDetail[];
+  fallbackImage: string | null;
   selected: string | null;
   onSelect: (v: string) => void;
 }) {
   if (colors.length === 0) return null;
   return (
     <div className="mt-3 flex flex-wrap gap-2">
-      {colors.map((c) => (
-        <button
-          key={c}
-          type="button"
-          onClick={() => onSelect(c)}
-          title={c}
-          className={`flex flex-col items-center gap-1 rounded border px-1.5 py-1.5 transition-colors ${
-            selected === c ? "border-brand-black" : "border-neutral-200 hover:border-neutral-400"
-          }`}
-        >
-          <span className="h-6 w-6 rounded-sm border border-black/10" style={{ background: swatchBackground(c) }} />
-          <span className="max-w-[4.5rem] truncate text-[10px] uppercase tracking-wide text-neutral-600">{c}</span>
-        </button>
-      ))}
+      {colors.map((c) => {
+        const variant = variants.find((v) => v.color_label === c);
+        const photo = (variant?.image_urls && variant.image_urls[0]) || variant?.image_url || fallbackImage;
+        return (
+          <button
+            key={c}
+            type="button"
+            onClick={() => onSelect(c)}
+            title={c}
+            className={`relative h-14 w-14 shrink-0 overflow-hidden rounded border-2 ${
+              selected === c ? "border-brand-black" : "border-neutral-200 hover:border-neutral-400"
+            }`}
+          >
+            {photo && <Image src={photo} alt={c} fill unoptimized sizes="56px" className="object-cover" />}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -383,7 +342,13 @@ export function ProductDetailInteractive({
         />
 
         {variants.length > 0 && uniqueColors.length > 0 && (
-          <ColorSwatches colors={uniqueColors} selected={selectedColor} onSelect={selectColor} />
+          <ColorSwatches
+            colors={uniqueColors}
+            variants={variants}
+            fallbackImage={images[0]?.url ?? null}
+            selected={selectedColor}
+            onSelect={selectColor}
+          />
         )}
 
         {colorSiblings.length > 0 && (

@@ -254,8 +254,11 @@ async function fetchSearchResults(
     const seenColors = new Set<string>();
     for (const v of p.variants ?? []) {
       if (!v.color_label || seenColors.has(v.color_label)) continue;
-      const photo = (v.image_urls && v.image_urls[0]) || v.image_url;
-      if (!photo) continue; // nothing to show for this color, skip its card
+      // Falls back to the product's own main photo when this color has no
+      // dedicated photos of its own — every color the product comes in
+      // gets a card, not just the ones with their own uploaded photos.
+      const photo = (v.image_urls && v.image_urls[0]) || v.image_url || images[0]?.url || null;
+      if (!photo) continue; // this product has no photos anywhere, nothing to show
       seenColors.add(v.color_label);
       cards.push({
         id: `${p.id}::${v.color_label}`,
