@@ -3,6 +3,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { renderEmail, textToHtml } from "@/lib/email-template";
 import { SITE_URL } from "@/lib/site";
+import { getSiteSettings } from "@/lib/settings";
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
@@ -35,6 +36,15 @@ export async function sendBroadcast(formData: FormData) {
     ctaUrl: `${SITE_URL}/produits`,
   });
 
+  // A plain-text alternative and a real reply-to address make this read
+  // less like a pure marketing blast to Gmail's tab classifier, which is
+  // otherwise quick to route an identical HTML-only email sent to several
+  // addresses at once into Promotions instead of the inbox — no code
+  // change fully controls that classification, but these are the concrete
+  // signals that help.
+  const settings = await getSiteSettings();
+  const replyTo = settings.contact_email || undefined;
+
   let sent = 0;
   let failed = 0;
   // Sent in batches of 10 via Resend's own /emails/batch endpoint (one
@@ -53,6 +63,8 @@ export async function sendBroadcast(formData: FormData) {
             to: [email],
             subject,
             html,
+            text: message,
+            ...(replyTo ? { reply_to: [replyTo] } : {}),
           }))
         ),
       });
