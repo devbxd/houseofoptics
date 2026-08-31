@@ -1,4 +1,4 @@
-import { searchProducts, debugProductVariantsRaw } from "@/lib/products";
+import { searchProducts } from "@/lib/products";
 import { ProductGrid } from "@/components/ProductGrid";
 import { Pagination } from "@/components/Pagination";
 import { getServerDict } from "@/lib/locale-server";
@@ -6,20 +6,11 @@ import { getServerDict } from "@/lib/locale-server";
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string; debugpid?: string }>;
+  searchParams: Promise<{ q?: string; page?: string }>;
 }) {
-  const { q, page: pageParam, debugpid } = await searchParams;
+  const { q, page: pageParam } = await searchParams;
   const search = (q ?? "").trim();
   const page = Math.max(1, Number(pageParam) || 1);
-
-  if (debugpid) {
-    const result = await debugProductVariantsRaw(debugpid);
-    return (
-      <main className="mx-auto max-w-6xl px-4 py-12">
-        <pre className="whitespace-pre-wrap break-all text-xs">{JSON.stringify(result, null, 2)}</pre>
-      </main>
-    );
-  }
 
   const [{ products, total, pageSize }, { t }] = await Promise.all([
     search ? searchProducts(search, page) : Promise.resolve({ products: [], total: 0, pageSize: 24 }),

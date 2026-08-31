@@ -117,6 +117,17 @@ async function saveVariants(
         product_id: productId,
         color_label: v.colorLabel,
         size_label: v.sizeLabel,
+        // label/kind are the older columns product_variants started with —
+        // label is still NOT NULL, so an insert that only sets
+        // color_label/size_label always fails and silently falls back to
+        // the legacy-only insert below, which never writes color_label/
+        // size_label at all. Setting both column pairs here means every
+        // save writes color_label/size_label directly instead of relying
+        // on the fallback (search and anything else reading color_label
+        // straight, without the label/kind fallback fetchProductBySlug
+        // applies, was never seeing these rows as a result).
+        label: v.colorLabel || v.sizeLabel || "",
+        kind: v.colorLabel ? "color" : "size",
         stock: v.stock,
         price: v.price,
         description: v.description,

@@ -167,18 +167,26 @@ async function fetchSearchResults(
     { data: nameMatches, error: nameError },
     { data: skuMatches, error: skuError },
     { data: colorMatches, error: colorError },
+    { data: legacyColorMatches, error: legacyColorError },
     { data: brandMatches, error: brandNameError },
     { data: categoryMatches, error: categoryNameError },
   ] = await Promise.all([
     supabase.from("products").select("id").eq("is_active", true).ilike("name", q),
     supabase.from("products").select("id").eq("is_active", true).ilike("sku", q),
     supabase.from("product_variants").select("product_id").ilike("color_label", q),
+    // A row saved through the older label/kind columns (see the fallback
+    // in fetchProductBySlug and saveVariants) has color_label null even
+    // though it's really a color — matched here too so it isn't invisible
+    // to search just because of which columns it happened to be saved
+    // through.
+    supabase.from("product_variants").select("product_id").eq("kind", "color").ilike("label", q),
     supabase.from("brands").select("id").ilike("name", q),
     supabase.from("categories").select("id").ilike("name", q),
   ]);
   logIfError("Search: failed to match products by name:", nameError);
   logIfError("Search: failed to match products by SKU:", skuError);
   logIfError("Search: failed to match products by variant color:", colorError);
+  logIfError("Search: failed to match products by legacy variant color:", legacyColorError);
   logIfError("Search: failed to match brands by name:", brandNameError);
   logIfError("Search: failed to match categories by name:", categoryNameError);
 
@@ -214,6 +222,7 @@ async function fetchSearchResults(
       ...(nameMatches ?? []).map((r: any) => r.id),
       ...(skuMatches ?? []).map((r: any) => r.id),
       ...(colorMatches ?? []).map((r: any) => r.product_id),
+      ...(legacyColorMatches ?? []).map((r: any) => r.product_id),
       ...(brandProductRows ?? []).map((r: any) => r.id),
       ...(brandLinkRows ?? []).map((r: any) => r.product_id),
       ...(categoryProductRows ?? []).map((r: any) => r.id),
@@ -225,7 +234,7 @@ async function fetchSearchResults(
   const { data: products, error } = await supabase
     .from("products")
     .select(
-      "id, name, slug, price, discount_percent, stock, is_sold_out, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order), variants:product_variants(color_label, size_label, price, stock, image_url, image_urls)"
+      "id, name, slug, price, discount_percent, stock, is_sold_out, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order), variants:product_variants(color_label, size_label, price, stock, image_url, image_urls, label, kind)"
     )
     .in("id", matchedIds)
     .eq("is_active", true);
@@ -252,7 +261,11 @@ async function fetchSearchResults(
     });
 
     const seenColors = new Set<string>();
-    for (const v of p.variants ?? []) {
+    for (const raw of p.variants ?? []) {
+      // Falls back to the older label/kind columns the same way
+      // fetchProductBySlug does — a row saved before this save started
+      // writing color_label/size_label directly still shows up here.
+      const v = { ...raw, color_label: raw.color_label ?? (raw.kind === "color" ? raw.label : null) };
       if (!v.color_label || seenColors.has(v.color_label)) continue;
       // Falls back to the product's own main photo when this color has no
       // dedicated photos of its own — every color the product comes in
@@ -285,25 +298,6 @@ async function fetchSearchResults(
 // no-store (see lib/supabase/*.ts), so there's no real caching win to give
 // up here anyway.
 export const searchProducts = fetchSearchResults;
-
-// TEMPORARY diagnostic — remove once the missing-variant search bug is
-// found. Runs several variations of the same query to isolate exactly
-// which factor makes color_label come back null.
-export async function debugProductVariantsRaw(id: string) {
-  const anon = createPublicClient();
-
-  const anonExplicit = await anon.from("product_variants").select("color_label, size_label, price, stock").eq("product_id", id);
-  const anonStar = await anon.from("product_variants").select("*").eq("product_id", id);
-  const anonColorOnly = await anon.from("product_variants").select("color_label").eq("product_id", id);
-  const anonIdColor = await anon.from("product_variants").select("id, color_label").eq("product_id", id);
-
-  return {
-    anonExplicit: { data: anonExplicit.data, error: anonExplicit.error?.message ?? null },
-    anonStar: { data: anonStar.data, error: anonStar.error?.message ?? null },
-    anonColorOnly: { data: anonColorOnly.data, error: anonColorOnly.error?.message ?? null },
-    anonIdColor: { data: anonIdColor.data, error: anonIdColor.error?.message ?? null },
-  };
-}
 
 async function fetchRelatedProducts(
   product: { id: string; category: { slug: string } | null; brand: { slug: string } | null },
