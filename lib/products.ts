@@ -279,10 +279,12 @@ async function fetchSearchResults(
   return { products: cards.slice(from, from + pageSize), total: cards.length, pageSize };
 }
 
-export const searchProducts = unstable_cache(fetchSearchResults, ["search-products"], {
-  tags: ["products"],
-  revalidate: REVALIDATE_SECONDS,
-});
+// Not wrapped in unstable_cache — a stale search (a color added in the
+// admin staying invisible for shoppers) is worse than the cost of running
+// this fresh every time. The Supabase queries it makes are already fast and
+// no-store (see lib/supabase/*.ts), so there's no real caching win to give
+// up here anyway.
+export const searchProducts = fetchSearchResults;
 
 async function fetchRelatedProducts(
   product: { id: string; category: { slug: string } | null; brand: { slug: string } | null },
