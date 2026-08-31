@@ -286,6 +286,36 @@ async function fetchSearchResults(
 // up here anyway.
 export const searchProducts = fetchSearchResults;
 
+// TEMPORARY diagnostic — remove once the missing-variant search bug is
+// found. Runs the exact same embedded query fetchSearchResults uses for
+// exactly one product id and returns the raw result untouched.
+export async function debugProductVariantsRaw(id: string) {
+  const supabase = createPublicClient();
+  const byEq = await supabase
+    .from("products")
+    .select(
+      "id, name, variants:product_variants(color_label, size_label, price, stock, image_url, image_urls)"
+    )
+    .eq("id", id)
+    .eq("is_active", true);
+  const byIn = await supabase
+    .from("products")
+    .select(
+      "id, name, variants:product_variants(color_label, size_label, price, stock, image_url, image_urls)"
+    )
+    .in("id", [id])
+    .eq("is_active", true);
+  const flatVariants = await supabase
+    .from("product_variants")
+    .select("product_id, color_label, size_label")
+    .eq("product_id", id);
+  return {
+    byEq: { data: byEq.data, error: byEq.error?.message ?? null },
+    byIn: { data: byIn.data, error: byIn.error?.message ?? null },
+    flatVariants: { data: flatVariants.data, error: flatVariants.error?.message ?? null },
+  };
+}
+
 async function fetchRelatedProducts(
   product: { id: string; category: { slug: string } | null; brand: { slug: string } | null },
   limit = 8
