@@ -231,3 +231,18 @@ body {
     opacity: 0;
   }
 }
+
+/* A slow, soft breathing glow — for the blurred bokeh-light ambiance behind
+   the Christmas mode content, not the sharp text glow mode-glow-pulse is
+   built for. */
+@keyframes mode-bokeh-breathe {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: var(--bokeh-opacity, 0.22);
+  }
+  50% {
+    transform: translate(var(--bokeh-dx, 12px), var(--bokeh-dy, -10px)) scale(1.12);
+    opacity: calc(var(--bokeh-opacity, 0.22) * 1.6);
+  }
+}

@@ -4,9 +4,21 @@ import { useEffect, useRef, useState } from "react";
 import { Christmas3D } from "./Christmas3D";
 
 type Light = { left: number; top: number; delay: number; size: number };
+type Bokeh = { left: number; top: number; size: number; color: string; opacity: number; delay: number; duration: number; dx: number; dy: number };
 
 const GOLD = "#e8c766";
 const GOLD_DEEP = "#c9a227";
+const RED = "#c8102e";
+
+const BOKEH_SPOTS: Omit<Bokeh, "delay" | "duration" | "dx" | "dy">[] = [
+  { left: 6, top: 8, size: 220, color: GOLD, opacity: 0.28 },
+  { left: 18, top: 26, size: 140, color: RED, opacity: 0.16 },
+  { left: 92, top: 10, size: 200, color: GOLD, opacity: 0.24 },
+  { left: 80, top: 30, size: 130, color: RED, opacity: 0.14 },
+  { left: 50, top: 4, size: 170, color: "#fff6d8", opacity: 0.18 },
+  { left: 4, top: 55, size: 160, color: GOLD_DEEP, opacity: 0.15 },
+  { left: 96, top: 60, size: 150, color: GOLD_DEEP, opacity: 0.14 },
+];
 
 function makeLights(count: number): Light[] {
   return Array.from({ length: count }, () => ({
@@ -17,13 +29,25 @@ function makeLights(count: number): Light[] {
   }));
 }
 
+function makeBokeh(): Bokeh[] {
+  return BOKEH_SPOTS.map((b) => ({
+    ...b,
+    delay: Math.random() * 5,
+    duration: 7 + Math.random() * 5,
+    dx: (Math.random() - 0.5) * 30,
+    dy: (Math.random() - 0.5) * 24,
+  }));
+}
+
 export function ChristmasMode({ t }: { t: Record<string, string> }) {
   const year = new Date().getFullYear() + 1;
   const [lights, setLights] = useState<Light[] | null>(null);
+  const [bokeh, setBokeh] = useState<Bokeh[] | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     setLights(makeLights(55));
+    setBokeh(makeBokeh());
   }, []);
 
   useEffect(() => {
@@ -55,14 +79,41 @@ export function ChristmasMode({ t }: { t: Record<string, string> }) {
 
   return (
     <>
-      {/* Warm ambient wash — gold glow up top fading into a deep pine vignette */}
+      {/* Warm ambient wash — a deep vignette the bokeh glows sit on top of */}
       <div
-        className="pointer-events-none fixed inset-0 z-[41]"
+        className="pointer-events-none fixed inset-0 z-[40]"
         style={{
-          background:
-            "radial-gradient(ellipse at 50% 0%, rgba(232,199,102,0.22) 0%, rgba(0,0,0,0) 45%), radial-gradient(ellipse at center, transparent 40%, rgba(6,26,16,0.38) 100%)",
+          background: "radial-gradient(ellipse at center, transparent 40%, rgba(6,26,16,0.32) 100%)",
         }}
       />
+
+      {/* Soft blurred bokeh-light glows, like out-of-focus warm string
+          lights behind a photographed ornament — this is what actually
+          reads as "premium ambiance" instead of flat colored shapes; every
+          circle here is heavily blurred and low-opacity, so it's light, not
+          an object. */}
+      <div className="pointer-events-none fixed inset-0 z-[41] overflow-hidden">
+        {bokeh?.map((b, i) => (
+          <span
+            key={i}
+            className="absolute rounded-full"
+            style={
+              {
+                left: `${b.left}%`,
+                top: `${b.top}%`,
+                width: b.size,
+                height: b.size,
+                background: `radial-gradient(circle, ${b.color} 0%, transparent 70%)`,
+                filter: "blur(38px)",
+                "--bokeh-opacity": b.opacity,
+                "--bokeh-dx": `${b.dx}px`,
+                "--bokeh-dy": `${b.dy}px`,
+                animation: `mode-bokeh-breathe ${b.duration}s ease-in-out ${b.delay}s infinite`,
+              } as React.CSSProperties
+            }
+          />
+        ))}
+      </div>
 
       {/* Twinkling fairy lights, like a lit tree, scattered across the top of the page */}
       <div className="pointer-events-none fixed inset-x-0 top-0 z-[41] h-[38vh] overflow-hidden">
