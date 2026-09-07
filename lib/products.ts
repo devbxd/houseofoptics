@@ -1,4 +1,3 @@
-import { unstable_cache } from "next/cache";
 import { createPublicClient } from "@/lib/supabase/public";
 
 // A query that returns nothing looks identical whether that's the real
@@ -27,10 +26,6 @@ export type ProductCard = {
 };
 
 const PAGE_SIZE = 24;
-// Safety-net TTL — the real invalidation is the `revalidateTag("products")`
-// calls in every admin product mutation, which bust this instantly. This
-// just bounds staleness if a code path ever forgets to tag.
-const REVALIDATE_SECONDS = 60;
 
 // A product manually added to the "New Drop" category (Admin > Products >
 // edit product > "Add to category" picker) stays listed there for this
@@ -137,13 +132,12 @@ async function fetchProducts(
   return { products, total: count ?? 0, pageSize };
 }
 
-// Cached so 100 visitors browsing at once share one Supabase query instead
-// of firing one each — invalidated instantly by revalidateTag("products")
-// whenever a product/discount/stock/image changes in the admin.
-export const listProducts = unstable_cache(fetchProducts, ["list-products"], {
-  tags: ["products"],
-  revalidate: REVALIDATE_SECONDS,
-});
+// Not wrapped in unstable_cache — on this host, its tag/time-based
+// invalidation isn't reliable (found while chasing down a color that
+// stayed invisible in search and a product that 404'd long after the data
+// was fixed) and a stuck-stale storefront is worse than the cost of
+// querying fresh every time.
+export const listProducts = fetchProducts;
 
 // Search results show one card per color a matched product comes in (each
 // with that color's own photo/price/stock), plus the product's own base
@@ -346,10 +340,7 @@ async function fetchRelatedProducts(
   return [];
 }
 
-export const getRelatedProducts = unstable_cache(fetchRelatedProducts, ["related-products"], {
-  tags: ["products"],
-  revalidate: REVALIDATE_SECONDS,
-});
+export const getRelatedProducts = fetchRelatedProducts;
 
 export type ColorSibling = { id: string; name: string; slug: string; image: string | null; base_color: string | null };
 
@@ -376,10 +367,7 @@ async function fetchColorSiblings(product: { id: string; color_group_id?: string
   }));
 }
 
-export const getColorSiblings = unstable_cache(fetchColorSiblings, ["color-siblings"], {
-  tags: ["products"],
-  revalidate: REVALIDATE_SECONDS,
-});
+export const getColorSiblings = fetchColorSiblings;
 
 async function fetchProductBySlug(slug: string) {
   const supabase = createPublicClient();
@@ -422,10 +410,7 @@ async function fetchProductBySlug(slug: string) {
   };
 }
 
-export const getProductBySlug = unstable_cache(fetchProductBySlug, ["product-by-slug"], {
-  tags: ["products"],
-  revalidate: REVALIDATE_SECONDS,
-});
+export const getProductBySlug = fetchProductBySlug;
 
 async function fetchProductReviews(productId: string) {
   const supabase = createPublicClient();
@@ -439,10 +424,7 @@ async function fetchProductReviews(productId: string) {
   return (data ?? []) as any[];
 }
 
-export const getProductReviews = unstable_cache(fetchProductReviews, ["product-reviews"], {
-  tags: ["testimonials"],
-  revalidate: REVALIDATE_SECONDS,
-});
+export const getProductReviews = fetchProductReviews;
 
 // For the sitemap only — every active product's slug, unpaginated.
 async function fetchAllProductSlugs() {
@@ -452,7 +434,4 @@ async function fetchAllProductSlugs() {
   return (data ?? []) as { slug: string; created_at: string | null }[];
 }
 
-export const getAllProductSlugs = unstable_cache(fetchAllProductSlugs, ["all-product-slugs"], {
-  tags: ["products"],
-  revalidate: REVALIDATE_SECONDS,
-});
+export const getAllProductSlugs = fetchAllProductSlugs;
