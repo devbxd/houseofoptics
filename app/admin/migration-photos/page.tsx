@@ -58,9 +58,17 @@ export default function MigrationPhotosPage() {
 
       <div className="mt-6 space-y-1 text-xs text-neutral-600">
         {log.map((r, i) => (
-          <p key={i}>
-            {r.table}.{r.column}: {r.migrated}/{r.processed} migrated{r.failed > 0 ? `, ${r.failed} failed` : ""}
-          </p>
+          <div key={i}>
+            <p>
+              {r.table}.{r.column}: {r.migrated}/{r.processed} migrated{r.failed > 0 ? `, ${r.failed} failed` : ""}
+              {" "}(candidates seen: {r.totalCandidatesSeen})
+            </p>
+            {r.updateErrors.map((e, j) => (
+              <p key={j} className="text-brand-red">
+                {e}
+              </p>
+            ))}
+          </div>
         ))}
       </div>
     </div>

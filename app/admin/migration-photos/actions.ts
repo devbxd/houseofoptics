@@ -79,6 +79,8 @@ export type MigrationBatchResult = {
   failed: number;
   remainingInColumn: number;
   moreOverall: boolean;
+  updateErrors: string[];
+  totalCandidatesSeen: number;
 };
 
 // Processes up to BATCH_SIZE rows from the first target column that still
@@ -108,20 +110,24 @@ export async function migratePhotosBatch(): Promise<MigrationBatchResult | null>
     const batch = candidates.slice(0, BATCH_SIZE);
     let migrated = 0;
     let failed = 0;
+    const updateErrors: string[] = [];
 
     for (const row of batch as any[]) {
       if (kind === "text") {
         const { url: newUrl, ok } = await migrateOneUrl(row[column]);
         if (ok) migrated++;
         else failed++;
-        await supabase.from(table).update({ [column]: newUrl }).eq("id", row.id);
+        const { error, data } = await supabase.from(table).update({ [column]: newUrl }).eq("id", row.id).select("id");
+        if (error) updateErrors.push(`${table}.${column} id=${row.id}: ${error.message}`);
+        else if (!data || data.length === 0) updateErrors.push(`${table}.${column} id=${row.id}: update matched 0 rows`);
       } else {
         const results = await Promise.all((row[column] as string[]).map((u) => migrateOneUrl(u)));
         const newArr = results.map((r) => r.url);
         if (results.every((r) => r.ok)) migrated++;
         else failed++;
-        const value = kind === "jsonb" ? newArr : newArr;
-        await supabase.from(table).update({ [column]: value }).eq("id", row.id);
+        const { error, data } = await supabase.from(table).update({ [column]: newArr }).eq("id", row.id).select("id");
+        if (error) updateErrors.push(`${table}.${column} id=${row.id}: ${error.message}`);
+        else if (!data || data.length === 0) updateErrors.push(`${table}.${column} id=${row.id}: update matched 0 rows`);
       }
     }
 
@@ -130,7 +136,17 @@ export async function migratePhotosBatch(): Promise<MigrationBatchResult | null>
     const remainingInColumn = Math.max(0, candidates.length - batch.length);
     const moreOverall = remainingInColumn > 0 || ti < TARGETS.length - 1;
 
-    return { table, column, processed: batch.length, migrated, failed, remainingInColumn, moreOverall };
+    return {
+      table,
+      column,
+      processed: batch.length,
+      migrated,
+      failed,
+      remainingInColumn,
+      moreOverall,
+      updateErrors,
+      totalCandidatesSeen: candidates.length,
+    };
   }
 
   return null; // nothing left anywhere
