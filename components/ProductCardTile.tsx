@@ -16,17 +16,20 @@ function ColorDots({ colors }: { colors: string[] }) {
   const visible = colors.slice(0, MAX_VISIBLE_DOTS);
   const extra = colors.length - visible.length;
   return (
-    <div className="mt-1.5 flex items-center justify-center gap-1">
+    <div className="mt-1.5 flex items-center justify-center gap-1.5">
       {visible.map((color) => {
         const [a, b] = colorLabelToSwatches(color);
         return (
           <span
             key={color}
             title={color}
-            className="h-2.5 w-2.5 rounded-full ring-1 ring-inset ring-black/10"
+            className="h-3 w-3 rounded-full ring-1 ring-inset ring-black/15"
             // Two-tone labels (e.g. "Palladium-Black") get a split-color dot
-            // instead of collapsing to a single (usually wrong) color.
-            style={b ? { background: `linear-gradient(135deg, ${a} 50%, ${b} 50%)` } : { backgroundColor: a }}
+            // instead of collapsing to a single (usually wrong) color. A
+            // left/right split (vs. diagonal) reads more clearly at this
+            // size, which matters most for dark-on-dark pairs like
+            // black/brown where a subtle diagonal all but disappears.
+            style={b ? { background: `linear-gradient(90deg, ${a} 50%, ${b} 50%)` } : { backgroundColor: a }}
           />
         );
       })}
