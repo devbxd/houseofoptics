@@ -56,6 +56,14 @@ const COLOR_MAP: Record<string, string> = {
   cristal: "#e8e8e8",
   crystal: "#e8e8e8",
   turquoise: "#3aa8a0",
+  palladium: "#a8a9ad",
+  titanium: "#8f9295",
+  ruthenium: "#6e6f72",
+  chrome: "#b7bcc2",
+  gunsmoke: "#54585a",
+  cognac: "#8a5a2e",
+  caramel: "#a9682f",
+  chocolate: "#4a2f1c",
 };
 
 function normalize(label: string) {
@@ -66,12 +74,40 @@ function normalize(label: string) {
     .replace(/[̀-ͯ]/g, "");
 }
 
-export function colorLabelToSwatch(label: string): string {
-  const key = normalize(label);
-  if (COLOR_MAP[key]) return COLOR_MAP[key];
-  const match = Object.keys(COLOR_MAP).find((k) => key.includes(k));
-  if (match) return COLOR_MAP[match];
+function hashColor(key: string): string {
   let hash = 0;
   for (let i = 0; i < key.length; i++) hash = key.charCodeAt(i) + ((hash << 5) - hash);
   return `hsl(${Math.abs(hash) % 360}, 38%, 55%)`;
+}
+
+// A compound label like "Palladium-Black" or "Black Brown" names *two*
+// distinct colors, not one — matching by plain substring ("includes")
+// against a short key like "black" made every such label collapse to
+// black, since "black" is a substring of nearly every dark compound name.
+// Splitting into tokens and resolving each one separately avoids that.
+function tokenize(key: string): string[] {
+  return key.split(/[^a-z]+/).filter(Boolean);
+}
+
+// Returns 1 or 2 hex/hsl values — 2 when the label names two distinct
+// colors (e.g. "Black Brown"), so the dot can render as a split swatch
+// instead of picking one arbitrarily.
+export function colorLabelToSwatches(label: string): string[] {
+  const key = normalize(label);
+  if (COLOR_MAP[key]) return [COLOR_MAP[key]];
+
+  const tokens = tokenize(key);
+  const resolved: string[] = [];
+  for (const token of tokens) {
+    let value = COLOR_MAP[token];
+    if (!value) {
+      const matchKey = Object.keys(COLOR_MAP).find((k) => token.includes(k) || k.includes(token));
+      if (matchKey) value = COLOR_MAP[matchKey];
+    }
+    if (value && !resolved.includes(value)) resolved.push(value);
+    if (resolved.length === 2) break;
+  }
+  if (resolved.length > 0) return resolved;
+
+  return [hashColor(key)];
 }

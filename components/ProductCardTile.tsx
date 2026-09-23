@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ProductCard } from "@/lib/products";
-import { colorLabelToSwatch } from "@/lib/color-swatch";
+import { colorLabelToSwatches } from "@/lib/color-swatch";
 import { WishlistButton } from "./WishlistButton";
 import { AddToCartButton } from "./AddToCartButton";
 
@@ -17,14 +17,19 @@ function ColorDots({ colors }: { colors: string[] }) {
   const extra = colors.length - visible.length;
   return (
     <div className="mt-1.5 flex items-center justify-center gap-1">
-      {visible.map((color) => (
-        <span
-          key={color}
-          title={color}
-          className="h-2.5 w-2.5 rounded-full ring-1 ring-inset ring-black/10"
-          style={{ backgroundColor: colorLabelToSwatch(color) }}
-        />
-      ))}
+      {visible.map((color) => {
+        const [a, b] = colorLabelToSwatches(color);
+        return (
+          <span
+            key={color}
+            title={color}
+            className="h-2.5 w-2.5 rounded-full ring-1 ring-inset ring-black/10"
+            // Two-tone labels (e.g. "Palladium-Black") get a split-color dot
+            // instead of collapsing to a single (usually wrong) color.
+            style={b ? { background: `linear-gradient(135deg, ${a} 50%, ${b} 50%)` } : { backgroundColor: a }}
+          />
+        );
+      })}
       {extra > 0 && <span className="text-[10px] leading-none text-neutral-400">+{extra}</span>}
     </div>
   );
