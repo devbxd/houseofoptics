@@ -112,7 +112,7 @@ async function fetchProducts(
   let query = supabase
     .from("products")
     .select(
-      "id, name, slug, price, discount_percent, stock, is_sold_out, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order), variants:product_variants(color_label)",
+      "id, name, slug, price, discount_percent, stock, is_sold_out, base_color, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order), variants:product_variants(color_label)",
       { count: "exact" }
     )
     .eq("is_active", true)
@@ -125,14 +125,22 @@ async function fetchProducts(
 
   const { data, count, error } = await query;
   logIfError("Failed to load products:", error);
-  const products = (data as any[])?.map(({ variants, ...p }) => ({
+  const products = (data as any[])?.map(({ variants, base_color, ...p }) => ({
     ...p,
     stock: p.is_sold_out ? 0 : p.stock,
     category: Array.isArray(p.category) ? p.category[0] ?? null : p.category,
     brand: Array.isArray(p.brand) ? p.brand[0] ?? null : p.brand,
     images: (p.images ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order),
+    // Mirrors the product page's own color list (ProductDetailInteractive):
+    // the product's own base_color counts as a color alongside each
+    // variant's color_label, since a variant row is only added for the
+    // *other* colors, not the default one the product was created with.
     colors: Array.from(
-      new Set((variants ?? []).map((v: any) => v.color_label).filter((c: unknown): c is string => !!c))
+      new Set(
+        [base_color, ...(variants ?? []).map((v: any) => v.color_label)].filter(
+          (c: unknown): c is string => !!c
+        )
+      )
     ) as string[],
   })) ?? [];
 
