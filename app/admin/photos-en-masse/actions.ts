@@ -1,5 +1,6 @@
 "use server";
 
+import { requireAdmin } from "@/lib/require-admin";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { processImage } from "@/lib/process-image";
@@ -10,6 +11,7 @@ import { uploadToR2 } from "@/lib/r2";
 // everything" spinner. Appends to that product's existing photos, same as
 // the normal per-product upload, never replaces them.
 export async function uploadBulkProductPhoto(productId: string, formData: FormData) {
+  await requireAdmin();
   const file = formData.get("photo") as File | null;
   if (!file || file.size === 0) throw new Error("No photo provided");
   if (!productId) throw new Error("No product selected");

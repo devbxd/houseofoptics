@@ -1,10 +1,12 @@
 "use server";
 
+import { requireAdmin } from "@/lib/require-admin";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { restoreOrderStock } from "@/lib/order-stock";
 
 export async function deleteOrder(id: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   // Don't restore twice — a cancelled order already gave its stock back.
   const { data: order } = await supabase.from("orders").select("status").eq("id", id).maybeSingle();
@@ -23,6 +25,7 @@ const ORDER_STATUSES = ["pending_payment", "confirmed", "delivered"] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
 export async function updateOrderStatus(id: string, status: OrderStatus) {
+  await requireAdmin();
   if (!ORDER_STATUSES.includes(status)) throw new Error("Invalid status");
   const supabase = createServiceClient();
   const { data: order } = await supabase.from("orders").select("status").eq("id", id).maybeSingle();
@@ -38,6 +41,7 @@ export async function updateOrderStatus(id: string, status: OrderStatus) {
 // Guarded against double-restoring if an already cancelled order gets
 // cancelled again.
 export async function cancelOrder(id: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
 
   const { data: order } = await supabase.from("orders").select("id, status").eq("id", id).maybeSingle();

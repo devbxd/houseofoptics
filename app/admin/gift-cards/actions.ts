@@ -1,5 +1,6 @@
 "use server";
 
+import { requireAdmin } from "@/lib/require-admin";
 import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { generateGiftCardCode } from "@/lib/gift-cards";
@@ -23,6 +24,7 @@ async function insertWithUniqueCode(supabase: ServiceClient, row: Record<string,
 }
 
 export async function generateProductGiftCard(input: { productId: string; recipientName: string; message: string }) {
+  await requireAdmin();
   const recipientName = input.recipientName.trim();
   if (!recipientName) throw new Error("Recipient name is required");
   if (!input.productId) throw new Error("Pick a product first");
@@ -39,6 +41,7 @@ export async function generateProductGiftCard(input: { productId: string; recipi
 }
 
 export async function generateDiscountGiftCard(input: { discountPercent: number; recipientName: string; message: string }) {
+  await requireAdmin();
   const recipientName = input.recipientName.trim();
   if (!recipientName) throw new Error("Recipient name is required");
   if (!Number.isFinite(input.discountPercent) || input.discountPercent <= 0 || input.discountPercent > 100) {
@@ -57,6 +60,7 @@ export async function generateDiscountGiftCard(input: { discountPercent: number;
 }
 
 export async function generateCreditGiftCard(input: { creditAmount: number; recipientName: string; message: string }) {
+  await requireAdmin();
   const recipientName = input.recipientName.trim();
   if (!recipientName) throw new Error("Recipient name is required");
   if (!Number.isFinite(input.creditAmount) || input.creditAmount <= 0) {
@@ -79,6 +83,7 @@ export async function generateCreditGiftCard(input: { creditAmount: number; reci
 }
 
 export async function deleteGiftCard(id: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   const { error } = await supabase.from("gift_cards").delete().eq("id", id);
   if (error) throw new Error(error.message);
@@ -91,6 +96,7 @@ export type CustomerOption = { id: string; name: string; email: string; phone: s
 // protected auth.users table) — the admin API is the supported way to read
 // it, only ever from server code with the service-role key.
 export async function listCustomersForPicker(): Promise<CustomerOption[]> {
+  await requireAdmin();
   const supabase = createServiceClient();
   const { data: profiles } = await supabase.from("customer_profiles").select("id, name, phone");
   if (!profiles || profiles.length === 0) return [];
@@ -118,6 +124,7 @@ function giftCardSummary(card: {
 // they've been given and how to redeem it — an alternative to the admin
 // copying the code and sending it themselves.
 export async function sendGiftCardByEmail(code: string, recipientEmail: string): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin();
   const email = recipientEmail.trim();
   if (!email || !email.includes("@")) return { ok: false, error: "Invalid email address" };
 

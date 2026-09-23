@@ -1,5 +1,6 @@
 "use server";
 
+import { requireAdmin } from "@/lib/require-admin";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -10,6 +11,7 @@ import { uploadToR2 } from "@/lib/r2";
 // Lets the variant photo picker reuse a photo already uploaded to some
 // product on the site, instead of only uploading a new file.
 export async function getProductImages(productId: string): Promise<string[]> {
+  await requireAdmin();
   if (!productId) return [];
   const supabase = createServiceClient();
   const { data } = await supabase
@@ -29,6 +31,7 @@ function parseVariantRows(formData: FormData) {
   const existingImages = formData.getAll("variant_existing_image") as string[];
   const images = formData.getAll("variant_image") as File[];
   const existingImageLists = formData.getAll("variant_existing_images") as string[];
+  const availableColorLists = formData.getAll("variant_available_colors") as string[];
   return colors
     .map((color, i) => {
       // Every color photo — newly picked or already saved — is uploaded
@@ -44,7 +47,17 @@ function parseVariantRows(formData: FormData) {
       } catch {
         // malformed JSON — treat as no extra photos rather than failing the save
       }
+      // Only meaningful on a size row: the colors that size comes in.
+      // Empty/absent means "all colors".
+      let availableColors: string[] = [];
+      try {
+        const parsed = availableColorLists[i] ? JSON.parse(availableColorLists[i]) : [];
+        if (Array.isArray(parsed)) availableColors = parsed.filter((c) => typeof c === "string" && c.trim());
+      } catch {
+        // malformed JSON — treat as unrestricted rather than failing the save
+      }
       return {
+        availableColors,
         colorLabel: color.trim() || null,
         sizeLabel: sizes[i]?.trim() || null,
         stock: stocks[i]?.trim() ? Number(stocks[i]) : null,
@@ -68,6 +81,7 @@ function parseVariantRows(formData: FormData) {
 // request, so the count of photos a color can have is no longer bounded by
 // the save's total size at all.
 export async function uploadVariantPhoto(formData: FormData): Promise<string> {
+  await requireAdmin();
   const file = formData.get("photo") as File | null;
   if (!file || file.size === 0) throw new Error("No photo provided");
   const { buffer, contentType, ext } = await processImage(file);
@@ -114,6 +128,9 @@ async function saveVariants(
       const imageUrls = v.existingImageUrls;
 
       return {
+        // Only sent when a size is actually restricted, so saving a product
+        // that doesn't use this never depends on migration 0063 having run.
+        ...(v.sizeLabel && !v.colorLabel && v.availableColors.length > 0 ? { available_colors: v.availableColors } : {}),
         product_id: productId,
         color_label: v.colorLabel,
         size_label: v.sizeLabel,
@@ -143,7 +160,13 @@ async function saveVariants(
   if (resolved.length === 0) return;
 
   const fields = resolved.map((v, i) => ({ ...v, sort_order: i }));
-  const { error } = await supabase.from("product_variants").insert(fields);
+  let { error } = await supabase.from("product_variants").insert(fields);
+  if (error && fields.some((f) => "available_colors" in f)) {
+    // Migration 0063 (available_colors) hasn't been run yet — save everything
+    // else normally instead of dropping to the legacy-only columns below.
+    console.error("available_colors not saved — run supabase/migrations/0063_size_available_colors.sql:", error);
+    ({ error } = await supabase.from("product_variants").insert(fields.map(({ available_colors, ...rest }: any) => rest)));
+  }
   if (error) {
     // color_label/size_label come from a migration that may not have run
     // yet — retry against the older label/kind columns so saving still
@@ -220,6 +243,7 @@ async function updateProductSafe(supabase: ReturnType<typeof createServiceClient
 }
 
 export async function createProduct(formData: FormData) {
+  await requireAdmin();
   const name = String(formData.get("name") ?? "").trim();
   const categoryId = String(formData.get("category_id") ?? "") || null;
   const brandId = String(formData.get("brand_id") ?? "") || null;
@@ -297,6 +321,7 @@ export async function createProduct(formData: FormData) {
 }
 
 export async function updateProduct(productId: string, formData: FormData) {
+  await requireAdmin();
   const name = String(formData.get("name") ?? "").trim();
   const categoryId = String(formData.get("category_id") ?? "") || null;
   const brandId = String(formData.get("brand_id") ?? "") || null;
@@ -373,6 +398,7 @@ export async function updateProduct(productId: string, formData: FormData) {
 // rather than per product — description AND additional info are per
 // product now, set in each product's own edit page.
 export async function updateGlobalProductInfo(formData: FormData) {
+  await requireAdmin();
   const shippingInfo = String(formData.get("global_shipping_info") ?? "").trim();
   const returnsInfo = String(formData.get("returns_info") ?? "").trim();
 
@@ -390,6 +416,7 @@ export async function updateGlobalProductInfo(formData: FormData) {
 
 
 export async function deleteProduct(productId: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   await supabase.from("products").delete().eq("id", productId);
   revalidatePath("/admin/produits");
@@ -398,6 +425,7 @@ export async function deleteProduct(productId: string) {
 }
 
 export async function updateDiscount(productId: string, discountPercent: number | null) {
+  await requireAdmin();
   // The 0-95 range is only enforced client-side (input min/max) — clamp
   // here too so a malformed/direct call can't store e.g. 150%, which would
   // make price * (1 - discount/100) go negative everywhere it's displayed.
@@ -419,6 +447,7 @@ export async function updateDiscount(productId: string, discountPercent: number 
 // restores exactly what was there before, colors/sizes included, with no
 // need to re-enter anything.
 export async function toggleSoldOut(productId: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   const { data: product } = await supabase.from("products").select("is_sold_out").eq("id", productId).single();
   if (!product) return;
@@ -432,6 +461,7 @@ export async function toggleSoldOut(productId: string) {
 }
 
 export async function deleteProductImage(imageId: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   await supabase.from("product_images").delete().eq("id", imageId);
   revalidatePath("/admin/produits");
@@ -441,6 +471,7 @@ export async function deleteProductImage(imageId: string) {
 // Same full-recompute approach as category reordering — deterministic
 // regardless of any pre-existing tied sort_order values.
 export async function setProductImagePosition(productId: string, imageId: string, newIndex: number) {
+  await requireAdmin();
   const supabase = createServiceClient();
   const { data: images } = await supabase
     .from("product_images")
@@ -467,6 +498,7 @@ export async function setProductImagePosition(productId: string, imageId: string
 // A manual related-products pick overrides the automatic category/brand
 // matching shown under "Related products" on the public product page.
 export async function addRelatedProduct(productId: string, relatedProductId: string) {
+  await requireAdmin();
   if (productId === relatedProductId) return;
   const supabase = createServiceClient();
   const { count } = await supabase
@@ -488,6 +520,7 @@ export async function addRelatedProduct(productId: string, relatedProductId: str
 }
 
 export async function removeRelatedProduct(id: string, productId: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   await supabase.from("product_related_products").delete().eq("id", id);
   revalidatePath(`/admin/produits/${productId}`);
@@ -500,6 +533,7 @@ export async function removeRelatedProduct(id: string, productId: string) {
 // color_group_id shows up as a swatch on the others' pages, so joining a
 // group is just adopting (or creating) that shared id.
 export async function addColorLink(productId: string, otherProductId: string) {
+  await requireAdmin();
   if (productId === otherProductId) return;
   const supabase = createServiceClient();
   const { data: rows } = await supabase
@@ -538,6 +572,7 @@ export async function addProductCategoryLink(
   productId: string,
   categoryId: string
 ): Promise<{ id: string; added_at: string }> {
+  await requireAdmin();
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("product_category_links")
@@ -566,6 +601,7 @@ export async function addProductCategoryLink(
 }
 
 export async function removeProductCategoryLink(linkId: string, productId: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   const { error } = await supabase.from("product_category_links").delete().eq("id", linkId);
   if (error) throw new Error(error.message);
@@ -580,6 +616,7 @@ export async function addProductBrandLink(
   productId: string,
   brandId: string
 ): Promise<{ id: string; added_at: string }> {
+  await requireAdmin();
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("product_brand_links")
@@ -607,6 +644,7 @@ export async function addProductBrandLink(
 }
 
 export async function removeProductBrandLink(linkId: string, productId: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   const { error } = await supabase.from("product_brand_links").delete().eq("id", linkId);
   if (error) throw new Error(error.message);
@@ -616,6 +654,7 @@ export async function removeProductBrandLink(linkId: string, productId: string) 
 }
 
 export async function removeColorLink(productId: string, memberProductId: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   await supabase.from("products").update({ color_group_id: null }).eq("id", memberProductId);
   revalidatePath(`/admin/produits/${productId}`);

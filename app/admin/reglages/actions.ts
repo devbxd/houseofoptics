@@ -1,11 +1,13 @@
 "use server";
 
+import { requireAdmin } from "@/lib/require-admin";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { processImage } from "@/lib/process-image";
 import { uploadToR2 } from "@/lib/r2";
 
 export async function updateSettings(formData: FormData) {
+  await requireAdmin();
   const supabase = createServiceClient();
 
   const update: Record<string, unknown> = {

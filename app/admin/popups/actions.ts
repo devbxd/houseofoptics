@@ -1,11 +1,13 @@
 "use server";
 
+import { requireAdmin } from "@/lib/require-admin";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { processImage } from "@/lib/process-image";
 import { uploadToR2 } from "@/lib/r2";
 
 export async function createPopup(formData: FormData) {
+  await requireAdmin();
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return;
 
@@ -52,6 +54,7 @@ export async function createPopup(formData: FormData) {
 }
 
 export async function togglePopup(id: string, isActive: boolean) {
+  await requireAdmin();
   const supabase = createServiceClient();
   await supabase.from("popups").update({ is_active: isActive }).eq("id", id);
   revalidatePath("/admin/popups");
@@ -60,6 +63,7 @@ export async function togglePopup(id: string, isActive: boolean) {
 }
 
 export async function deletePopup(id: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   await supabase.from("popups").delete().eq("id", id);
   revalidatePath("/admin/popups");

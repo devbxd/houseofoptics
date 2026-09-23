@@ -1,5 +1,6 @@
 "use server";
 
+import { requireAdmin } from "@/lib/require-admin";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/slugify";
@@ -19,6 +20,7 @@ function refresh() {
 // only owns the copyright line. footer_copyright_text comes from a
 // migration that may not have run yet.
 export async function updateFooterSocials(formData: FormData) {
+  await requireAdmin();
   const fields = {
     footer_copyright_text: String(formData.get("footer_copyright_text") ?? "").trim(),
   };
@@ -31,6 +33,7 @@ export async function updateFooterSocials(formData: FormData) {
 }
 
 export async function createFooterSection(formData: FormData) {
+  await requireAdmin();
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return;
   const supabase = createServiceClient();
@@ -50,6 +53,7 @@ export async function createFooterSection(formData: FormData) {
 }
 
 export async function renameFooterSection(id: string, title: string) {
+  await requireAdmin();
   if (!title.trim()) return;
   const supabase = createServiceClient();
   await supabase.from("footer_sections").update({ title: title.trim() }).eq("id", id);
@@ -57,6 +61,7 @@ export async function renameFooterSection(id: string, title: string) {
 }
 
 export async function deleteFooterSection(id: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   await supabase.from("footer_sections").delete().eq("id", id);
   refresh();
@@ -70,6 +75,7 @@ export async function deleteFooterSection(id: string) {
 // reorders by *position* in a stably-sorted list and rewrites everyone's
 // sort_order as a clean 0..N-1 sequence, which also heals any existing ties.
 export async function moveFooterSection(id: string, direction: "up" | "down") {
+  await requireAdmin();
   const supabase = createServiceClient();
   const { data: sections } = await supabase
     .from("footer_sections")
@@ -93,6 +99,7 @@ export async function moveFooterSection(id: string, direction: "up" | "down") {
 // if that slug is already taken), and the link points straight at it. The
 // client only ever fills in the page's text afterward, in "Page content".
 export async function addFooterLink(sectionId: string, label: string) {
+  await requireAdmin();
   if (!label.trim()) return;
   const supabase = createServiceClient();
 
@@ -122,6 +129,7 @@ export async function addFooterLink(sectionId: string, label: string) {
 // Renaming only changes the label shown in the footer — not the URL, and
 // not the linked page's own title (edited separately in "Page content").
 export async function renameFooterLink(id: string, label: string) {
+  await requireAdmin();
   if (!label.trim()) return;
   const supabase = createServiceClient();
   await supabase.from("footer_links").update({ label: label.trim() }).eq("id", id);
@@ -129,6 +137,7 @@ export async function renameFooterLink(id: string, label: string) {
 }
 
 export async function deleteFooterLink(id: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   await supabase.from("footer_links").delete().eq("id", id);
   refresh();
@@ -136,6 +145,7 @@ export async function deleteFooterLink(id: string) {
 
 // Full-recompute reorder — see moveFooterSection above for why.
 export async function moveFooterLink(id: string, sectionId: string, direction: "up" | "down") {
+  await requireAdmin();
   const supabase = createServiceClient();
   const { data: links } = await supabase
     .from("footer_links")
@@ -158,6 +168,7 @@ export async function moveFooterLink(id: string, sectionId: string, direction: "
 // Only the title — the page's actual content is a list of blocks, edited
 // with the functions below.
 export async function renamePage(id: string, title: string) {
+  await requireAdmin();
   if (!title.trim()) return;
   const supabase = createServiceClient();
   const { error } = await supabase
@@ -169,6 +180,7 @@ export async function renamePage(id: string, title: string) {
 }
 
 export async function deleteContentPage(id: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   await supabase.from("content_pages").delete().eq("id", id);
   refresh();
@@ -186,6 +198,7 @@ async function nextBlockSortOrder(supabase: ReturnType<typeof createServiceClien
 }
 
 export async function addTextBlock(pageId: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   const sort_order = await nextBlockSortOrder(supabase, pageId);
   const { error } = await supabase.from("content_page_blocks").insert({ page_id: pageId, type: "text", text: "", sort_order });
@@ -194,6 +207,7 @@ export async function addTextBlock(pageId: string) {
 }
 
 export async function addImagesBlock(pageId: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   const sort_order = await nextBlockSortOrder(supabase, pageId);
   const { error } = await supabase
@@ -204,12 +218,14 @@ export async function addImagesBlock(pageId: string) {
 }
 
 export async function updateBlockText(blockId: string, text: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   await supabase.from("content_page_blocks").update({ text }).eq("id", blockId);
   refresh();
 }
 
 export async function deleteBlock(blockId: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   await supabase.from("content_page_blocks").delete().eq("id", blockId);
   refresh();
@@ -217,6 +233,7 @@ export async function deleteBlock(blockId: string) {
 
 // Full-recompute reorder — see moveFooterSection above for why.
 export async function moveBlock(blockId: string, pageId: string, direction: "up" | "down") {
+  await requireAdmin();
   const supabase = createServiceClient();
   const { data: blocks } = await supabase
     .from("content_page_blocks")
@@ -237,6 +254,7 @@ export async function moveBlock(blockId: string, pageId: string, direction: "up"
 }
 
 export async function uploadBlockImage(blockId: string, formData: FormData) {
+  await requireAdmin();
   const file = formData.get("image") as File | null;
   if (!file || file.size === 0) return;
 
@@ -259,6 +277,7 @@ export async function uploadBlockImage(blockId: string, formData: FormData) {
 }
 
 export async function removeBlockImage(blockId: string, url: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   const { data: block } = await supabase.from("content_page_blocks").select("image_urls").eq("id", blockId).single();
   if (!block) return;

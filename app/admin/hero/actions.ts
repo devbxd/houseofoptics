@@ -1,5 +1,6 @@
 "use server";
 
+import { requireAdmin } from "@/lib/require-admin";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { translateToAllLocales } from "@/lib/translate";
@@ -7,6 +8,7 @@ import { processImage } from "@/lib/process-image";
 import { uploadToR2 } from "@/lib/r2";
 
 export async function toggleHeroImage(imageId: string, isHero: boolean) {
+  await requireAdmin();
   const supabase = createServiceClient();
 
   if (isHero) {
@@ -25,6 +27,7 @@ export async function toggleHeroImage(imageId: string, isHero: boolean) {
 }
 
 export async function uploadHeroSlide(formData: FormData) {
+  await requireAdmin();
   const file = formData.get("image") as File | null;
   if (!file || file.size === 0) return;
 
@@ -47,6 +50,7 @@ export async function uploadHeroSlide(formData: FormData) {
 }
 
 export async function deleteHeroSlide(id: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   await supabase.from("hero_slides").delete().eq("id", id);
   revalidatePath("/admin/hero");
@@ -66,6 +70,7 @@ async function translateOrClear(text: string) {
 // Also editable from Admin > Settings — kept here too since this is where
 // the client naturally looks for homepage text edits.
 export async function updateAnnouncementText(formData: FormData) {
+  await requireAdmin();
   const text = String(formData.get("announcement_text") ?? "").trim() || "Nouveautés ajoutées chaque semaine";
   const supabase = createServiceClient();
   await supabase.from("site_settings").update({ announcement_text: text }).eq("id", true);
@@ -77,6 +82,7 @@ export async function updateAnnouncementText(formData: FormData) {
 }
 
 export async function updateHeroTexts(formData: FormData) {
+  await requireAdmin();
   const eyebrow = String(formData.get("hero_eyebrow") ?? "").trim();
   const title = String(formData.get("hero_title") ?? "").trim();
   const subtitle = String(formData.get("hero_subtitle") ?? "").trim();

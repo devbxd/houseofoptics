@@ -1,5 +1,6 @@
 "use server";
 
+import { requireAdmin } from "@/lib/require-admin";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/slugify";
@@ -7,6 +8,7 @@ import { processImage } from "@/lib/process-image";
 import { uploadToR2 } from "@/lib/r2";
 
 export async function createBrand(formData: FormData) {
+  await requireAdmin();
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;
 
@@ -21,6 +23,7 @@ export async function createBrand(formData: FormData) {
 }
 
 export async function renameBrand(id: string, name: string) {
+  await requireAdmin();
   if (!name.trim()) return;
   const supabase = createServiceClient();
   await supabase.from("brands").update({ name: name.trim(), slug: slugify(name) }).eq("id", id);
@@ -30,6 +33,7 @@ export async function renameBrand(id: string, name: string) {
 }
 
 export async function deleteBrand(id: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   const { error } = await supabase.from("brands").delete().eq("id", id);
   if (error) throw new Error(error.message);
@@ -39,6 +43,7 @@ export async function deleteBrand(id: string) {
 }
 
 export async function uploadBrandLogo(id: string, formData: FormData) {
+  await requireAdmin();
   const file = formData.get("logo") as File | null;
   if (!file || file.size === 0) return;
 
@@ -57,6 +62,7 @@ export async function uploadBrandLogo(id: string, formData: FormData) {
 }
 
 export async function removeBrandLogo(id: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   await supabase.from("brands").update({ logo_url: null }).eq("id", id);
   revalidatePath("/admin/brands");
@@ -68,6 +74,7 @@ export async function removeBrandLogo(id: string) {
 // from a product photo — the client picks one framed for a wide banner
 // instead of it being auto-cropped from whatever a product happens to have.
 export async function uploadBrandBanner(id: string, formData: FormData) {
+  await requireAdmin();
   const file = formData.get("banner") as File | null;
   if (!file || file.size === 0) return;
 
@@ -89,6 +96,7 @@ export async function uploadBrandBanner(id: string, formData: FormData) {
 }
 
 export async function removeBrandBanner(id: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   await supabase.from("brands").update({ homepage_banner_url: null }).eq("id", id);
   revalidatePath("/admin/brands");
@@ -97,6 +105,7 @@ export async function removeBrandBanner(id: string) {
 }
 
 export async function setBrandFeatured(id: string, featured: boolean) {
+  await requireAdmin();
   const supabase = createServiceClient();
   const { error } = await supabase.from("brands").update({ featured_on_homepage: featured }).eq("id", id);
   if (error) throw new Error("Couldn't save — the database may need the latest migration applied.");

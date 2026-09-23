@@ -2,17 +2,7 @@
 
 import { revalidateTag } from "next/cache";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-
-// Mirrors the client-side variantLabel() in ProductDetailInteractive.tsx —
-// falls back to the older label/kind columns for rows saved before the
-// color_label/size_label migration ran (same fallback used elsewhere, e.g.
-// getProductBySlug in lib/products.ts).
-function variantLabel(v: { color_label: string | null; size_label: string | null; label?: string | null; kind?: string | null }) {
-  const color = v.color_label ?? (v.kind === "color" ? v.label : null) ?? null;
-  const size = v.size_label ?? (v.kind === "size" ? v.label : null) ?? null;
-  if (color && size) return `${color} — ${size}`;
-  return color || size || "";
-}
+import { resolveVariant } from "@/lib/variant-resolve";
 
 type CheckoutInput = {
   name: string;
@@ -44,12 +34,35 @@ export async function createOrder(input: CheckoutInput) {
   } = await cookieClient.auth.getUser();
   const customerId = sessionUser?.id ?? null;
 
+  // The quantity comes straight from the browser — a negative, fractional or
+  // absurd value would raise stock instead of lowering it, understate the
+  // total, and dodge the "more than one item needs an account" rule below.
+  if (input.items.some((i) => !Number.isInteger(i.quantity) || i.quantity < 1 || i.quantity > 99)) {
+    throw new Error("INVALID_QUANTITY");
+  }
+
   const totalQuantity = input.items.reduce((a, i) => a + i.quantity, 0);
   if (totalQuantity > 1 && !customerId) {
     throw new Error("ACCOUNT_REQUIRED");
   }
 
   const supabase = createServiceClient();
+
+  // Shipping is priced here from the store settings, never from the number
+  // the browser sends (which could be 0 or negative). Falls back to the
+  // same defaults the checkout page starts with if the settings columns
+  // (migration 0060) aren't there yet.
+  if (input.shippingZone !== "beirut" && input.shippingZone !== "outside_beirut") {
+    throw new Error("Invalid shipping zone");
+  }
+  const { data: shippingSettings } = await supabase
+    .from("site_settings")
+    .select("shipping_cost_beirut, shipping_cost_outside")
+    .maybeSingle();
+  const shippingCost =
+    input.shippingZone === "beirut"
+      ? Number(shippingSettings?.shipping_cost_beirut ?? 4)
+      : Number(shippingSettings?.shipping_cost_outside ?? 6);
 
   // Resolve each cart line to a concrete product/variant row, then
   // atomically check-and-decrement stock for the whole order in one
@@ -59,8 +72,8 @@ export async function createOrder(input: CheckoutInput) {
   // simply after the button-disabling check ran in an earlier page load.
   const productIds = [...new Set(input.items.map((i) => i.productId))];
   const [{ data: allVariants }, { data: productRows }] = await Promise.all([
-    supabase.from("product_variants").select("id, product_id, color_label, size_label, label, kind, price").in("product_id", productIds),
-    supabase.from("products").select("id, price, discount_percent, is_active, is_sold_out").in("id", productIds),
+    supabase.from("product_variants").select("id, product_id, color_label, size_label, label, kind, price, stock").in("product_id", productIds),
+    supabase.from("products").select("id, price, discount_percent, is_active, is_sold_out, base_color, base_size").in("id", productIds),
   ]);
   const productById = new Map((productRows ?? []).map((p) => [p.id, p]));
 
@@ -98,7 +111,11 @@ export async function createOrder(input: CheckoutInput) {
     let unitPrice: number | null = product.price;
     let hasVariantPrice = false;
     if (item.variant) {
-      const match = (allVariants ?? []).find((v) => v.product_id === item.productId && variantLabel(v) === item.variant);
+      const match = resolveVariant(
+        (allVariants ?? []).filter((v) => v.product_id === item.productId),
+        { color: product.base_color ?? null, size: product.base_size ?? null },
+        item.variant
+      );
       // A variant label with nothing matching it in the database (deleted
       // since it was added to the cart, say) can't be priced/stock-checked
       // safely — block the order for that line rather than guessing.
@@ -222,7 +239,7 @@ export async function createOrder(input: CheckoutInput) {
       // remaining_amount is only null for a card generated before this
       // column existed — treat it as never having been spent yet.
       const balance = Number(giftCard.remaining_amount ?? giftCard.credit_amount ?? 0);
-      const amountToUse = Math.min(balance, itemsTotal + input.shippingCost);
+      const amountToUse = Math.min(balance, itemsTotal + shippingCost);
       if (amountToUse <= 0) {
         await releaseReservations();
         throw new Error("GIFT_CARD_INVALID");
@@ -279,7 +296,7 @@ export async function createOrder(input: CheckoutInput) {
   }
 
   const discountAmount = Math.round(itemsTotal * (discountPercent / 100) * 100) / 100;
-  const total = Math.max(0, itemsTotal - discountAmount - giftCardDiscountAmount - giftCardCreditAmount + input.shippingCost);
+  const total = Math.max(0, itemsTotal - discountAmount - giftCardDiscountAmount - giftCardCreditAmount + shippingCost);
 
   const orderFields = {
     customer_name: input.name,
@@ -292,7 +309,7 @@ export async function createOrder(input: CheckoutInput) {
     longitude: input.longitude,
     payment_method: input.paymentMethod,
     shipping_zone: input.shippingZone,
-    shipping_cost: input.shippingCost,
+    shipping_cost: shippingCost,
     promo_code: redeemedCode,
     discount_amount: discountAmount,
     gift_card_code: claimedGiftCardCode,

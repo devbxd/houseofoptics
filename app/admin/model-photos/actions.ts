@@ -1,11 +1,13 @@
 "use server";
 
+import { requireAdmin } from "@/lib/require-admin";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { processImage } from "@/lib/process-image";
 import { uploadToR2 } from "@/lib/r2";
 
 export async function uploadModelPhoto(formData: FormData) {
+  await requireAdmin();
   const productId = String(formData.get("product_id") ?? "").trim();
   const file = formData.get("image") as File | null;
   if (!productId || !file || file.size === 0) return;
@@ -29,6 +31,7 @@ export async function uploadModelPhoto(formData: FormData) {
 }
 
 export async function deleteModelPhoto(id: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   await supabase.from("model_photos").delete().eq("id", id);
   revalidatePath("/admin/model-photos");

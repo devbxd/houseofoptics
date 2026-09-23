@@ -61,8 +61,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       .from("products")
       .select("id")
       .in("id", ids)
-      .then(({ data }) => {
-        const activeIds = new Set((data ?? []).map((r) => r.id));
+      .then(({ data, error }) => {
+        // A failed request says nothing about which products are still live —
+        // keep the cart as-is rather than treating "no answer" as "none left".
+        if (error || !data) return;
+        const activeIds = new Set(data.map((r) => r.id));
         setItems((prev) => prev.filter((i) => activeIds.has(i.productId)));
       });
     // Only ever needs to run once per session, right after the cart is

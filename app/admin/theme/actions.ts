@@ -1,9 +1,11 @@
 "use server";
 
+import { requireAdmin } from "@/lib/require-admin";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export async function updateTheme(formData: FormData) {
+  await requireAdmin();
   const accent = String(formData.get("accent_color") ?? "").trim();
   const dark = String(formData.get("dark_color") ?? "").trim();
   const banner = String(formData.get("banner_color") ?? "").trim();

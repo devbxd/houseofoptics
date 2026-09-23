@@ -1,5 +1,6 @@
 "use server";
 
+import { requireAdmin } from "@/lib/require-admin";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { processImage } from "@/lib/process-image";
@@ -16,6 +17,7 @@ async function uploadPhoto(file: File) {
 }
 
 export async function createTestimonial(formData: FormData) {
+  await requireAdmin();
   const authorName = String(formData.get("author_name") ?? "").trim();
   const quote = String(formData.get("quote") ?? "").trim();
   const ratingRaw = String(formData.get("rating") ?? "").trim();
@@ -52,6 +54,7 @@ export async function createTestimonial(formData: FormData) {
 }
 
 export async function deleteTestimonial(id: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   await supabase.from("testimonials").delete().eq("id", id);
   revalidatePath("/admin/testimonials");
@@ -60,6 +63,7 @@ export async function deleteTestimonial(id: string) {
 }
 
 export async function toggleTestimonial(id: string, isActive: boolean) {
+  await requireAdmin();
   const supabase = createServiceClient();
   await supabase.from("testimonials").update({ is_active: isActive }).eq("id", id);
   revalidatePath("/admin/testimonials");

@@ -1,11 +1,13 @@
 "use server";
 
+import { requireAdmin } from "@/lib/require-admin";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { createServiceClient } from "@/lib/supabase/server";
 import { HEADING_FONTS, BODY_FONTS, DEFAULT_HEADING_FONT, DEFAULT_BODY_FONT, DEFAULT_ACCENT_FONT } from "@/lib/fonts";
 
 export async function updateFonts(formData: FormData) {
+  await requireAdmin();
   const headingFontRaw = String(formData.get("heading_font") ?? "");
   const bodyFontRaw = String(formData.get("body_font") ?? "");
   const accentFontRaw = String(formData.get("accent_font") ?? "");

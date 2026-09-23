@@ -1,5 +1,6 @@
 "use server";
 
+import { requireAdmin } from "@/lib/require-admin";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/slugify";
@@ -7,6 +8,7 @@ import { processImage } from "@/lib/process-image";
 import { uploadToR2 } from "@/lib/r2";
 
 export async function createCategory(formData: FormData) {
+  await requireAdmin();
   const name = String(formData.get("name") ?? "").trim();
   const parentId = String(formData.get("parent_id") ?? "") || null;
   if (!name) return;
@@ -38,6 +40,7 @@ export async function createCategory(formData: FormData) {
 }
 
 export async function renameCategory(id: string, name: string) {
+  await requireAdmin();
   if (!name.trim()) return;
   const supabase = createServiceClient();
   await supabase.from("categories").update({ name: name.trim(), slug: slugify(name) }).eq("id", id);
@@ -50,6 +53,7 @@ export async function renameCategory(id: string, name: string) {
 // Lets the client set a custom photo for categories with no obvious product
 // photo to fall back to (e.g. "All Brands"), used on the homepage tile.
 export async function updateCategoryImage(formData: FormData): Promise<string> {
+  await requireAdmin();
   const categoryId = String(formData.get("category_id") ?? "");
   const file = formData.get("image") as File | null;
   if (!categoryId || !file || file.size === 0) throw new Error("No image selected.");
@@ -70,6 +74,7 @@ export async function updateCategoryImage(formData: FormData): Promise<string> {
 }
 
 export async function removeCategoryImage(categoryId: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   const { error } = await supabase.from("categories").update({ image_url: null }).eq("id", categoryId);
   if (error) throw new Error(error.message);
@@ -80,6 +85,7 @@ export async function removeCategoryImage(categoryId: string) {
 }
 
 export async function deleteCategory(id: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   const { error } = await supabase.from("categories").delete().eq("id", id);
   if (error) throw new Error(error.message);
@@ -95,6 +101,7 @@ export async function deleteCategory(id: string) {
 // up/down arrows unreliable. A full recompute is deterministic no matter
 // what the starting values look like.
 export async function setCategoryPosition(id: string, newIndex: number) {
+  await requireAdmin();
   const supabase = createServiceClient();
   const { data: current } = await supabase.from("categories").select("id, parent_id").eq("id", id).single();
   if (!current) return;

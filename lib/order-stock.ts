@@ -1,16 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { resolveVariant } from "@/lib/variant-resolve";
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
-
-// Mirrors variantLabel() in checkout/actions.ts — resolves each order line
-// back to a concrete product_variants row (if any) so the stock restore
-// hits the same row checkout_decrement_stock took it from.
-function variantLabel(v: { color_label: string | null; size_label: string | null; label?: string | null; kind?: string | null }) {
-  const color = v.color_label ?? (v.kind === "color" ? v.label : null) ?? null;
-  const size = v.size_label ?? (v.kind === "size" ? v.label : null) ?? null;
-  if (color && size) return `${color} — ${size}`;
-  return color || size || "";
-}
 
 // Gives back exactly the stock an order took — same atomic RPC used to
 // restore it when a checkout fails to save, just triggered by a
@@ -21,15 +12,24 @@ export async function restoreOrderStock(supabase: ServiceClient, orderId: string
   if (!items || items.length === 0) return;
 
   const productIds = [...new Set(items.map((i) => i.product_id).filter((v): v is string => !!v))];
-  const { data: allVariants } = productIds.length
-    ? await supabase.from("product_variants").select("id, product_id, color_label, size_label, label, kind").in("product_id", productIds)
-    : { data: [] as any[] };
+  const [{ data: allVariants }, { data: productRows }] = productIds.length
+    ? await Promise.all([
+        supabase.from("product_variants").select("id, product_id, color_label, size_label, label, kind, price, stock").in("product_id", productIds),
+        supabase.from("products").select("id, base_color, base_size").in("id", productIds),
+      ])
+    : [{ data: [] as any[] }, { data: [] as any[] }];
+  const productById = new Map((productRows ?? []).map((p: any) => [p.id, p]));
 
   const stockItems = items
     .filter((i) => i.product_id)
     .map((i) => {
+      const product: any = productById.get(i.product_id);
       const match = i.variant_label
-        ? (allVariants ?? []).find((v) => v.product_id === i.product_id && variantLabel(v) === i.variant_label)
+        ? resolveVariant(
+            (allVariants ?? []).filter((v: any) => v.product_id === i.product_id),
+            { color: product?.base_color ?? null, size: product?.base_size ?? null },
+            i.variant_label
+          )
         : null;
       return { product_id: i.product_id as string, variant_id: match?.id ?? null, quantity: i.quantity };
     });

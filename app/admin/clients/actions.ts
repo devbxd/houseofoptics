@@ -1,5 +1,6 @@
 "use server";
 
+import { requireAdmin } from "@/lib/require-admin";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { restoreOrderStock } from "@/lib/order-stock";
@@ -8,6 +9,7 @@ import { restoreOrderStock } from "@/lib/order-stock";
 // spin-wheel entries — so deleting one means deleting every order placed
 // under that email (order_items cascade automatically) plus any wheel wins.
 export async function deleteClient(email: string) {
+  await requireAdmin();
   const supabase = createServiceClient();
   const { data: orders } = await supabase.from("orders").select("id, status").eq("customer_email", email);
   for (const o of orders ?? []) {

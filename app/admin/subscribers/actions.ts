@@ -1,5 +1,6 @@
 "use server";
 
+import { requireAdmin } from "@/lib/require-admin";
 import { createServiceClient } from "@/lib/supabase/server";
 import { renderEmail, textToHtml } from "@/lib/email-template";
 import { SITE_URL } from "@/lib/site";
@@ -18,6 +19,7 @@ function chunk<T>(arr: T[], size: number): T[][] {
 }
 
 export async function sendBroadcast(formData: FormData) {
+  await requireAdmin();
   const subject = String(formData.get("subject") ?? "").trim();
   const message = String(formData.get("message") ?? "").trim();
   if (!subject || !message) return { sent: 0, error: "Subject and message are required" };

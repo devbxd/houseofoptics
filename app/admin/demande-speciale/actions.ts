@@ -1,9 +1,11 @@
 "use server";
 
+import { requireAdmin } from "@/lib/require-admin";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export async function updateSpecialRequestSettings(formData: FormData) {
+  await requireAdmin();
   const supabase = createServiceClient();
 
   const update = {
