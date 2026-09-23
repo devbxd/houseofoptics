@@ -108,7 +108,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
         extraBrandLinks={extraBrandLinks}
       />
 
-      <div className="mt-8 max-w-lg rounded-md border border-neutral-200 bg-white p-4">
+      <div className="mt-5 max-w-2xl rounded-md border border-neutral-200 bg-white p-4">
         <p className="mb-1 text-sm font-medium">Other colors</p>
         <p className="mb-3 text-xs text-neutral-500">
           Tag other products as different colors of this same model — each keeps its own name, price, stock,
@@ -118,7 +118,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
         <ColorLinksEditor productId={id} current={colorGroupRows ?? []} candidates={allProducts ?? []} />
       </div>
 
-      <div className="mt-8 max-w-lg rounded-md border border-neutral-200 bg-white p-4">
+      <div className="mt-5 max-w-2xl rounded-md border border-neutral-200 bg-white p-4">
         <p className="mb-1 text-sm font-medium">Related sunglasses</p>
         <p className="mb-3 text-xs text-neutral-500">
           Pick specific products to show under "Related products" on this product's page. Leave empty to keep

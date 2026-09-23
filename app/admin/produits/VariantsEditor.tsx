@@ -28,6 +28,8 @@ type SizeRow = {
   size: string;
   stock: string;
   price: string;
+  // Colors this size comes in. Empty = every color.
+  availableColors: string[];
 };
 
 type VariantData = {
@@ -38,6 +40,7 @@ type VariantData = {
   description?: string | null;
   image_url?: string | null;
   image_urls?: string[] | null;
+  available_colors?: string[] | null;
 };
 
 function emptyColorRow(): ColorRow {
@@ -45,15 +48,19 @@ function emptyColorRow(): ColorRow {
 }
 
 function emptySizeRow(): SizeRow {
-  return { key: crypto.randomUUID(), size: "", stock: "", price: "" };
+  return { key: crypto.randomUUID(), size: "", stock: "", price: "", availableColors: [] };
 }
 
 export function VariantsEditor({
   initial,
   allProducts,
+  baseColor = "",
 }: {
   initial: VariantData[];
   allProducts: { id: string; name: string }[];
+  // The product's main color (set above this editor) — it's a color too, so
+  // a size can be limited to it.
+  baseColor?: string;
 }) {
   // Rows saved the old way (both color AND size filled on the same row)
   // still submit correctly as-is — they're kept exactly as they were,
@@ -85,7 +92,14 @@ export function VariantsEditor({
         size: v.size_label ?? "",
         stock: v.stock?.toString() ?? "",
         price: v.price?.toString() ?? "",
+        availableColors: v.available_colors ?? [],
       }))
+  );
+
+  // Every color this product has right now, live as the owner types — what a
+  // size can be limited to.
+  const colorChoices = Array.from(
+    new Set([baseColor, ...colorRows.map((r) => r.color)].map((c) => c.trim()).filter(Boolean))
   );
 
   const newFilesInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -251,6 +265,7 @@ export function VariantsEditor({
                   moment it was picked (see uploadPhotoForRow), so only the
                   resulting URLs travel with the form. */}
               <input type="hidden" name="variant_row_key" value={row.key} />
+              <input type="hidden" name="variant_available_colors" value="" />
               <input type="hidden" name="variant_existing_images" value={JSON.stringify(row.existingImageUrls)} />
               <input type="hidden" name="variant_existing_image" value="" />
               <input
@@ -329,55 +344,99 @@ export function VariantsEditor({
         </div>
         <p className="mb-2 text-xs text-neutral-500">
           One row per size — price and stock are optional here too, only set them for a size priced or stocked
-          differently from the rest.
+          differently from the rest. If a size doesn&apos;t come in every color, tick the colors it does come in
+          (nothing ticked = every color). To limit the main size shown in the photos, add a row with that same size.
         </p>
 
         <div className="space-y-2">
-          {sizeRows.map((row) => (
-            <div key={row.key} className="flex gap-2 border border-neutral-200 p-3">
-              <input
-                name="variant_size"
-                value={row.size}
-                onChange={(e) => updateSize(row.key, { size: e.target.value })}
-                placeholder="Size (e.g. 52mm)"
-                className="flex-1 border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
-              />
-              <input type="hidden" name="variant_color" value="" />
-              <input
-                name="variant_stock"
-                type="number"
-                min={0}
-                value={row.stock}
-                onChange={(e) => updateSize(row.key, { stock: e.target.value })}
-                placeholder="Stock (optional)"
-                className="w-32 border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
-              />
-              <input
-                name="variant_price"
-                type="number"
-                step="0.01"
-                value={row.price}
-                onChange={(e) => updateSize(row.key, { price: e.target.value })}
-                placeholder="Price (optional)"
-                className="w-32 border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
-              />
-              <input type="hidden" name="variant_description" value="" />
-              <input type="hidden" name="variant_existing_image" value="" />
-              <input type="hidden" name="variant_row_key" value={row.key} />
-              <input type="hidden" name="variant_existing_images" value="" />
-              {/* Keeps this row contributing one entry to every variant_*
-                  field name — the save action matches all of them up by
-                  position, so every row must line up across every field. */}
-              <input type="file" name="variant_image" className="hidden" />
-              <button
-                type="button"
-                onClick={() => setSizeRows((r) => r.filter((r2) => r2.key !== row.key))}
-                className="px-2 text-neutral-400 hover:text-red-600"
-              >
-                ✕
-              </button>
-            </div>
-          ))}
+          {sizeRows.map((row) => {
+            // Ignore a saved color that's no longer one of this product's
+            // colors (renamed or removed above) so it can't linger unseen.
+            const selected = row.availableColors.filter((c) => colorChoices.includes(c));
+            return (
+              <div key={row.key} className="space-y-2 border border-neutral-200 p-3">
+                <div className="flex gap-2">
+                  <input
+                    name="variant_size"
+                    value={row.size}
+                    onChange={(e) => updateSize(row.key, { size: e.target.value })}
+                    placeholder="Size (e.g. 52mm)"
+                    className="flex-1 border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+                  />
+                  <input type="hidden" name="variant_color" value="" />
+                  <input
+                    name="variant_stock"
+                    type="number"
+                    min={0}
+                    value={row.stock}
+                    onChange={(e) => updateSize(row.key, { stock: e.target.value })}
+                    placeholder="Stock (optional)"
+                    className="w-32 border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+                  />
+                  <input
+                    name="variant_price"
+                    type="number"
+                    step="0.01"
+                    value={row.price}
+                    onChange={(e) => updateSize(row.key, { price: e.target.value })}
+                    placeholder="Price (optional)"
+                    className="w-32 border border-neutral-300 px-3 py-2 text-sm focus:border-brand-black focus:outline-none"
+                  />
+                  <input type="hidden" name="variant_description" value="" />
+                  <input type="hidden" name="variant_existing_image" value="" />
+                  <input type="hidden" name="variant_row_key" value={row.key} />
+                  <input type="hidden" name="variant_existing_images" value="" />
+                  <input type="hidden" name="variant_available_colors" value={JSON.stringify(selected)} />
+                  {/* Keeps this row contributing one entry to every variant_*
+                      field name — the save action matches all of them up by
+                      position, so every row must line up across every field. */}
+                  <input type="file" name="variant_image" className="hidden" />
+                  <button
+                    type="button"
+                    onClick={() => setSizeRows((r) => r.filter((r2) => r2.key !== row.key))}
+                    className="px-2 text-neutral-400 hover:text-red-600"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {colorChoices.length > 0 && (
+                  <div>
+                    <p className="mb-1 text-xs text-neutral-500">
+                      Colors this size comes in{" "}
+                      <span className="text-neutral-400">
+                        — {selected.length === 0 ? "none ticked = every color" : `${selected.length} of ${colorChoices.length}`}
+                      </span>
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {colorChoices.map((c) => {
+                        const on = selected.includes(c);
+                        return (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() =>
+                              updateSize(row.key, {
+                                availableColors: on ? selected.filter((x) => x !== c) : [...selected, c],
+                              })
+                            }
+                            className={`rounded-full border px-3 py-1 text-xs ${
+                              on
+                                ? "border-brand-black bg-brand-black text-white"
+                                : "border-neutral-300 text-neutral-600 hover:border-brand-black"
+                            }`}
+                          >
+                            {on ? "✓ " : ""}
+                            {c}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -417,6 +476,7 @@ export function VariantsEditor({
                     <input type="hidden" name="variant_description" value={v.description ?? ""} />
                     <input type="hidden" name="variant_existing_image" value={v.image_url ?? ""} />
                     <input type="hidden" name="variant_row_key" value={`legacy-${i}`} />
+                    <input type="hidden" name="variant_available_colors" value="" />
                     <input type="hidden" name="variant_existing_images" value="" />
                     <input type="file" name="variant_image" className="hidden" />
                   </div>

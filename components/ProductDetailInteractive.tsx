@@ -21,6 +21,8 @@ type VariantDetail = {
   description: string | null;
   image_url: string | null;
   image_urls?: string[] | null;
+  // Only set on a size row: the colors that size comes in (empty/null = all).
+  available_colors?: string[] | null;
 };
 
 function variantLabel(v: { color_label: string | null; size_label: string | null }) {
@@ -199,11 +201,29 @@ export function ProductDetailInteractive({
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
 
+  // A size can be limited to some of the product's colors (set per size in
+  // the dashboard). null = no limit, every color is offered.
+  function colorsForSize(size: string | null): string[] | null {
+    if (!size) return null;
+    const row = variants.find((v) => v.size_label === size && !v.color_label);
+    return row?.available_colors && row.available_colors.length > 0 ? row.available_colors : null;
+  }
+  const sizeColors = colorsForSize(selectedSize);
+  const selectableColors = sizeColors ? uniqueColors.filter((c) => sizeColors.includes(c)) : uniqueColors;
+
   function selectColor(color: string) {
     setSelectedColor(color);
   }
   function selectSize(size: string) {
     setSelectedSize(size);
+    // Changing size must never leave a color selected that this size doesn't
+    // come in — hop to the first color it does come in instead (preferring
+    // the current one, then the product's base color).
+    const allowed = colorsForSize(size);
+    if (allowed && selectedColor && !allowed.includes(selectedColor)) {
+      const options = uniqueColors.filter((c) => allowed.includes(c));
+      setSelectedColor(baseColor && options.includes(baseColor) ? baseColor : options[0] ?? selectedColor);
+    }
   }
 
   // An exact (color + size) row — from an older product entered the
@@ -341,9 +361,9 @@ export function ProductDetailInteractive({
           zoomLabel={t["product.zoom"]}
         />
 
-        {variants.length > 0 && uniqueColors.length > 0 && (
+        {variants.length > 0 && selectableColors.length > 0 && (
           <ColorSwatches
-            colors={uniqueColors}
+            colors={selectableColors}
             variants={variants}
             fallbackImage={images[0]?.url ?? null}
             selected={selectedColor}
@@ -483,7 +503,7 @@ export function ProductDetailInteractive({
           </div>
         )}
 
-        {variants.length > 0 && uniqueColors.length > 0 && (
+        {variants.length > 0 && selectableColors.length > 0 && (
           <div>
             <p className="mb-1 mt-4 text-sm text-neutral-600">
               {t["product.color"]}
@@ -491,7 +511,7 @@ export function ProductDetailInteractive({
             </p>
             <VariantDropdown
               placeholder={t["product.chooseColor"]}
-              options={uniqueColors}
+              options={selectableColors}
               selected={selectedColor}
               disabledOptions={new Set()}
               onSelect={selectColor}
