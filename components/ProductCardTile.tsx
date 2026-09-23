@@ -1,8 +1,34 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ProductCard } from "@/lib/products";
+import { colorLabelToSwatch } from "@/lib/color-swatch";
 import { WishlistButton } from "./WishlistButton";
 import { AddToCartButton } from "./AddToCartButton";
+
+// Small dot row showing which colors this product comes in, straight from
+// whatever the dashboard has set on its variants. Only worth showing once
+// there's an actual choice to signal; capped so a product with a dozen
+// colors doesn't turn into a messy strip.
+const MAX_VISIBLE_DOTS = 5;
+
+function ColorDots({ colors }: { colors: string[] }) {
+  if (colors.length < 2) return null;
+  const visible = colors.slice(0, MAX_VISIBLE_DOTS);
+  const extra = colors.length - visible.length;
+  return (
+    <div className="mt-1.5 flex items-center justify-center gap-1">
+      {visible.map((color) => (
+        <span
+          key={color}
+          title={color}
+          className="h-2.5 w-2.5 rounded-full ring-1 ring-inset ring-black/10"
+          style={{ backgroundColor: colorLabelToSwatch(color) }}
+        />
+      ))}
+      {extra > 0 && <span className="text-[10px] leading-none text-neutral-400">+{extra}</span>}
+    </div>
+  );
+}
 
 // The single product card used everywhere a product is shown as a tile —
 // grids (ProductGrid) and horizontal auto-scrolling rows (ProductCarousel)
@@ -66,6 +92,7 @@ export function ProductCardTile({
       </div>
       <div className="mt-3 text-center">
         <p className="text-sm text-neutral-800 group-hover:text-brand-red">{displayName}</p>
+        {p.colors && <ColorDots colors={p.colors} />}
         {hasDiscount ? (
           <p className="mt-1 space-x-2 text-sm">
             <span className="text-neutral-400 line-through">${Number(p.price).toFixed(2)}</span>

@@ -23,6 +23,10 @@ export type ProductCard = {
   // card represents one specific color of it: its own photo/price/stock,
   // and a link that opens the product pre-selected to that color.
   variantColor?: string | null;
+  // Every distinct product_variants.color_label set on this product in the
+  // dashboard — drives the small color-dot row on listing cards. Empty/
+  // absent when the product has no colored variants.
+  colors?: string[];
 };
 
 const PAGE_SIZE = 24;
@@ -108,7 +112,7 @@ async function fetchProducts(
   let query = supabase
     .from("products")
     .select(
-      "id, name, slug, price, discount_percent, stock, is_sold_out, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order)",
+      "id, name, slug, price, discount_percent, stock, is_sold_out, category:categories(name, slug), brand:brands(name, slug), images:product_images(url, sort_order), variants:product_variants(color_label)",
       { count: "exact" }
     )
     .eq("is_active", true)
@@ -121,12 +125,15 @@ async function fetchProducts(
 
   const { data, count, error } = await query;
   logIfError("Failed to load products:", error);
-  const products = (data as any[])?.map((p) => ({
+  const products = (data as any[])?.map(({ variants, ...p }) => ({
     ...p,
     stock: p.is_sold_out ? 0 : p.stock,
     category: Array.isArray(p.category) ? p.category[0] ?? null : p.category,
     brand: Array.isArray(p.brand) ? p.brand[0] ?? null : p.brand,
     images: (p.images ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order),
+    colors: Array.from(
+      new Set((variants ?? []).map((v: any) => v.color_label).filter((c: unknown): c is string => !!c))
+    ) as string[],
   })) ?? [];
 
   return { products, total: count ?? 0, pageSize };
@@ -138,6 +145,32 @@ async function fetchProducts(
 // was fixed) and a stuck-stale storefront is worse than the cost of
 // querying fresh every time.
 export const listProducts = fetchProducts;
+
+// Deterministic seeded shuffle (mulberry32) so every request within the
+// same hour sees the same "Recommended for you" order, but it changes
+// on the hour boundary without needing a cron job or stored state.
+function seededShuffle<T>(items: T[], seed: number): T[] {
+  let state = seed >>> 0;
+  const rand = () => {
+    state |= 0;
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+export function pickHourlyRotation<T>(items: T[], count: number): T[] {
+  if (items.length <= count) return items;
+  const hourSeed = Math.floor(Date.now() / (1000 * 60 * 60));
+  return seededShuffle(items, hourSeed).slice(0, count);
+}
 
 // Search results show one card per color a matched product comes in (each
 // with that color's own photo/price/stock), plus the product's own base

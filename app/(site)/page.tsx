@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { listProducts, NEW_DROP_CATEGORY_SLUG, ALL_BRANDS_CATEGORY_SLUG } from "@/lib/products";
+import { listProducts, pickHourlyRotation, NEW_DROP_CATEGORY_SLUG, ALL_BRANDS_CATEGORY_SLUG } from "@/lib/products";
 import { getCategories, getSiteSettings, localizedHeroTitle, localizedHeroEyebrow, localizedHeroSubtitle } from "@/lib/settings";
 import {
   getBrands,
@@ -25,7 +25,7 @@ import { getServerDict } from "@/lib/locale-server";
 export default async function HomePage() {
   const [heroPool, categories, brands, { locale, t }, testimonials, feedbackProducts, settings, normalizedModelPhotos] =
     await Promise.all([
-      listProducts({}, 1, 12),
+      listProducts({}, 1, 24),
       getCategories(),
       getBrands(),
       getServerDict(),
@@ -201,7 +201,7 @@ export default async function HomePage() {
 
       {heroPool.products.length > 0 && (
         <section className="mx-auto max-w-6xl px-4 py-12 md:px-6 md:py-16">
-          <ProductCarousel products={heroPool.products.slice(0, 8)} title={t["home.recommendedForYou"]} t={t} />
+          <ProductCarousel products={pickHourlyRotation(heroPool.products, 8)} title={t["home.recommendedForYou"]} t={t} />
         </section>
       )}
 
